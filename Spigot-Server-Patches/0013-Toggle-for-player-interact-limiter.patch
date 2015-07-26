@@ -1,14 +1,14 @@
-From 53adc0879fee781bd8d18878205950fb525ed4bb Mon Sep 17 00:00:00 2001
+From de755644734c4d38a0f6994b0c14bff2983216b6 Mon Sep 17 00:00:00 2001
 From: Zach Brown <zach.brown@destroystokyo.com>
 Date: Sat, 7 Mar 2015 21:07:10 -0600
 Subject: [PATCH] Toggle for player interact limiter
 
 
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index a6d8b96..52247c0 100644
+index 68358e9..7ea74c0 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -652,7 +652,8 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+@@ -661,7 +661,8 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
          PlayerConnectionUtils.ensureMainThread(packetplayinblockplace, this, this.player.u());
          WorldServer worldserver = this.minecraftServer.getWorldServer(this.player.dimension);
          boolean throttled = false;
