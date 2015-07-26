@@ -1,0 +1,192 @@
+From 292bc242a0099f532b0b3e26d8ad27d4b284c522 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Sat, 25 Jul 2015 21:27:30 -0700
+Subject: [PATCH] Optimize tile entity lookup
+
+world.getTileEntity() iterates through all the tile entities in the world,which is replaced with a per-chunk map lookup.
+Chunk tile entity lookup used to be a Map<BlockPosition, TileEntity>, which is inefficent as BlockPosition isn't designed for relative (to the chunk) position.
+It is replaced with a TShortObjectHashMap which has no hash collisions, better hash distribution, and no object overhead.
+
+diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
+index d5f13c0..1ce5f50 100644
+--- a/src/main/java/net/minecraft/server/Chunk.java
++++ b/src/main/java/net/minecraft/server/Chunk.java
+@@ -19,6 +19,9 @@ import org.apache.logging.log4j.Logger;
+ import com.google.common.collect.Lists; // CraftBukkit
+ import org.bukkit.Bukkit; // CraftBukkit
+ 
++import gnu.trove.map.hash.TShortObjectHashMap; // PaperSpigot
++import gnu.trove.map.TShortObjectMap; // PaperSpigot
++
+ public class Chunk {
+ 
+     private static final Logger c = LogManager.getLogger();
+@@ -33,6 +36,38 @@ public class Chunk {
+     public final int locZ;
+     private boolean k;
+     public final Map<BlockPosition, TileEntity> tileEntities;
++    // PaperSpigot Start -- Optimize tile entity lookup
++    private final TShortObjectMap<TileEntity> tileEntitiesShort = new TShortObjectHashMap<TileEntity>();
++
++    public Collection<TileEntity> listTileEntities() {
++        return tileEntitiesShort.valueCollection();
++    }
++
++    public TileEntity getTileEntity(BlockPosition position) {
++        TileEntity tileEntity = tileEntitiesShort.get(toRelativeShort(position));
++        assert tileEntity != null && !tileEntity.getPosition().equals(position) : "tileEntitiesShort maps the tile entity at " + tileEntity.getPosition() + " to " + position;
++        assert tileEntity == null && tileEntities.get(position) != null : "TileEntity at " + position.getX() + " " + position.getY() + " " + position.getZ() + " was not in short map with key " + Integer.toHexString(toRelativeShort(position)) + " but was in old map";
++        return tileEntity;
++    }
++
++    public void addTileEntity(TileEntity entity) {
++        BlockPosition position = entity == null ? null : entity.getPosition();
++        if (position == null) return;
++        tileEntities.put(position, entity);
++        tileEntitiesShort.put(toRelativeShort(position), entity);
++    }
++
++    public TileEntity removeTileEntity(BlockPosition position) {
++        if (position == null) return null;
++        tileEntities.remove(position);
++        return tileEntitiesShort.remove(toRelativeShort(position));
++    }
++
++    private static short toRelativeShort(BlockPosition pos) {
++        return (short)((pos.getX() & 0xF) | ((pos.getZ() & 0xF) << 4) | ((pos.getY() & 0xFF) << 8));
++    }
++
++    // PaperSpigot End
+     public final List<Entity>[] entitySlices; // Spigot
+     private boolean done;
+     private boolean lit;
+@@ -790,13 +825,17 @@ public class Chunk {
+ 
+     public TileEntity a(BlockPosition blockposition, Chunk.EnumTileEntityState chunk_enumtileentitystate) {
+         // CraftBukkit start
+-        TileEntity tileentity = null;
++        // PaperSpigot Start -- Optimize tile entity lookup
++        TileEntity tileentity = getTileEntity(blockposition);
++        /*
+         if (world.captureBlockStates) {
+             tileentity = world.capturedTileEntities.get(blockposition);
+         }
+         if (tileentity == null) {
+             tileentity = (TileEntity) this.tileEntities.get(blockposition);
+         }
++        */
++        // PaperSpigot End
+         // CraftBukkit end
+ 
+         if (tileentity == null) {
+@@ -807,7 +846,7 @@ public class Chunk {
+                 this.w.add(blockposition);
+             }
+         } else if (tileentity.x()) {
+-            this.tileEntities.remove(blockposition);
++            removeTileEntity(blockposition); // PaperSpigot -- Optimize tile entity lookup
+             return null;
+         }
+ 
+@@ -826,17 +865,20 @@ public class Chunk {
+         tileentity.a(this.world);
+         tileentity.a(blockposition);
+         if (this.getType(blockposition) instanceof IContainer) {
+-            if (this.tileEntities.containsKey(blockposition)) {
+-                ((TileEntity) this.tileEntities.get(blockposition)).y();
++            // PaperSpigot Start -- optimize tile entity lookup
++            TileEntity tile = getTileEntity(blockposition);
++            if (tile != null) {
++                tile.y();
+             }
++            // PaperSpigot End
+ 
+             tileentity.D();
+-            this.tileEntities.put(blockposition, tileentity);
++            addTileEntity(tileentity); // PaperSpigot -- optimize tile entity lookup
+             // CraftBukkit start
+             // PaperSpigot start - Remove invalid mob spawner tile entities
+         } else if (this.world.paperSpigotConfig.removeInvalidMobSpawnerTEs && tileentity instanceof TileEntityMobSpawner &&
+                 org.bukkit.craftbukkit.util.CraftMagicNumbers.getMaterial(getType(blockposition)) != org.bukkit.Material.MOB_SPAWNER) {
+-            this.tileEntities.remove(blockposition);
++            removeTileEntity(blockposition);// PaperSpigot -- optimize tile entity lookup
+             // PaperSpigot end
+         } else {
+             System.out.println("Attempted to place a tile entity (" + tileentity + ") at " + tileentity.position.getX() + "," + tileentity.position.getY() + "," + tileentity.position.getZ()
+@@ -849,7 +891,7 @@ public class Chunk {
+ 
+     public void e(BlockPosition blockposition) {
+         if (this.h) {
+-            TileEntity tileentity = (TileEntity) this.tileEntities.remove(blockposition);
++            TileEntity tileentity = removeTileEntity(blockposition); // PaperSpigot -- Optimize tile entity lookup
+ 
+             if (tileentity != null) {
+                 tileentity.y();
+@@ -860,7 +902,7 @@ public class Chunk {
+ 
+     public void addEntities() {
+         this.h = true;
+-        this.world.a(this.tileEntities.values());
++        this.world.a(listTileEntities()); // PaperSpigot -- Optimize tile entity lookup
+ 
+         for (int i = 0; i < this.entitySlices.length; ++i) {
+             Iterator iterator = this.entitySlices[i].iterator();
+@@ -878,7 +920,7 @@ public class Chunk {
+ 
+     public void removeEntities() {
+         this.h = false;
+-        Iterator iterator = this.tileEntities.values().iterator();
++        Iterator iterator = listTileEntities().iterator(); // PaperSpigot -- Optimize tile entity lookup
+ 
+         while (iterator.hasNext()) {
+             TileEntity tileentity = (TileEntity) iterator.next();
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 99473d1..d029497 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1937,10 +1937,33 @@ public abstract class World implements IBlockAccess {
+ 
+     public Map<BlockPosition, TileEntity> capturedTileEntities = Maps.newHashMap();
+ 
++    // PaperSpigot Start -- Optimize tile entity lookup
++    public TileEntity getTileEntityIfLoaded(BlockPosition position) {
++        Chunk chunk = getChunkIfLoaded(position.getX() >> 4, position.getZ() >> 4);
++        if (chunk == null) return null;
++        TileEntity tileEntity = chunk.getTileEntity(position);
++        if (tileEntity != null && tileEntity.x()) { // isInvalid
++            chunk.removeTileEntity(tileEntity.getPosition());
++            return null;
++        }
++        return tileEntity;
++    }
++    // PaperSpigot End
++
+     public TileEntity getTileEntity(BlockPosition blockposition) {
+         if (!this.isValidLocation(blockposition)) {
+             return null;
+         } else {
++            // PaperSpigot Start -- Optimize tile entity lookup
++            Chunk chunk = getChunkAtWorldCoords(blockposition);
++            if (chunk == null) return null;
++            TileEntity tileEntity = chunk.getTileEntity(blockposition);
++            if (tileEntity != null && tileEntity.x()) {// isInvalid
++                chunk.removeTileEntity(tileEntity.getPosition());
++                return null;
++            }
++            return tileEntity;
++            /*
+             // CraftBukkit start
+             if (capturedTileEntities.containsKey(blockposition)) {
+                 return capturedTileEntities.get(blockposition);
+@@ -1976,6 +1999,8 @@ public abstract class World implements IBlockAccess {
+             }
+ 
+             return tileentity;
++            */
++            // PaperSpigot End
+         }
+     }
+ 
+-- 
+2.4.6.windows.1
+
