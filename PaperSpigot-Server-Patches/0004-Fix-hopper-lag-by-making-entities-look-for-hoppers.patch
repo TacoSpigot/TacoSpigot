@@ -1,4 +1,4 @@
-From 6259c6e621ce95b5c8f9e2b9d28ff6610ccad036 Mon Sep 17 00:00:00 2001
+From fd33652364097042b790709bc74535de1e266f2d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -324,5 +324,5 @@ index 0000000..116a429
 +    public boolean acceptItem(EntityItem entityItem);
 +}
 -- 
-1.8.3.msysgit.0
+2.4.6.windows.1
 

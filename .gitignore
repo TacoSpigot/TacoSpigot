@@ -36,6 +36,8 @@ manifest.mf
 *~
 
 # other stuff
+TacoSpigot-API
+TacoSpigot-Server
 Spigot-API
 Spigot-Server
 PaperSpigot-Server

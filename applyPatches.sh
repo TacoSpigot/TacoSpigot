@@ -48,3 +48,8 @@ echo
 echo "Applying PaperSpigot patches to Spigot-Server and Spigot-API"
 echo
 applyPatch Spigot-API PaperSpigot-API && applyPatch Spigot-Server PaperSpigot-Server
+echo
+echo "Applying TacoSpigot patches to PaperSpigot-Server and PaperSpigot-API"
+echo
+applyPatch PaperSpigot-API TacoSpigot-API
+applyPatch PaperSpigot-Server TacoSpigot-Server

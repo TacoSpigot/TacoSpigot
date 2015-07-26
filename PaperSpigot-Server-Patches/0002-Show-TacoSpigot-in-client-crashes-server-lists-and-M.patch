@@ -1,0 +1,23 @@
+From fe9054aee4538fe09760b8fc641a94704e9c9088 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Sat, 7 Mar 2015 22:55:25 -0600
+Subject: [PATCH] Show 'TacoSpigot' in client crashes, server lists, and Mojang
+ stats
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 5c3518a..656c15b 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1075,7 +1075,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+     }
+ 
+     public String getServerModName() {
+-        return "PaperSpigot"; // PaperSpigot - PaperSpigot > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
++        return "TacoSpigot"; // TacoSpigot - TacoSpigot // PaperSpigot - PaperSpigot > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
+     }
+ 
+     public CrashReport b(CrashReport crashreport) {
+-- 
+2.4.6.windows.1
+

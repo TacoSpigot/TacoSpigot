@@ -1,0 +1,38 @@
+From dae615411e879c927af37179a80988a6ef508157 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Tue, 6 Jan 2015 22:12:31 -0600
+Subject: [PATCH] POM changes
+
+
+diff --git a/pom.xml b/pom.xml
+index 0fcecd9..f9df576 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -4,18 +4,18 @@
+     <modelVersion>4.0.0</modelVersion>
+ 
+     <parent>
+-        <groupId>org.github.paperspigot</groupId>
+-        <artifactId>paperspigot-parent</artifactId>
++        <groupId>net.techcable.tacospigot</groupId>
++        <artifactId>parent</artifactId>
+         <version>dev-SNAPSHOT</version>
+     </parent>
+ 
+-    <groupId>org.github.paperspigot</groupId>
+-    <artifactId>paperspigot-api</artifactId>
++    <groupId>net.techcable.tacospigot</groupId>
++    <artifactId>api</artifactId>
+     <version>1.8.7-R0.1-SNAPSHOT</version>
+     <packaging>jar</packaging>
+ 
+-    <name>PaperSpigot-API</name>
+-    <url>https://hub.spigotmc.org/stash/projects/PAPER/</url>
++    <name>TacoSpigot-API</name>
++    <url>https://github.com/TacoSpigot</url>
+     <description>An enhanced plugin API for Minecraft servers.</description>
+ 
+     <properties>
+-- 
+2.4.6.windows.1
+
