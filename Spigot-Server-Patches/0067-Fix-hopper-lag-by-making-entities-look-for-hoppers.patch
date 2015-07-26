@@ -1,0 +1,328 @@
+From 6259c6e621ce95b5c8f9e2b9d28ff6610ccad036 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Fri, 24 Jul 2015 16:20:18 -0700
+Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
+
+Every tick hoppers try and find an inventory to extract from, if no tile
+entity is above the hopper (which there often isn't) it will do a bounding
+box search for minecart chests and minecart hoppers.
+If it can't find an inventory, it will then look for a dropped item, which is another bounding box search.
+This patch eliminates that expensive check by having dropped items and minecart hoppers/chests look for hoppers instead.
+Hoppers are tile entitys meaning you can do a few simple map lookups (7 max) to find the nearest hopper in range.
+Pushing out of hoppers causes a bouding box lookup, which this patch replaces with a map lookup.
+This patch may cause problems if you have an insane amout of dropped items, which is why it can be disabled in the configuration.
+
+diff --git a/src/main/java/net/minecraft/server/EntityItem.java b/src/main/java/net/minecraft/server/EntityItem.java
+index abd85b0..b49a30d 100644
+--- a/src/main/java/net/minecraft/server/EntityItem.java
++++ b/src/main/java/net/minecraft/server/EntityItem.java
+@@ -4,6 +4,7 @@ import java.util.Iterator;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.bukkit.event.player.PlayerPickupItemEvent; // CraftBukkit
++import org.github.paperspigot.hopper.AcceptorUtils; // PaperSpigot
+ 
+ public class EntityItem extends Entity {
+ 
+@@ -59,6 +60,7 @@ public class EntityItem extends Entity {
+             this.die();
+         } else {
+             super.t_();
++            if (AcceptorUtils.acceptItemEntity(this)) return; // PaperSpigot
+             // CraftBukkit start - Use wall time for pickup and despawn timers
+             int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
+             if (this.pickupDelay != 32767) this.pickupDelay -= elapsedTicks;
+@@ -124,6 +126,7 @@ public class EntityItem extends Entity {
+     // Spigot start - copied from above
+     @Override
+     public void inactiveTick() {
++        if (AcceptorUtils.acceptItemEntity(this)) return; // PaperSpigot
+         // CraftBukkit start - Use wall time for pickup and despawn timers
+         int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
+         this.pickupDelay -= elapsedTicks;
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartContainer.java b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
+index 17b5714..5b30fb3 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartContainer.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
+@@ -7,6 +7,7 @@ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.entity.HumanEntity;
+ import org.bukkit.inventory.InventoryHolder;
+ // CraftBukkit end
++import org.github.paperspigot.hopper.AcceptorUtils; // PaperSpigot
+ 
+ public abstract class EntityMinecartContainer extends EntityMinecartAbstract implements ITileInventory {
+ 
+@@ -60,6 +61,20 @@ public abstract class EntityMinecartContainer extends EntityMinecartAbstract imp
+ 
+     }
+ 
++    // PaperSpigot Start
++    @Override
++    public void t_() {
++        super.inactiveTick();
++        AcceptorUtils.acceptItem(this, this);
++    }
++
++    @Override
++    public void inactiveTick() {
++        super.inactiveTick();
++        AcceptorUtils.acceptItem(this, this);
++    }
++    // PaperSpigot End
++
+     public ItemStack getItem(int i) {
+         return this.items[i];
+     }
+diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
+index 1553656..f4576b4 100644
+--- a/src/main/java/net/minecraft/server/TileEntityHopper.java
++++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
+@@ -11,13 +11,47 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
+ import org.bukkit.event.inventory.InventoryPickupItemEvent;
+ import org.bukkit.inventory.Inventory;
+ // CraftBukkit end
++// PaperSpigot Start
++import org.github.paperspigot.hopper.AcceptorUtils;
++import org.github.paperspigot.hopper.ItemAcceptor;
++// PaperSpigot End
+ 
+-public class TileEntityHopper extends TileEntityContainer implements IHopper, IUpdatePlayerListBox {
++public class TileEntityHopper extends TileEntityContainer implements IHopper, IUpdatePlayerListBox, ItemAcceptor {
+ 
+     private ItemStack[] items = new ItemStack[5];
+     private String f;
+     private int g = -1;
+ 
++    // PaperSpigot Start -- Have items push themselves into the hopper instead of the hopper pulling them in
++
++    @Override
++    public boolean acceptItem(EntityItem entityItem) {
++        if (!isWantItem()) return false;
++        boolean didAccept = a(this, entityItem);
++        if (didAccept) onAccept();
++        return didAccept;
++    }
++
++    @Override
++    public boolean isWantItem() {
++        return !n() && !this.q() && BlockHopper.f(this.u());
++    }
++
++    @Override
++    public boolean acceptItem(IInventory inventory, int itemIndex, EnumDirection takingFrom) {
++        if (!isWantItem()) return false;
++        boolean didAccept = a(this, inventory, itemIndex, takingFrom);
++        if (didAccept) onAccept();
++        return didAccept;
++    }
++
++    private void onAccept() {
++        this.d(world.spigotConfig.hopperTransfer);
++        this.update();
++    }
++
++    // PaperSpigot End
++
+     // CraftBukkit start - add fields and methods
+     public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
+     private int maxStack = MAX_STACK;
+@@ -174,7 +208,27 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+             --this.g;
+             if (!this.n()) {
+                 this.d(0);
+-                this.m();
++                // PaperSpigot Start
++                if (!world.paperSpigotConfig.isHopperPushBased) {
++                    this.m(); // m() handles everything
++                } else if (BlockHopper.f(this.u())) { // Otherwise entities look for us and we look for tiles
++                    TileEntity above = world.getTileEntityIfLoaded(getPosition().up());
++                    boolean needsUpdate = false;
++
++                    if (!this.p()) {
++                        needsUpdate = this.r();
++                    }
++
++                    if (above != null && above instanceof IInventory) {
++                        needsUpdate = AcceptorUtils.acceptItem(this, (IInventory)above) || needsUpdate;
++                    }
++
++                    if (needsUpdate) {
++                        this.d(world.spigotConfig.hopperTransfer);
++                        this.update();
++                    }
++                }
++                // PaperSpigot End
+             }
+ 
+         }
+@@ -236,7 +290,10 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+     }
+ 
+     private boolean r() {
+-        IInventory iinventory = this.H();
++        // PaperSpigot Start -- Don't use inefficient H() which does another bounding box search
++        TileEntity tile = getWorld().getTileEntityIfLoaded(getPosition().shift(BlockHopper.b(this.u())));
++        IInventory iinventory = tile instanceof IInventory ? (IInventory) tile : null;
++        // PaperSpigot End
+ 
+         if (iinventory == null) {
+             return false;
+@@ -341,7 +398,11 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+         return true;
+     }
+ 
++    // PaperSpigot Start -- Depreciated old pull based method, and throw exception if is item acceptor
++    @Deprecated
+     public static boolean a(IHopper ihopper) {
++        if (!ihopper.getWorld().paperSpigotConfig.isHopperPushBased && ihopper instanceof ItemAcceptor) throw new AssertionError("ItemAcceptors should not be using TileEntityHopper.a(IHopper)");
++        // PaperSpigot End
+         IInventory iinventory = b(ihopper);
+ 
+         if (iinventory != null) {
+diff --git a/src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java b/src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java
+index cde11b2..af3e3b5 100644
+--- a/src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java
++++ b/src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java
+@@ -396,4 +396,8 @@ public class PaperSpigotWorldConfig
+     {
+         cacheChunkMaps = getBoolean( "cache-chunk-maps", false );
+     }
++
++    public boolean isHopperPushBased;
++    private void isPushBased() { isHopperPushBased = getBoolean("hopper.push-based", true); }
++
+ }
+diff --git a/src/main/java/org/github/paperspigot/hopper/AcceptorUtils.java b/src/main/java/org/github/paperspigot/hopper/AcceptorUtils.java
+new file mode 100644
+index 0000000..c56aa3c
+--- /dev/null
++++ b/src/main/java/org/github/paperspigot/hopper/AcceptorUtils.java
+@@ -0,0 +1,108 @@
++package org.github.paperspigot.hopper;
++
++import java.util.ArrayList;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Set;
++
++import net.minecraft.server.BlockPosition;
++import net.minecraft.server.Entity;
++import net.minecraft.server.EntityItem;
++import net.minecraft.server.EnumDirection;
++import net.minecraft.server.IInventory;
++import net.minecraft.server.IWorldInventory;
++import net.minecraft.server.TileEntity;
++import net.minecraft.server.World;
++
++import com.google.common.collect.ImmutableList;
++
++public class AcceptorUtils {
++
++    public static boolean acceptItem(TileEntity entity, IInventory inventory) {
++        if (!entity.getWorld().paperSpigotConfig.isHopperPushBased) return false;
++        ImmutableList<ItemAcceptor> acceptors = getAcceptors(entity.getWorld(), entity.getPosition());
++        return acceptItem(acceptors, inventory);
++    }
++
++    public static boolean acceptItem(Entity entity, IInventory inventory) {
++        if (!entity.getWorld().paperSpigotConfig.isHopperPushBased) return false;
++        ImmutableList<ItemAcceptor> acceptors = getAcceptors(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
++        return acceptItem(acceptors, inventory);
++    }
++
++
++    public static boolean acceptItemEntity(EntityItem entity) {
++        if (!entity.getWorld().paperSpigotConfig.isHopperPushBased) return false;
++        if (!entity.isAlive()) return false;
++        ImmutableList<ItemAcceptor> acceptors = getAcceptors(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
++        for (ItemAcceptor acceptor : acceptors) {
++            if (acceptor.acceptItem(entity)) return true;
++        }
++        return false;
++    }
++
++    private static boolean acceptItem(ImmutableList<ItemAcceptor> acceptors, IInventory inventory) {
++        for (ItemAcceptor acceptor : acceptors) {
++            if (acceptItem(acceptor, inventory)) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    // Get the acceptors
++
++    private static boolean acceptItem(ItemAcceptor acceptor, IInventory inventory) {
++        if (!acceptor.isWantItem()) return false;
++        EnumDirection direction = EnumDirection.DOWN;
++        if (inventory instanceof IWorldInventory) {
++            IWorldInventory iworldinventory = (IWorldInventory) inventory;
++            int[] aint = iworldinventory.getSlotsForFace(direction);
++
++            for (int i = 0; i < aint.length; ++i) {
++                if (acceptor.acceptItem(inventory, aint[i], direction)) {
++                    return true;
++                }
++            }
++        } else {
++            int j = inventory.getSize();
++
++            for (int k = 0; k < j; ++k) {
++                if (acceptor.acceptItem(inventory, k, direction)) {
++                    return true;
++                }
++            }
++        }
++        return false;
++    }
++
++    // Finding the acceptors
++
++    private static ImmutableList<ItemAcceptor> getAcceptors(World world, double x, double y, double z) {
++        List<ItemAcceptor> acceptors = new ArrayList<ItemAcceptor>(7);
++        // Vanilla checks for all items in a 0.5 block range, so we have to check for all hoppers in a 0.5 block range
++        // This is a much simpler check and is the main benefit of our optimization
++        double range = 0.5;
++        Set<BlockPosition> positions = new HashSet<BlockPosition>(7);
++        positions.add(new BlockPosition(x, y, z));
++        positions.add(new BlockPosition(x + 0.5, y, z));
++        positions.add(new BlockPosition(x, y + 0.5, z));
++        positions.add(new BlockPosition(x, y, z + 0.5));
++        positions.add(new BlockPosition(x - 0.5, y, z));
++        positions.add(new BlockPosition(x, y - 0.5, z));
++        positions.add(new BlockPosition(x, y, z - 0.5));
++        for (BlockPosition position : positions) {
++            TileEntity tile = world.getTileEntityIfLoaded(position);
++            if (tile == null || !(tile instanceof ItemAcceptor)) continue;
++            acceptors.add((ItemAcceptor) tile);
++        }
++        return ImmutableList.copyOf(acceptors);
++    }
++
++    private static ImmutableList<ItemAcceptor> getAcceptors(World world, BlockPosition position) {
++        TileEntity tile = world.getTileEntityIfLoaded(position);
++        if (tile == null || !(tile instanceof ItemAcceptor)) return ImmutableList.of();
++        return ImmutableList.of((ItemAcceptor)tile);
++    }
++
++}
+diff --git a/src/main/java/org/github/paperspigot/hopper/ItemAcceptor.java b/src/main/java/org/github/paperspigot/hopper/ItemAcceptor.java
+new file mode 100644
+index 0000000..116a429
+--- /dev/null
++++ b/src/main/java/org/github/paperspigot/hopper/ItemAcceptor.java
+@@ -0,0 +1,11 @@
++package org.github.paperspigot.hopper;
++
++import net.minecraft.server.EntityItem;
++import net.minecraft.server.EnumDirection;
++import net.minecraft.server.IInventory;
++
++public interface ItemAcceptor {
++    public boolean isWantItem();
++    public boolean acceptItem(IInventory inventory, int itemIndex, EnumDirection takingFrom);
++    public boolean acceptItem(EntityItem entityItem);
++}
+-- 
+1.8.3.msysgit.0
+
