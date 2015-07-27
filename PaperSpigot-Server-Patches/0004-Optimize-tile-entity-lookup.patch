@@ -1,4 +1,4 @@
-From 2d6c8852fd2d8e581d53300c75495c472d26a208 Mon Sep 17 00:00:00 2001
+From 245eb9b46f3c86a5c2ff0ddad70d363b109feac8 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 25 Jul 2015 21:27:30 -0700
 Subject: [PATCH] Optimize tile entity lookup
@@ -8,15 +8,15 @@ Chunk tile entity lookup used to be a Map<BlockPosition, TileEntity>, which is i
 It is replaced with a TShortObjectHashMap which has no hash collisions, better hash distribution, and no object overhead.
 
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index d5f13c0..1ce5f50 100644
+index d5f13c0..c9d0cab 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
 @@ -19,6 +19,9 @@ import org.apache.logging.log4j.Logger;
  import com.google.common.collect.Lists; // CraftBukkit
  import org.bukkit.Bukkit; // CraftBukkit
  
-+import gnu.trove.map.hash.TShortObjectHashMap; // PaperSpigot
-+import gnu.trove.map.TShortObjectMap; // PaperSpigot
++import gnu.trove.map.hash.TShortObjectHashMap; // TacoSpigot
++import gnu.trove.map.TShortObjectMap; // TacoSpigot
 +
  public class Chunk {
  
@@ -25,7 +25,7 @@ index d5f13c0..1ce5f50 100644
      public final int locZ;
      private boolean k;
      public final Map<BlockPosition, TileEntity> tileEntities;
-+    // PaperSpigot Start -- Optimize tile entity lookup
++    // TacoSpigot Start - Optimize tile entity lookup
 +    private final TShortObjectMap<TileEntity> tileEntitiesShort = new TShortObjectHashMap<TileEntity>();
 +
 +    public Collection<TileEntity> listTileEntities() {
@@ -56,7 +56,7 @@ index d5f13c0..1ce5f50 100644
 +        return (short)((pos.getX() & 0xF) | ((pos.getZ() & 0xF) << 4) | ((pos.getY() & 0xFF) << 8));
 +    }
 +
-+    // PaperSpigot End
++    // TacoSpigot End
      public final List<Entity>[] entitySlices; // Spigot
      private boolean done;
      private boolean lit;
@@ -65,7 +65,7 @@ index d5f13c0..1ce5f50 100644
      public TileEntity a(BlockPosition blockposition, Chunk.EnumTileEntityState chunk_enumtileentitystate) {
          // CraftBukkit start
 -        TileEntity tileentity = null;
-+        // PaperSpigot Start -- Optimize tile entity lookup
++        // TacoSpigot start - Optimize tile entity lookup
 +        TileEntity tileentity = getTileEntity(blockposition);
 +        /*
          if (world.captureBlockStates) {
@@ -75,7 +75,7 @@ index d5f13c0..1ce5f50 100644
              tileentity = (TileEntity) this.tileEntities.get(blockposition);
          }
 +        */
-+        // PaperSpigot End
++        // TacoSpigot end
          // CraftBukkit end
  
          if (tileentity == null) {
@@ -84,7 +84,7 @@ index d5f13c0..1ce5f50 100644
              }
          } else if (tileentity.x()) {
 -            this.tileEntities.remove(blockposition);
-+            removeTileEntity(blockposition); // PaperSpigot -- Optimize tile entity lookup
++            removeTileEntity(blockposition); // TacoSpigot
              return null;
          }
  
@@ -94,22 +94,22 @@ index d5f13c0..1ce5f50 100644
          if (this.getType(blockposition) instanceof IContainer) {
 -            if (this.tileEntities.containsKey(blockposition)) {
 -                ((TileEntity) this.tileEntities.get(blockposition)).y();
-+            // PaperSpigot Start -- optimize tile entity lookup
++            // TacoSpigot start
 +            TileEntity tile = getTileEntity(blockposition);
 +            if (tile != null) {
 +                tile.y();
              }
-+            // PaperSpigot End
++            // TacoSpigot end
  
              tileentity.D();
 -            this.tileEntities.put(blockposition, tileentity);
-+            addTileEntity(tileentity); // PaperSpigot -- optimize tile entity lookup
++            addTileEntity(tileentity); // TacoSpigot
              // CraftBukkit start
              // PaperSpigot start - Remove invalid mob spawner tile entities
          } else if (this.world.paperSpigotConfig.removeInvalidMobSpawnerTEs && tileentity instanceof TileEntityMobSpawner &&
                  org.bukkit.craftbukkit.util.CraftMagicNumbers.getMaterial(getType(blockposition)) != org.bukkit.Material.MOB_SPAWNER) {
 -            this.tileEntities.remove(blockposition);
-+            removeTileEntity(blockposition);// PaperSpigot -- optimize tile entity lookup
++            removeTileEntity(blockposition);// TacoSpigot
              // PaperSpigot end
          } else {
              System.out.println("Attempted to place a tile entity (" + tileentity + ") at " + tileentity.position.getX() + "," + tileentity.position.getY() + "," + tileentity.position.getZ()
@@ -118,7 +118,7 @@ index d5f13c0..1ce5f50 100644
      public void e(BlockPosition blockposition) {
          if (this.h) {
 -            TileEntity tileentity = (TileEntity) this.tileEntities.remove(blockposition);
-+            TileEntity tileentity = removeTileEntity(blockposition); // PaperSpigot -- Optimize tile entity lookup
++            TileEntity tileentity = removeTileEntity(blockposition); // TacoSpigot
  
              if (tileentity != null) {
                  tileentity.y();
@@ -127,7 +127,7 @@ index d5f13c0..1ce5f50 100644
      public void addEntities() {
          this.h = true;
 -        this.world.a(this.tileEntities.values());
-+        this.world.a(listTileEntities()); // PaperSpigot -- Optimize tile entity lookup
++        this.world.a(listTileEntities()); // TacoSpigot
  
          for (int i = 0; i < this.entitySlices.length; ++i) {
              Iterator iterator = this.entitySlices[i].iterator();
@@ -136,19 +136,19 @@ index d5f13c0..1ce5f50 100644
      public void removeEntities() {
          this.h = false;
 -        Iterator iterator = this.tileEntities.values().iterator();
-+        Iterator iterator = listTileEntities().iterator(); // PaperSpigot -- Optimize tile entity lookup
++        Iterator iterator = listTileEntities().iterator(); // TacoSpigot
  
          while (iterator.hasNext()) {
              TileEntity tileentity = (TileEntity) iterator.next();
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 99473d1..d029497 100644
+index 32c94f6..5b1db74 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -1937,10 +1937,33 @@ public abstract class World implements IBlockAccess {
+@@ -1940,10 +1940,33 @@ public abstract class World implements IBlockAccess {
  
      public Map<BlockPosition, TileEntity> capturedTileEntities = Maps.newHashMap();
  
-+    // PaperSpigot Start -- Optimize tile entity lookup
++    // TacoSpigot start - Optimize tile entity lookup
 +    public TileEntity getTileEntityIfLoaded(BlockPosition position) {
 +        Chunk chunk = getChunkIfLoaded(position.getX() >> 4, position.getZ() >> 4);
 +        if (chunk == null) return null;
@@ -159,13 +159,13 @@ index 99473d1..d029497 100644
 +        }
 +        return tileEntity;
 +    }
-+    // PaperSpigot End
++    // TacoSpigot end
 +
      public TileEntity getTileEntity(BlockPosition blockposition) {
          if (!this.isValidLocation(blockposition)) {
              return null;
          } else {
-+            // PaperSpigot Start -- Optimize tile entity lookup
++            // TacoSpigot start -- Optimize tile entity lookup
 +            Chunk chunk = getChunkAtWorldCoords(blockposition);
 +            if (chunk == null) return null;
 +            TileEntity tileEntity = chunk.getTileEntity(blockposition);
@@ -178,12 +178,12 @@ index 99473d1..d029497 100644
              // CraftBukkit start
              if (capturedTileEntities.containsKey(blockposition)) {
                  return capturedTileEntities.get(blockposition);
-@@ -1976,6 +1999,8 @@ public abstract class World implements IBlockAccess {
+@@ -1979,6 +2002,8 @@ public abstract class World implements IBlockAccess {
              }
  
              return tileentity;
 +            */
-+            // PaperSpigot End
++            // TacoSpigot end
          }
      }
  
