@@ -1,4 +1,4 @@
-From c41b9037b1b8f2db3465e24f76935d721babea6b Mon Sep 17 00:00:00 2001
+From b64054fcf12b8001a31817e33d4c5531be642197 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -39,7 +39,7 @@ index 99473d1..32c94f6 100644
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 new file mode 100644
-index 0000000..422fa45
+index 0000000..84ed7d2
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -0,0 +1,105 @@
@@ -80,7 +80,7 @@ index 0000000..422fa45
 +            config.load(CONFIG_FILE);
 +        } catch (IOException ex) {
 +        } catch (InvalidConfigurationException ex) {
-+            Bukkit.getLogger().log(Level.SEVERE, "Could not load paper.yml, please correct your syntax errors", ex);
++            Bukkit.getLogger().log(Level.SEVERE, "Could not load taco.yml, please correct your syntax errors", ex);
 +            throw Throwables.propagate(ex);
 +        }
 +        config.options().header(HEADER);
@@ -240,6 +240,25 @@ index ca9c4a9..75b5d58 100644
          }
  
          pluginManager.clearPlugins();
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index c936219..909af02 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -130,6 +130,14 @@ public class Main {
+                         .defaultsTo(new File("paper.yml"))
+                         .describedAs("Yml file");
+                 // PaperSpigot End
++
++                // TacoSpigot start
++                acceptsAll(asList("taco, taco-settings", "File for tacospigot settings"))
++                        .withRequiredArg()
++                        .ofType(File.class)
++                        .defaultsTo(new File("taco.yml"))
++                        .describedAs("Yml file");
++                // TacoSpigot end
+             }
+         };
+ 
 -- 
 2.4.6.windows.1
 
