@@ -1,4 +1,4 @@
-From b64054fcf12b8001a31817e33d4c5531be642197 Mon Sep 17 00:00:00 2001
+From a1e1008b88aaf4223907fe138f8cbe262dbaa00f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -241,7 +241,7 @@ index ca9c4a9..75b5d58 100644
  
          pluginManager.clearPlugins();
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index c936219..909af02 100644
+index c936219..6c123bb 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -130,6 +130,14 @@ public class Main {
@@ -250,7 +250,7 @@ index c936219..909af02 100644
                  // PaperSpigot End
 +
 +                // TacoSpigot start
-+                acceptsAll(asList("taco, taco-settings", "File for tacospigot settings"))
++                acceptsAll(asList("taco", "taco-settings"), "File for tacospigot settings")
 +                        .withRequiredArg()
 +                        .ofType(File.class)
 +                        .defaultsTo(new File("taco.yml"))
