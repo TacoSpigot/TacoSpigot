@@ -17,7 +17,7 @@ index 1359743..aecd282 100644
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>server</artifactId>
      <packaging>jar</packaging>
-     <version>1.8.7-R0.1-SNAPSHOT</version>
+     <version>1.8.8-R0.1-SNAPSHOT</version>
 -    <name>PaperSpigot</name>
 -    <url>https://hub.spigotmc.org/stash/projects/PAPER/</url>
 +    <name>TacoSpigot</name>
