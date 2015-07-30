@@ -1,21 +1,23 @@
-From b77b35f0fd662574ea1377649c4b416f723dfc4e Mon Sep 17 00:00:00 2001
+From 3d87435416f3b4689353f8e157a50fea31c65995 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 27 Jul 2015 08:21:37 -0700
 Subject: [PATCH] Add an option to make the DataWatcher non-locking
 
 Millions of entity getters use the DataWatcher every tick, so it is a "hot spot".
 Before this patch the data watcher used a TIntObjectHashMap<> and a ReadWriteLock. Read locking millions of time every tick was taking up a lot of time, and this patch adds an option to make the data watcher weakly consistent, and make entity getters a lot cheeper.
+This patch also optimizes the DataWatcher value map hash code.
 
 diff --git a/src/main/java/net/minecraft/server/DataWatcher.java b/src/main/java/net/minecraft/server/DataWatcher.java
-index dec091e..77fd789 100644
+index dec091e..cafb09a 100644
 --- a/src/main/java/net/minecraft/server/DataWatcher.java
 +++ b/src/main/java/net/minecraft/server/DataWatcher.java
-@@ -9,25 +9,40 @@ import java.util.List;
+@@ -9,25 +9,41 @@ import java.util.List;
  import java.util.Map;
  import java.util.concurrent.locks.ReadWriteLock;
  import java.util.concurrent.locks.ReentrantReadWriteLock;
 +
 +import net.techcable.tacospigot.ConcurrentIntObjectMap; // TacoSpigot
++import net.techcable.tacospigot.IntHashStrategy; // TacoSpigot
 +import net.techcable.tacospigot.TacoSpigotConfig; // TacoSpigot
 +
  import org.apache.commons.lang3.ObjectUtils;
@@ -28,9 +30,9 @@ index dec091e..77fd789 100644
 +    public DataWatcher(Entity entity) {
 +        this.a = entity;
 +        if (TacoSpigotConfig.dataWatcherWeaklyConsistent) {
-+            dataValues = new ConcurrentIntObjectMap<WatchableObject>();
++            dataValues = new ConcurrentIntObjectMap<WatchableObject>(10, 0.5f, 16, new DataWatcherHashStrategy());
 +        } else {
-+            dataValues = new TIntObjectHashMap<WatchableObject>();
++            dataValues = new TIntObjectHashMap<WatchableObject>(10, 0.05f);
 +            f = new ReentrantReadWriteLock();
 +        }
 +        d = gnu.trove.TDecorators.wrap( dataValues );
@@ -42,7 +44,7 @@ index dec091e..77fd789 100644
      // Spigot Start
      private static final gnu.trove.map.TObjectIntMap classToId = new gnu.trove.map.hash.TObjectIntHashMap( 10, 0.5f, -1 );
 -    private final gnu.trove.map.TIntObjectMap dataValues = new gnu.trove.map.hash.TIntObjectHashMap( 10, 0.5f, -1 );
-+    private final gnu.trove.map.TIntObjectMap<WatchableObject> dataValues; // TacoSpigot - add an option to make DataWatcher non-locking
++    private final gnu.trove.map.TIntObjectMap<WatchableObject> dataValues; // TacoSpigot - init in constructor
      // These exist as an attempt at backwards compatability for (broken) NMS plugins
      private static final Map<Class<?>, Integer> c = gnu.trove.TDecorators.wrap( classToId );
 -    private final Map<Integer, DataWatcher.WatchableObject> d = gnu.trove.TDecorators.wrap( dataValues );
@@ -59,7 +61,7 @@ index dec091e..77fd789 100644
  
      public <T> void a(int i, T t0) {
          int integer = classToId.get(t0.getClass()); // Spigot
-@@ -41,9 +56,9 @@ public class DataWatcher {
+@@ -41,9 +57,9 @@ public class DataWatcher {
          } else {
              DataWatcher.WatchableObject datawatcher_watchableobject = new DataWatcher.WatchableObject(integer, i, t0); // Spigot
  
@@ -71,7 +73,7 @@ index dec091e..77fd789 100644
              this.b = false;
          }
      }
-@@ -51,9 +66,9 @@ public class DataWatcher {
+@@ -51,9 +67,9 @@ public class DataWatcher {
      public void add(int i, int j) {
          DataWatcher.WatchableObject datawatcher_watchableobject = new DataWatcher.WatchableObject(j, i, (Object) null);
  
@@ -83,7 +85,7 @@ index dec091e..77fd789 100644
          this.b = false;
      }
  
-@@ -82,7 +97,7 @@ public class DataWatcher {
+@@ -82,7 +98,7 @@ public class DataWatcher {
      }
  
      private DataWatcher.WatchableObject j(int i) {
@@ -92,7 +94,7 @@ index dec091e..77fd789 100644
  
          DataWatcher.WatchableObject datawatcher_watchableobject;
  
-@@ -96,7 +111,7 @@ public class DataWatcher {
+@@ -96,7 +112,7 @@ public class DataWatcher {
              throw new ReportedException(crashreport);
          }
  
@@ -101,7 +103,7 @@ index dec091e..77fd789 100644
          return datawatcher_watchableobject;
      }
  
-@@ -143,7 +158,7 @@ public class DataWatcher {
+@@ -143,7 +159,7 @@ public class DataWatcher {
          ArrayList arraylist = null;
  
          if (this.e) {
@@ -110,7 +112,7 @@ index dec091e..77fd789 100644
              Iterator iterator = this.dataValues.valueCollection().iterator(); // Spigot
  
              while (iterator.hasNext()) {
-@@ -170,7 +185,7 @@ public class DataWatcher {
+@@ -170,7 +186,7 @@ public class DataWatcher {
                  }
              }
  
@@ -119,7 +121,7 @@ index dec091e..77fd789 100644
          }
  
          this.e = false;
-@@ -178,7 +193,7 @@ public class DataWatcher {
+@@ -178,7 +194,7 @@ public class DataWatcher {
      }
  
      public void a(PacketDataSerializer packetdataserializer) throws IOException {
@@ -128,7 +130,7 @@ index dec091e..77fd789 100644
          Iterator iterator = this.dataValues.valueCollection().iterator(); // Spigot
  
          while (iterator.hasNext()) {
-@@ -187,14 +202,14 @@ public class DataWatcher {
+@@ -187,14 +203,14 @@ public class DataWatcher {
              a(packetdataserializer, datawatcher_watchableobject);
          }
  
@@ -145,7 +147,7 @@ index dec091e..77fd789 100644
  
          arraylist.addAll(this.dataValues.valueCollection()); // Spigot
          // Spigot start - copy ItemStacks to prevent ConcurrentModificationExceptions
-@@ -213,7 +228,7 @@ public class DataWatcher {
+@@ -213,7 +229,7 @@ public class DataWatcher {
          }
          // Spigot end
  
@@ -154,12 +156,30 @@ index dec091e..77fd789 100644
          return arraylist;
      }
  
+@@ -384,4 +400,17 @@ public class DataWatcher {
+             this.d = flag;
+         }
+     }
++
++    // TacoSpigot start
++    public static final int MAX_DATAWATCHER_INDEX = 22; // wiki.vg
++    /**
++     * Since datawatchers only have a set range of values, we can optimize the hashing strategy to eliminate collisions
++     */
++    public static class DataWatcherHashStrategy implements IntHashStrategy {
++
++        @Override
++        public int hash(int i) {
++            return i * (Integer.MAX_VALUE / MAX_DATAWATCHER_INDEX);
++        }
++    }
+ }
 diff --git a/src/main/java/net/techcable/tacospigot/ConcurrentIntObjectMap.java b/src/main/java/net/techcable/tacospigot/ConcurrentIntObjectMap.java
 new file mode 100644
-index 0000000..4e1304b
+index 0000000..dd600b6
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ConcurrentIntObjectMap.java
-@@ -0,0 +1,1370 @@
+@@ -0,0 +1,1405 @@
 +/*
 +* Written by Doug Lea with assistance from members of JCP JSR-166
 +* Expert Group and released to the public domain, as explained at
@@ -181,6 +201,8 @@ index 0000000..4e1304b
 +import java.util.concurrent.locks.ReentrantLock;
 +
 +
++import net.techcable.tacospigot.IntHashStrategy.DefaultIntHashStrategy;
++
 +import com.google.common.base.Preconditions;
 +
 +import gnu.trove.TIntCollection;
@@ -200,12 +222,14 @@ index 0000000..4e1304b
 + * Reading incurs no locking, but is not guaranteed to show the latest value from the write
 + * Once the write has completed, further reads will return the new value
 + * </p>
++ * Can have a custom integer hasing algorithim
 + *
 + * @author Doug Lea
 + * @author Techcable
 + * @param <V> the type of objects in the map
 + */
 +public class ConcurrentIntObjectMap<V> implements TIntObjectMap<V> {
++    private final IntHashStrategy strategy;
 +
 +    /*
 +     * The basic strategy is to subdivide the table among Segments,
@@ -285,7 +309,7 @@ index 0000000..4e1304b
 +     * that otherwise encounter collisions for hashCodes that do not
 +     * differ in lower or upper bits.
 +     */
-+    private static int hash(int h) {
++    private static int supplementHash(int h) {
 +        // Spread bits to regularize both segment and index locations,
 +        // using variant of single-word Wang/Jenkins hash.
 +        h += (h << 15) ^ 0xffffcd7d;
@@ -704,7 +728,38 @@ index 0000000..4e1304b
 +     * nonpositive.
 +     */
 +    public ConcurrentIntObjectMap(int initialCapacity, float loadFactor, int concurrencyLevel) {
++        this(initialCapacity, loadFactor, concurrencyLevel, DefaultIntHashStrategy.getInstance());
++    }
++
++    /**
++     * Creates a new, empty map with the specified initial
++     * capacity, load factor, concurrency level and hashing strategy.
++     *
++     * @param initialCapacity the initial capacity. The implementation
++     * performs internal sizing to accommodate this many elements.
++     * @param loadFactor the load factor threshold, used to control resizing.
++     * Resizing may be performed when the average number of elements per
++     * bin exceeds this threshold.
++     * @param concurrencyLevel the estimated number of concurrently
++     * updating threads. The implementation performs internal sizing
++     * to try to accommodate this many threads.
++     * @param strategy the hashing strategy
++     *
++     * @throws IllegalArgumentException if the initial capacity is
++     * negative or the load factor or concurrencyLevel are
++     * nonpositive.
++     */
++    public ConcurrentIntObjectMap(int initialCapacity, float loadFactor, int concurrencyLevel, final IntHashStrategy strategy) {
 +        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException();
++        this.strategy = new IntHashStrategy() {
++
++            @Override
++            public int hash(int i) {
++                int hash = strategy.hash(i);
++                hash = supplementHash(hash);
++                return hash;
++            }
++        };
 +
 +        if (concurrencyLevel > MAX_SEGMENTS) concurrencyLevel = MAX_SEGMENTS;
 +
@@ -879,7 +934,7 @@ index 0000000..4e1304b
 +     */
 +    @Override
 +    public V get(int key) {
-+        int hash = hash(key);
++        int hash = strategy.hash(key);
 +        return segmentFor(hash).get(key, hash);
 +    }
 +
@@ -895,7 +950,7 @@ index 0000000..4e1304b
 +     * @throws NullPointerException if the specified key is null
 +     */
 +    public boolean containsKey(int key) {
-+        int hash = hash(key);
++        int hash = strategy.hash(key);
 +        return segmentFor(hash).containsKey(key, hash);
 +    }
 +
@@ -1350,26 +1405,26 @@ index 0000000..4e1304b
 +    @Override
 +    public V put(int key, V value) {
 +        Preconditions.checkNotNull(value);
-+        int hash = hash(key);
++        int hash = strategy.hash(key);
 +        return segmentFor(hash).put(key, hash, value, false);
 +    }
 +
 +    @Override
 +    public V putIfAbsent(int key, V value) {
 +        Preconditions.checkNotNull(value);
-+        int hash = hash(key);
++        int hash = strategy.hash(key);
 +        return segmentFor(hash).put(key, hash, value, true);
 +    }
 +
 +    public V remove(int key, V value) {
 +        Preconditions.checkNotNull(value);
-+        int hash = hash(key);
++        int hash = strategy.hash(key);
 +        return segmentFor(hash).remove(key, hash, value);
 +    }
 +
 +    @Override
 +    public V remove(int key) {
-+        int hash = hash(key);
++        int hash = strategy.hash(key);
 +        return segmentFor(key).remove(key, hash, null);
 +    }
 +
@@ -1530,8 +1585,33 @@ index 0000000..4e1304b
 +        public V setValue(V value);
 +    }
 +}
+diff --git a/src/main/java/net/techcable/tacospigot/IntHashStrategy.java b/src/main/java/net/techcable/tacospigot/IntHashStrategy.java
+new file mode 100644
+index 0000000..8c52bc1
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/IntHashStrategy.java
+@@ -0,0 +1,19 @@
++package net.techcable.tacospigot;
++
++public interface IntHashStrategy {
++    public int hash(int i);
++
++    public static class DefaultIntHashStrategy implements IntHashStrategy {
++        private DefaultIntHashStrategy() {}
++
++        @Override
++        public int hash(int i) {
++            return i;
++        }
++
++        private static final DefaultIntHashStrategy instance = new DefaultIntHashStrategy();
++        public static DefaultIntHashStrategy getInstance() {
++            return instance;
++        }
++    }
++}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index 422fa45..912ab9a 100644
+index 84ed7d2..44ea98d 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -102,4 +102,9 @@ public class TacoSpigotConfig {
