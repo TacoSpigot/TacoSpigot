@@ -1,4 +1,4 @@
-From b40d53ea6d0973b1221df5abaefd43df527a7031 Mon Sep 17 00:00:00 2001
+From e26eb8882c8f9809e1d4fd1803e9ccab9f5055b3 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 27 Jul 2015 19:40:36 -0700
 Subject: [PATCH] Optimize armor stands
@@ -9,7 +9,7 @@ Armor stands also do a BB lookup for minecarts to collide with, which can be ver
 This patch also adds an option to make the minecarts look for armor stands which will help on servers with more armor stands than minecarts. (the greater the difference the gerater the change).
 
 diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
-index cd57d69..bf51cf3 100644
+index cd57d69..16d9c22 100644
 --- a/src/main/java/net/minecraft/server/EntityArmorStand.java
 +++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
 @@ -245,18 +245,21 @@ public class EntityArmorStand extends EntityLiving {
@@ -49,15 +49,7 @@ index cd57d69..bf51cf3 100644
          Vector3f vector3f = this.datawatcher.h(11);
  
          if (!this.headPose.equals(vector3f)) {
-@@ -545,6 +549,7 @@ public class EntityArmorStand extends EntityLiving {
-         }
- 
-         this.bj = flag;
-+        doGravity(); // TacoSpigot - How did i break gravity?
-     }
- 
-     private void a(boolean flag) {
-@@ -705,4 +710,35 @@ public class EntityArmorStand extends EntityLiving {
+@@ -705,4 +709,20 @@ public class EntityArmorStand extends EntityLiving {
      public boolean ad() {
          return super.ad() && !this.s();
      }
@@ -65,23 +57,8 @@ index cd57d69..bf51cf3 100644
 +    // TacoSpigot start -- Add an option to make armor stands (which usually don't move) only move when they are not above a block
 +    @Override
 +    public void move(double motX, double motY, double motZ) {
-+        if (!getWorld().tacoSpigotConfig.isArmorStandMoveWithoutGravity && !isNeedGravity()) return;
++        if (getWorld().tacoSpigotConfig.optimizeArmorStandMovement && !isNeedGravity()) return;
 +        super.move(motX, motY, motZ);
-+    }
-+
-+    private void doGravity() {
-+        if (!getWorld().tacoSpigotConfig.isArmorStandMoveWithoutGravity) return; // Handled by vanilla
-+        if (isNeedGravity()) {
-+            this.motY -= 0.08D;
-+            if (this.inWater) {
-+                this.motY *= 0.800000011920929D; // Water Drag
-+            } else {
-+                this.motY *= 0.5D; // Air Drag
-+            }
-+            move(motX, motY, motZ);
-+        } else {
-+            motY = 0;
-+        }
 +    }
 +
 +    private boolean isNeedGravity() {
@@ -135,7 +112,7 @@ index 4bf790c..8df9f73 100644
          if (this.getType() > 0) {
              this.j(this.getType() - 1);
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index 871535f..4215d9a 100644
+index 871535f..469779f 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 @@ -68,4 +68,14 @@ public class TacoSpigotWorldConfig {
@@ -143,9 +120,9 @@ index 871535f..4215d9a 100644
          isHopperPushBased = getBoolean("hopper.push-based", true);
      }
 +
-+    public boolean isArmorStandMoveWithoutGravity;
++    public boolean optimizeArmorStandMovement;
 +    private void isArmorStandMoveWithoutGravity() {
-+        isArmorStandMoveWithoutGravity = getBoolean("armor-stand.move-without-gravity", true); // Doesn't fully emulate vanilla behavior :(
++        optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
 +    }
 +
 +    public boolean isArmorStandLookForMinecart;
