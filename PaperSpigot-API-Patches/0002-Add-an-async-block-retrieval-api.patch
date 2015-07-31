@@ -1,0 +1,158 @@
+From 9c663d2592ee7f2a064e137d7192034d01c36742 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Thu, 30 Jul 2015 16:36:27 -0700
+Subject: [PATCH] Add an async block retrieval api
+
+Lets plugins safely get the last known block at a location.`
+
+diff --git a/src/main/java/net/techcable/tacospigot/error/ChunkNotLoadedException.java b/src/main/java/net/techcable/tacospigot/error/ChunkNotLoadedException.java
+new file mode 100644
+index 0000000..4061100
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/error/ChunkNotLoadedException.java
+@@ -0,0 +1,8 @@
++package net.techcable.tacospigot.error;
++
++/**
++ * Thrown to indicate the chunk was not loaded, but it was needed to be
++ */
++public class ChunkNotLoadedException extends Exception {
++
++}
+diff --git a/src/main/java/org/bukkit/Chunk.java b/src/main/java/org/bukkit/Chunk.java
+index 0510151..ab0432b 100644
+--- a/src/main/java/org/bukkit/Chunk.java
++++ b/src/main/java/org/bukkit/Chunk.java
+@@ -121,4 +121,36 @@ public interface Chunk {
+      * @return true if the chunk has unloaded successfully, otherwise false
+      */
+     boolean unload();
++
++    // TacoSpigot start - add async block retrieval api
++    /**
++     * Get the last known material at the specified location
++     * <p>
++     * This method is thread safe, but may not return the latest value
++     * </p>
++     *
++     * @param x the relative x position
++     * @param y the y position
++     * @param z the relative z position
++     *
++     * @return the last known material at the specified location
++     */
++    public Material getLastKnownMaterial(int x, int y, int z);
++
++
++    /**
++     * Get the last known metadata at the specified location
++     * <p>
++     * This method is thread safe, but may not return the latest value
++     * </p>
++     *
++     * @param x the relative x position
++     * @param y the y position
++     * @param z the relative z position
++     *
++     * @return the last known metadata at the specified location
++     */
++    public int getLastKnownMeta(int x, int y, int z);
++    // TacoSpigot end
++
+ }
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index 325d65a..09d34c7 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -8,6 +8,8 @@ import java.util.List;
+ import java.util.Map;
+ import java.util.UUID;
+ 
++import net.techcable.tacospigot.error.ChunkNotLoadedException; // TacoSpigot
++
+ import org.bukkit.block.Biome;
+ import org.bukkit.block.Block;
+ import org.bukkit.entity.*;
+@@ -1273,6 +1275,79 @@ public interface World extends PluginMessageRecipient, Metadatable {
+      */
+     public WorldBorder getWorldBorder();
+ 
++    // TacoSpigot start - add async block retrieval api
++
++    /**
++     * Get the last known material at the specified location
++     * <p>
++     * This method is thread safe, but may not return the latest value
++     * This method will <b>never</b> trigger a chunk load.
++     * If you want to get the data even if not loaded, call {@link #getChunkAtAsync(org.bukkit.Location, org.bukkit.World.ChunkLoadCallback)} or {@link #getChunkAt(Location)}
++     * </p>
++     *
++     * @param x the x position
++     * @param y the y position
++     * @param z the z position
++     *
++     * @return the last known material at the specified location
++     *
++     * @throws net.techcable.tacospigot.error.ChunkNotLoadedException if the chunk the block was in was not loaded
++     */
++    public Material getLastKnownMaterial(int x, int y, int z) throws ChunkNotLoadedException;
++
++
++    /**
++     * Get the last known material at the specified location
++     * <p>
++     * This method is thread safe, but may not return the latest value
++     * This method will <b>never</b> trigger a chunk load.
++     * If you want to get the data even if not loaded, call {@link #getChunkAtAsync(org.bukkit.Location, org.bukkit.World.ChunkLoadCallback)} or {@link #getChunkAt(Location)}
++     * </p>
++     *
++     * @param location the location to get the material at
++     *
++     * @return the last known material at the specified location
++     *
++     * @throws net.techcable.tacospigot.error.ChunkNotLoadedException if the chunk the block was in was not loaded
++     */
++    public Material getLastKnownMaterial(Location location) throws ChunkNotLoadedException;
++
++    /**
++     * Get the last known metadata at the specified location
++     * <p>
++     * This method is thread safe, but may not return the latest value
++     * This method will <b>never</b> trigger a chunk load.
++     * If you want to get the data even if not loaded, call {@link #getChunkAtAsync(org.bukkit.Location, org.bukkit.World.ChunkLoadCallback)} or {@link #getChunkAt(Location)}
++     * </p>
++     *
++     * @param x the x position
++     * @param y the y position
++     * @param z the z position
++     *
++     * @return the last known metadata at the specified location
++     *
++     * @throws net.techcable.tacospigot.error.ChunkNotLoadedException if the chunk the block was in was not loaded
++     */
++    public int getLastKnownMeta(int x, int y, int z) throws ChunkNotLoadedException;
++
++    /**
++     * Get the last known metadata at the specified location
++     * <p>
++     * This method is thread safe, but may not return the latest value
++     * This method will <b>never</b> trigger a chunk load.
++     * If you want to get the data even if not loaded, call {@link #getChunkAtAsync(org.bukkit.Location, org.bukkit.World.ChunkLoadCallback)} or {@link #getChunkAt(Location)}
++     * </p>
++     *
++     * @param loc the location
++     *
++     * @return the last known metadata at the specified location
++     *
++     * @throws net.techcable.tacospigot.error.ChunkNotLoadedException if the chunk the block was in was not loaded
++     */
++    public int getLastKnownMeta(Location loc) throws ChunkNotLoadedException;
++
++    // TacoSpigot end
++
+     /**
+      * Represents various map environment types that a world may be
+      */
+-- 
+2.4.6.windows.1
+

@@ -1,0 +1,3426 @@
+From af58a7268b808a40ce7c6373a3e8dd028e86c20d Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Thu, 30 Jul 2015 23:57:17 -0700
+Subject: [PATCH] Implement async block retrieval api
+
+
+diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
+index c9d0cab..8417499 100644
+--- a/src/main/java/net/minecraft/server/Chunk.java
++++ b/src/main/java/net/minecraft/server/Chunk.java
+@@ -13,6 +13,8 @@ import java.util.concurrent.Callable;
+ import java.util.concurrent.ConcurrentLinkedQueue;
+ import java.util.concurrent.atomic.AtomicInteger; // PaperSpigot
+ 
++import net.techcable.tacospigot.ConcurrentShortIntMap; // TacoSpigot
++
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+@@ -68,6 +70,56 @@ public class Chunk {
+     }
+ 
+     // TacoSpigot End
++    // TacoSpigot start - implement async block data retrieval api
++    private static short getPosKey(int x, int y, int z) { // copy of toRelativeShort
++        return (short)((x & 0x0F) | ((y & 0xF) << 4) | ((y & 0xFF) << 8));
++    }
++
++    private final ConcurrentShortIntMap lastKnownType = new ConcurrentShortIntMap(Short.MAX_VALUE / 3); // About 1/3 of blocks will be non-air
++    private final ConcurrentShortIntMap lastKnownMeta = new ConcurrentShortIntMap();
++
++    public Block getLastKnownType(int x, int y, int z) {
++        short key = getPosKey(x, y, z);
++        int blockId = lastKnownType.get(key);
++        if (blockId == lastKnownType.getNoEntryValue()) return Blocks.AIR;
++        return Block.getById(blockId);
++    }
++
++    public int getLastKnownMeta(int x, int y, int z) {
++        short key = getPosKey(x, y, z);
++        int metadata = lastKnownMeta.get(key);
++        if (metadata == lastKnownMeta.getNoEntryValue()) return 0;
++        return metadata;
++    }
++
++    public void onTypeChange(Block block, int x, int y, int z) {
++        if (block == null) return;
++        if (block.getMaterial() == Material.AIR) return;
++        short key = getPosKey(x, y, z);
++        int blockId = Block.getId(block);
++        lastKnownType.put(key, blockId);
++    }
++
++    public void onDataChange(IBlockData data, int x, int y, int z) {
++        if (data == null) return;
++        short key = getPosKey(x, y, z);
++        int metadata = data.getBlock().toLegacyData(data);
++        if (metadata == 0) return;
++        lastKnownMeta.put(key, metadata);
++    }
++
++    public void onDataChange(IBlockData data, BlockPosition pos) {
++        if (pos == null) return;
++        onDataChange(data, pos.getX(), pos.getY(), pos.getZ());
++    }
++
++    public void onChange(int x, int y, int z, IBlockData data) {
++        if (data == null) return;
++        onTypeChange(data.getBlock(), x, y, z);
++        onDataChange(data, x, y, z);
++    }
++
++    // TacoSpigot end
+     public final List<Entity>[] entitySlices; // Spigot
+     private boolean done;
+     private boolean lit;
+@@ -206,6 +258,7 @@ public class Chunk {
+                         }
+ 
+                         this.sections[k1].setType(k, i1 & 15, l, iblockdata);
++                        onChange(k, i, l, iblockdata); // TacoSpigot
+                     }
+                 }
+             }
+@@ -615,6 +668,7 @@ public class Chunk {
+             }
+ 
+             chunksection.setType(i, j & 15, k, iblockdata);
++            onChange(i, j, k, iblockdata); // TacoSpigot
+             if (block1 != block) {
+                 if (!this.world.isClientSide) {
+                     block1.remove(this.world, blockposition, iblockdata1);
+diff --git a/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java b/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java
+new file mode 100644
+index 0000000..5752183
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java
+@@ -0,0 +1,216 @@
++package net.techcable.tacospigot;
++
++import java.util.AbstractCollection;
++import java.util.Arrays;
++import java.util.Collection;
++import java.util.Iterator;
++import java.util.concurrent.atomic.AtomicBoolean;
++
++import gnu.trove.TIntCollection;
++import gnu.trove.iterator.TIntIterator;
++import gnu.trove.procedure.TIntProcedure;
++import gnu.trove.set.TIntSet;
++
++public abstract class AbstractIntCollection implements TIntSet {
++
++    @Override
++    public int[] toArray() {
++        return toArray(new int[size()]);
++
++    }
++
++    @Override
++    public int[] toArray(int[] array) {
++        TIntIterator iterator = iterator();
++        int i = 0;
++        while (iterator.hasNext()) {
++            if (i <= array.length) array = Arrays.copyOf(array, i + 1 + 5);
++            array[i] = iterator.next();
++            i++;
++        }
++        return array;
++    }
++
++    @Override
++    public boolean add(int i) {
++        throw new UnsupportedOperationException();
++    }
++
++    @Override
++    public boolean containsAll(Collection<?> collection) {
++        for (Object o : collection) {
++            if (o instanceof Integer) {
++                if (!contains((Integer) o)) return false;
++            }
++        }
++        return true;
++    }
++
++    @Override
++    public boolean containsAll(TIntCollection tIntCollection) {
++        TIntIterator iterator = tIntCollection.iterator();
++        while (iterator.hasNext()) {
++            int i = iterator.next();
++            if (!contains(i)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean containsAll(int[] ints) {
++        for (int i : ints) {
++            if (!contains(i)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean addAll(Collection<? extends Integer> collection) {
++        boolean modified = false;
++        for (Integer i : collection) {
++            if (add(i)) modified = true;
++        }
++        return modified;
++    }
++
++    @Override
++    public boolean addAll(TIntCollection tIntCollection) {
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        tIntCollection.forEach(new TIntProcedure() {
++
++            @Override
++            public boolean execute(int value) {
++                if (add(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean addAll(int[] ints) {
++        boolean modified = false;
++        for (int i : ints) {
++            if (add(i)) modified = true;
++        }
++        return modified;
++    }
++
++    @Override
++    public boolean retainAll(final Collection<?> collection) {
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        forEach(new TIntProcedure() {
++
++            @Override
++            public boolean execute(int value) {
++                if (collection.contains(value)) return true;
++                if (remove(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean retainAll(final TIntCollection tIntCollection) {
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        forEach(new TIntProcedure() {
++
++            @Override
++            public boolean execute(int value) {
++                if (tIntCollection.contains(value)) return true;
++                if (remove(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean retainAll(int[] rawInts) {
++        final int[] ints = Arrays.copyOf(rawInts, rawInts.length);
++        Arrays.sort(ints);
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        forEach(new TIntProcedure() {
++
++            @Override
++            public boolean execute(int value) {
++                if (Arrays.binarySearch(ints, value) > 0) return true;
++                if (remove(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean removeAll(Collection<?> collection) {
++        Iterator i = collection.iterator();
++        boolean modified = false;
++        while (i.hasNext()) {
++            Object nextObj = i.next();
++            if (!(nextObj instanceof Integer)) continue;
++            int value = (Integer) nextObj;
++            if (remove(value)) modified = true;
++        }
++        return modified;
++    }
++
++    @Override
++    public boolean removeAll(TIntCollection tIntCollection) {
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        tIntCollection.forEach(new TIntProcedure() {
++
++            @Override
++            public boolean execute(int value) {
++                if (remove(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean removeAll(int[] ints) {
++        boolean modified = false;
++        for (int i : ints) {
++            if (remove(i)) modified = true;
++        }
++        return modified;
++    }
++
++    @Override
++    public int getNoEntryValue() {
++        throw new UnsupportedOperationException("This collection doesn't support the concept of \"no entry values\"");
++    }
++
++    public boolean isEmpty() {
++        return size() == 0;
++    }
++
++    @Override
++    public boolean remove(int i) {
++        throw new UnsupportedOperationException("Removes are not supported");
++    }
++
++    public void clear() {
++        forEach(new TIntProcedure() {
++
++            @Override
++            public boolean execute(int value) {
++                remove(value);
++                return true;
++            }
++        });
++    }
++
++    @Override
++    public boolean forEach(TIntProcedure tIntProcedure) {
++        TIntIterator iterator = iterator();
++        while (iterator.hasNext()) {
++            int i = iterator.next();
++            if (!tIntProcedure.execute(i)) return false;
++        }
++        return true;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/AbstractShortCollection.java b/src/main/java/net/techcable/tacospigot/AbstractShortCollection.java
+new file mode 100644
+index 0000000..8891d73
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/AbstractShortCollection.java
+@@ -0,0 +1,217 @@
++package net.techcable.tacospigot;
++
++import java.util.Arrays;
++import java.util.Collection;
++import java.util.Iterator;
++import java.util.concurrent.atomic.AtomicBoolean;
++
++import gnu.trove.TShortCollection;
++import gnu.trove.TShortCollection;
++import gnu.trove.iterator.TShortIterator;
++import gnu.trove.iterator.TShortIterator;
++import gnu.trove.procedure.TShortProcedure;
++import gnu.trove.set.TShortSet;
++
++public abstract class AbstractShortCollection implements TShortSet {
++
++    @Override
++    public short[] toArray() {
++        return toArray(new short[size()]);
++
++    }
++
++    @Override
++    public short[] toArray(short[] array) {
++        TShortIterator iterator = iterator();
++        short i = 0;
++        while (iterator.hasNext()) {
++            if (i <= array.length) array = Arrays.copyOf(array, i + 1 + 5);
++            array[i] = iterator.next();
++            i++;
++        }
++        return array;
++    }
++
++    @Override
++    public boolean add(short i) {
++        throw new UnsupportedOperationException();
++    }
++
++    @Override
++    public boolean containsAll(Collection<?> collection) {
++        for (Object o : collection) {
++            if (o instanceof Short) {
++                if (!contains((Short) o)) return false;
++            } else return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean containsAll(TShortCollection TShortCollection) {
++        TShortIterator iterator = TShortCollection.iterator();
++        while (iterator.hasNext()) {
++            short i = iterator.next();
++            if (!contains(i)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean containsAll(short[] shorts) {
++        for (short i : shorts) {
++            if (!contains(i)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean addAll(Collection<? extends Short> collection) {
++        boolean modified = false;
++        for (Short i : collection) {
++            if (add(i)) modified = true;
++        }
++        return modified;
++    }
++
++    @Override
++    public boolean addAll(TShortCollection TShortCollection) {
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        TShortCollection.forEach(new TShortProcedure() {
++
++            @Override
++            public boolean execute(short value) {
++                if (add(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean addAll(short[] shorts) {
++        boolean modified = false;
++        for (short i : shorts) {
++            if (add(i)) modified = true;
++        }
++        return modified;
++    }
++
++    @Override
++    public boolean retainAll(final Collection<?> collection) {
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        forEach(new TShortProcedure() {
++
++            @Override
++            public boolean execute(short value) {
++                if (collection.contains(value)) return true;
++                if (remove(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean retainAll(final TShortCollection TShortCollection) {
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        forEach(new TShortProcedure() {
++
++            @Override
++            public boolean execute(short value) {
++                if (TShortCollection.contains(value)) return true;
++                if (remove(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean retainAll(short[] rawshorts) {
++        final short[] shorts = Arrays.copyOf(rawshorts, rawshorts.length);
++        Arrays.sort(shorts);
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        forEach(new TShortProcedure() {
++
++            @Override
++            public boolean execute(short value) {
++                if (Arrays.binarySearch(shorts, value) > 0) return true;
++                if (remove(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean removeAll(Collection<?> collection) {
++        Iterator i = collection.iterator();
++        boolean modified = false;
++        while (i.hasNext()) {
++            Object nextObj = i.next();
++            if (!(nextObj instanceof Short)) continue;
++            short value = (Short) nextObj;
++            if (remove(value)) modified = true;
++        }
++        return modified;
++    }
++
++    @Override
++    public boolean removeAll(TShortCollection TShortCollection) {
++        final AtomicBoolean modified = new AtomicBoolean(false);
++        TShortCollection.forEach(new TShortProcedure() {
++
++            @Override
++            public boolean execute(short value) {
++                if (remove(value)) modified.set(true);
++                return true;
++            }
++        });
++        return modified.get();
++    }
++
++    @Override
++    public boolean removeAll(short[] shorts) {
++        boolean modified = false;
++        for (short i : shorts) {
++            if (remove(i)) modified = true;
++        }
++        return modified;
++    }
++
++    @Override
++    public short getNoEntryValue() {
++        throw new UnsupportedOperationException("This collection doesn't support the concept of \"no entry values\"");
++    }
++
++    public boolean isEmpty() {
++        return size() == 0;
++    }
++
++    @Override
++    public boolean remove(short i) {
++        throw new UnsupportedOperationException("Removes are not supported");
++    }
++
++    public void clear() {
++        forEach(new TShortProcedure() {
++
++            @Override
++            public boolean execute(short value) {
++                remove(value);
++                return true;
++            }
++        });
++    }
++
++    @Override
++    public boolean forEach(TShortProcedure TShortProcedure) {
++        TShortIterator iterator = iterator();
++        while (iterator.hasNext()) {
++            short i = iterator.next();
++            if (!TShortProcedure.execute(i)) return false;
++        }
++        return true;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/ConcurrentIntObjectMap.java b/src/main/java/net/techcable/tacospigot/ConcurrentIntObjectMap.java
+index dd600b6..1669b58 100644
+--- a/src/main/java/net/techcable/tacospigot/ConcurrentIntObjectMap.java
++++ b/src/main/java/net/techcable/tacospigot/ConcurrentIntObjectMap.java
+@@ -985,144 +985,12 @@ public class ConcurrentIntObjectMap<V> implements TIntObjectMap<V> {
+         }
+     }
+ 
+-    final class KeySet implements TIntSet {
++    final class KeySet extends AbstractIntCollection {
+ 
+         public TIntIterator iterator() {
+             return new KeyIterator();
+         }
+ 
+-        @Override
+-        public int[] toArray() {
+-            return toArray(new int[size()]);
+-
+-        }
+-
+-        @Override
+-        public int[] toArray(int[] array) {
+-            TIntIterator iterator = iterator();
+-            int i = 0;
+-            while (iterator.hasNext()) {
+-                if (i <= array.length) array = Arrays.copyOf(array, i + 1 + 5);
+-                array[i] = iterator.next();
+-                i++;
+-            }
+-            return array;
+-        }
+-
+-        @Override
+-        public boolean add(int i) {
+-            throw new UnsupportedOperationException();
+-        }
+-
+-        @Override
+-        public boolean containsAll(Collection<?> collection) {
+-            for (Object o : collection) {
+-                if (o instanceof Integer) {
+-                    if (!contains((Integer) o)) return false;
+-                }
+-            }
+-            return true;
+-        }
+-
+-        @Override
+-        public boolean containsAll(TIntCollection tIntCollection) {
+-            TIntIterator iterator = tIntCollection.iterator();
+-            while (iterator.hasNext()) {
+-                int i = iterator.next();
+-                if (!contains(i)) return false;
+-            }
+-            return true;
+-        }
+-
+-        @Override
+-        public boolean containsAll(int[] ints) {
+-            for (int i : ints) {
+-                if (!contains(i)) return false;
+-            }
+-            return true;
+-        }
+-
+-        @Override
+-        public boolean addAll(Collection<? extends Integer> collection) {
+-            throw new UnsupportedOperationException();
+-        }
+-
+-        @Override
+-        public boolean addAll(TIntCollection tIntCollection) {
+-            return false;
+-        }
+-
+-        @Override
+-        public boolean addAll(int[] ints) {
+-            throw new UnsupportedOperationException();
+-        }
+-
+-        @Override
+-        public boolean retainAll(Collection<?> collection) {
+-            TIntIterator iterator = iterator();
+-            boolean modified = false;
+-            while (iterator.hasNext()) {
+-                int i = iterator.next();
+-                if (!collection.contains(i)) {
+-                    modified = remove(i) || modified;
+-                }
+-            }
+-            return modified;
+-        }
+-
+-        @Override
+-        public boolean retainAll(TIntCollection tIntCollection) {
+-            TIntIterator iterator = iterator();
+-            boolean modified = false;
+-            while (iterator.hasNext()) {
+-                int i = iterator.next();
+-                if (!tIntCollection.contains(i)) {
+-                    modified = remove(i) || modified;
+-                }
+-            }
+-            return modified;
+-        }
+-
+-        @Override
+-        public boolean retainAll(int[] ints) {
+-            return retainAll(new TIntHashSet(ints));
+-        }
+-
+-        @Override
+-        public boolean removeAll(Collection<?> collection) {
+-            boolean modified = false;
+-            for (Object o : collection) {
+-                if (o instanceof Integer) {
+-                    modified = remove((Integer) o) || modified;
+-                }
+-            }
+-            return modified;
+-        }
+-
+-        @Override
+-        public boolean removeAll(TIntCollection tIntCollection) {
+-            TIntIterator iterator = tIntCollection.iterator();
+-            boolean modified = false;
+-            while (iterator.hasNext()) {
+-                modified = remove(iterator.next()) || modified;
+-            }
+-            return modified;
+-        }
+-
+-        @Override
+-        public boolean removeAll(int[] ints) {
+-            boolean modififed = false;
+-            for (int i : ints) {
+-                modififed = remove(i) || modififed;
+-            }
+-            return modififed;
+-        }
+-
+-        @Override
+-        public int getNoEntryValue() {
+-            throw new UnsupportedClassVersionError("No no-entry-values");
+-        }
+-
+         public int size() {
+             return ConcurrentIntObjectMap.this.size();
+         }
+@@ -1143,16 +1011,6 @@ public class ConcurrentIntObjectMap<V> implements TIntObjectMap<V> {
+         public void clear() {
+             ConcurrentIntObjectMap.this.clear();
+         }
+-
+-        @Override
+-        public boolean forEach(TIntProcedure tIntProcedure) {
+-            TIntIterator iterator = iterator();
+-            while (iterator.hasNext()) {
+-                int i = iterator.next();
+-                if (!tIntProcedure.execute(i)) return false;
+-            }
+-            return true;
+-        }
+     }
+ 
+     final class Values extends AbstractCollection<V> {
+@@ -1332,7 +1190,7 @@ public class ConcurrentIntObjectMap<V> implements TIntObjectMap<V> {
+ 
+         @Override
+         public void advance() {
+-            entry = super.nextEntry;
++            entry = super.nextEntry();
+         }
+     }
+ 
+diff --git a/src/main/java/net/techcable/tacospigot/ConcurrentShortIntMap.java b/src/main/java/net/techcable/tacospigot/ConcurrentShortIntMap.java
+new file mode 100644
+index 0000000..80ba2eb
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/ConcurrentShortIntMap.java
+@@ -0,0 +1,1340 @@
++/*
++* Written by Doug Lea with assistance from members of JCP JSR-166
++* Expert Group and released to the public domain, as explained at
++* http://creativecommons.org/licenses/publicdomain
++*/
++
++package net.techcable.tacospigot;
++
++import java.io.Serializable;
++import java.util.AbstractSet;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.NoSuchElementException;
++import java.util.Set;
++import java.util.concurrent.locks.ReentrantLock;
++
++import net.techcable.tacospigot.IntHashStrategy.DefaultIntHashStrategy;
++
++import com.google.common.base.Preconditions;
++
++import gnu.trove.TIntCollection;
++import gnu.trove.function.TIntFunction;
++import gnu.trove.iterator.TIntIterator;
++import gnu.trove.iterator.TShortIntIterator;
++import gnu.trove.iterator.TShortIterator;
++import gnu.trove.map.TShortIntMap;
++import gnu.trove.procedure.TIntProcedure;
++import gnu.trove.procedure.TShortIntProcedure;
++import gnu.trove.procedure.TShortProcedure;
++import gnu.trove.set.TIntSet;
++import gnu.trove.set.TShortSet;
++
++/**
++ * A weakly-consistent mapping of shorts to integers with similar performance characteristics to {@link java.util.concurrent.ConcurrentHashMap}
++ * <p>
++ * Reading incurs no locking, but is not guaranteed to show the latest value from the write
++ * Once the write has completed, further reads will return the new value
++ * </p>
++ * Can have a custom integer hashing algorithim
++ *
++ * @author Doug Lea
++ * @author Techcable
++ */
++public class ConcurrentShortIntMap implements TShortIntMap {
++
++    private final IntHashStrategy strategy;
++
++    /*
++     * The basic strategy is to subdivide the table among Segments,
++     * each of which itself is a concurrently readable hash table.
++     */
++
++    /* ---------------- Constants -------------- */
++
++    /**
++     * The default initial capacity for this table,
++     * used when not otherwise specified in a constructor.
++     */
++    static final int DEFAULT_INITIAL_CAPACITY = 16;
++
++    /**
++     * The default load factor for this table, used when not
++     * otherwise specified in a constructor.
++     */
++    static final float DEFAULT_LOAD_FACTOR = 0.75f;
++
++    /**
++     * The default concurrency level for this table, used when not
++     * otherwise specified in a constructor.
++     */
++    static final int DEFAULT_CONCURRENCY_LEVEL = 16;
++
++    /**
++     * The maximum capacity, used if a higher value is implicitly
++     * specified by either of the constructors with arguments.  MUST
++     * be a power of two <= 1<<30 to ensure that entries are indexable
++     * using ints.
++     */
++    static final int MAXIMUM_CAPACITY = 1 << 30;
++
++    /**
++     * The maximum number of segments to allow; used to bound
++     * constructor arguments.
++     */
++    static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
++
++    /**
++     * Number of unsynchronized retries in size and containsValue
++     * methods before resorting to locking. This is used to avoid
++     * unbounded retries if tables undergo continuous modification
++     * which would make it impossible to obtain an accurate result.
++     */
++    static final int RETRIES_BEFORE_LOCK = 2;
++
++    /* ---------------- Fields -------------- */
++
++    /**
++     * Mask value for indexing into segments. The upper bits of a
++     * key's hash code are used to choose the segment.
++     */
++    final int segmentMask;
++
++    /**
++     * Shift value for indexing within segments.
++     */
++    final int segmentShift;
++
++    /**
++     * The segments, each of which is a specialized hash table
++     */
++    final Segment[] segments;
++
++    transient TShortSet keySet;
++    transient Set<ShortToIntEntry> entrySet;
++    transient TIntSet values;
++
++    /* ---------------- Small Utilities -------------- */
++
++    /**
++     * Applies a supplemental hash function to a given hashCode, which
++     * defends against poor quality hash functions.  This is critical
++     * because ConcurrentHashMap uses power-of-two length hash tables,
++     * that otherwise encounter collisions for hashCodes that do not
++     * differ in lower or upper bits.
++     */
++    private static int supplementHash(int h) {
++        // Spread bits to regularize both segment and index locations,
++        // using variant of single-word Wang/Jenkins hash.
++        h += (h << 15) ^ 0xffffcd7d;
++        h ^= (h >>> 10);
++        h += (h << 3);
++        h ^= (h >>> 6);
++        h += (h << 2) + (h << 14);
++        return h ^ (h >>> 16);
++    }
++
++    /**
++     * Returns the segment that should be used for key with given hash
++     *
++     * @param hash the hash code for the key
++     *
++     * @return the segment
++     */
++    final Segment segmentFor(int hash) {
++        return segments[(hash >>> segmentShift) & segmentMask];
++    }
++
++    /* ---------------- Inner Classes -------------- */
++
++    /**
++     * ConcurrentHashMap list entry. Note that this is never exported
++     * out as a user-visible Map.Entry.
++     * <p/>
++     * Because the value field is volatile, not final, it is legal wrt
++     * the Java Memory Model for an unsynchronized reader to see null
++     * instead of initial value when read via a data race.  Although a
++     * reordering leading to this is not likely to ever actually
++     * occur, the Segment.readValueUnderLock method is used as a
++     * backup in case a null (pre-initialized) value is ever seen in
++     * an unsynchronized access method.
++     */
++    static final class HashEntry {
++
++        final short key;
++        final int hash;
++        volatile int value;
++        final HashEntry next;
++
++        HashEntry(short key, int hash, HashEntry next, int value) {
++            this.key = key;
++            this.hash = hash;
++            this.next = next;
++            this.value = value;
++        }
++
++        @SuppressWarnings("unchecked")
++        static final HashEntry[] newArray(int i) {
++            return new HashEntry[i];
++        }
++    }
++
++    /**
++     * Segments are specialized versions of hash tables.  This
++     * subclasses from ReentrantLock opportunistically, just to
++     * simplify some locking and avoid separate construction.
++     */
++    static final class Segment extends ReentrantLock implements Serializable {
++
++        private final int noEntryValue;
++
++        /*
++         * Segments maintain a table of entry lists that are ALWAYS
++         * kept in a consistent state, so can be read without locking.
++         * Next fields of nodes are immutable (final).  All list
++         * additions are performed at the front of each bin. This
++         * makes it easy to check changes, and also fast to traverse.
++         * When nodes would otherwise be changed, new nodes are
++         * created to replace them. This works well for hash tables
++         * since the bin lists tend to be short. (The average length
++         * is less than two for the default load factor threshold.)
++         *
++         * Read operations can thus proceed without locking, but rely
++         * on selected uses of volatiles to ensure that completed
++         * write operations performed by other threads are
++         * noticed. For most purposes, the "count" field, tracking the
++         * number of elements, serves as that volatile variable
++         * ensuring visibility.  This is convenient because this field
++         * needs to be read in many read operations anyway:
++         *
++         *   - All (unsynchronized) read operations must first read the
++         *     "count" field, and should not look at table entries if
++         *     it is 0.
++         *
++         *   - All (synchronized) write operations should write to
++         *     the "count" field after structurally changing any bin.
++         *     The operations must not take any action that could even
++         *     momentarily cause a concurrent read operation to see
++         *     inconsistent data. This is made easier by the nature of
++         *     the read operations in Map. For example, no operation
++         *     can reveal that the table has grown but the threshold
++         *     has not yet been updated, so there are no atomicity
++         *     requirements for this with respect to reads.
++         *
++         * As a guide, all critical volatile reads and writes to the
++         * count field are marked in code comments.
++         */
++
++        private static final long serialVersionUID = 2249069246763182397L;
++
++        /**
++         * The number of elements in this segment's region.
++         */
++        transient volatile int count;
++
++        /**
++         * Number of updates that alter the size of the table. This is
++         * used during bulk-read methods to make sure they see a
++         * consistent snapshot: If modCounts change during a traversal
++         * of segments computing size or checking containsValue, then
++         * we might have an inconsistent view of state so (usually)
++         * must retry.
++         */
++        transient int modCount;
++
++        /**
++         * The table is rehashed when its size exceeds this threshold.
++         * (The value of this field is always <tt>(int)(capacity *
++         * loadFactor)</tt>.)
++         */
++        transient int threshold;
++
++        /**
++         * The per-segment table.
++         */
++        transient volatile HashEntry[] table;
++
++        /**
++         * The load factor for the hash table.  Even though this value
++         * is same for all segments, it is replicated to avoid needing
++         * links to outer object.
++         */
++        final float loadFactor;
++
++        Segment(int initialCapacity, float lf, int noEntryValue) {
++            this.noEntryValue = noEntryValue;
++            loadFactor = lf;
++            setTable(HashEntry.newArray(initialCapacity));
++        }
++
++        @SuppressWarnings("unchecked")
++        static final <V> Segment[] newArray(int i) {
++            return new Segment[i];
++        }
++
++        /**
++         * Sets table to new HashEntry array.
++         * Call only while holding lock or in constructor.
++         */
++        void setTable(HashEntry[] newTable) {
++            threshold = (int) (newTable.length * loadFactor);
++            table = newTable;
++        }
++
++        /**
++         * Returns properly casted first entry of bin for given hash.
++         */
++        HashEntry getFirst(int hash) {
++            HashEntry[] tab = table;
++            return tab[hash & (tab.length - 1)];
++        }
++
++        /**
++         * Reads value field of an entry under lock. Called if value
++         * field ever appears to be null. This is possible only if a
++         * compiler happens to reorder a HashEntry initialization with
++         * its table assignment, which is legal under memory model
++         * but is not known to ever occur.
++         */
++        int readValueUnderLock(HashEntry e) {
++            lock();
++            try {
++                return e.value;
++            } finally {
++                unlock();
++            }
++        }
++
++        /* Specialized implementations of map methods */
++
++        int get(short key, int hash) {
++            if (count != 0) { // read-volatile
++                HashEntry e = getFirst(hash);
++                while (e != null) {
++                    if (key == e.key) {
++                        int v = e.value;
++                        if (v != noEntryValue) return v;
++                        return readValueUnderLock(e); // recheck
++                    }
++                    e = e.next;
++                }
++            }
++            return noEntryValue;
++        }
++
++        boolean containsKey(int key, int hash) {
++            if (count != 0) { // read-volatile
++                HashEntry e = getFirst(hash);
++                while (e != null) {
++                    if (key == e.key) return true;
++                    e = e.next;
++                }
++            }
++            return false;
++        }
++
++        boolean containsValue(int value) {
++            if (count != 0) { // read-volatile
++                HashEntry[] tab = table;
++                int len = tab.length;
++                for (int i = 0; i < len; i++) {
++                    for (HashEntry e = tab[i]; e != null; e = e.next) {
++                        int v = e.value;
++                        if (v == noEntryValue) // recheck
++                            v = readValueUnderLock(e);
++                        if (value == v) return true;
++                    }
++                }
++            }
++            return false;
++        }
++
++        boolean replace(int key, int hash, int oldValue, int newValue) {
++            lock();
++            try {
++                HashEntry e = getFirst(hash);
++                while (e != null && (key != e.key)) e = e.next;
++
++                boolean replaced = false;
++                if (e != null && oldValue == e.value) {
++                    replaced = true;
++                    e.value = newValue;
++                }
++                return replaced;
++            } finally {
++                unlock();
++            }
++        }
++
++        int replace(int key, int hash, int newValue) {
++            lock();
++            try {
++                HashEntry e = getFirst(hash);
++                while (e != null && (key != e.key)) e = e.next;
++
++                int oldValue = noEntryValue;
++                if (e != null) {
++                    oldValue = e.value;
++                    e.value = newValue;
++                }
++                return oldValue;
++            } finally {
++                unlock();
++            }
++        }
++
++
++        int put(short key, int hash, int value, boolean onlyIfAbsent) {
++            lock();
++            try {
++                int c = count;
++                if (c++ > threshold) // ensure capacity
++                    rehash();
++                HashEntry[] tab = table;
++                int index = hash & (tab.length - 1);
++                HashEntry first = tab[index];
++                HashEntry e = first;
++                while (e != null && (key != e.key)) e = e.next;
++
++                int oldValue;
++                if (e != null) {
++                    oldValue = e.value;
++                    if (!onlyIfAbsent) e.value = value;
++                } else {
++                    oldValue = noEntryValue;
++                    ++modCount;
++                    tab[index] = new HashEntry(key, hash, first, value);
++                    count = c; // write-volatile
++                }
++                return oldValue;
++            } finally {
++                unlock();
++            }
++        }
++
++        void rehash() {
++            HashEntry[] oldTable = table;
++            int oldCapacity = oldTable.length;
++            if (oldCapacity >= MAXIMUM_CAPACITY) return;
++
++            /*
++             * Reclassify nodes in each list to new Map.  Because we are
++             * using power-of-two expansion, the elements from each bin
++             * must either stay at same index, or move with a power of two
++             * offset. We eliminate unnecessary node creation by catching
++             * cases where old nodes can be reused because their next
++             * fields won't change. Statistically, at the default
++             * threshold, only about one-sixth of them need cloning when
++             * a table doubles. The nodes they replace will be garbage
++             * collectable as soon as they are no longer referenced by any
++             * reader thread that may be in the midst of traversing table
++             * right now.
++             */
++
++            HashEntry[] newTable = HashEntry.newArray(oldCapacity << 1);
++            threshold = (int) (newTable.length * loadFactor);
++            int sizeMask = newTable.length - 1;
++            for (int i = 0; i < oldCapacity; i++) {
++                // We need to guarantee that any existing reads of old Map can
++                //  proceed. So we cannot yet null out each bin.
++                HashEntry e = oldTable[i];
++
++                if (e != null) {
++                    HashEntry next = e.next;
++                    int idx = e.hash & sizeMask;
++
++                    //  Single node on list
++                    if (next == null) newTable[idx] = e;
++
++                    else {
++                        // Reuse trailing consecutive sequence at same slot
++                        HashEntry lastRun = e;
++                        int lastIdx = idx;
++                        for (HashEntry last = next; last != null; last = last.next) {
++                            int k = last.hash & sizeMask;
++                            if (k != lastIdx) {
++                                lastIdx = k;
++                                lastRun = last;
++                            }
++                        }
++                        newTable[lastIdx] = lastRun;
++
++                        // Clone all remaining nodes
++                        for (HashEntry p = e; p != lastRun; p = p.next) {
++                            int k = p.hash & sizeMask;
++                            HashEntry n = newTable[k];
++                            newTable[k] = new HashEntry(p.key, p.hash, n, p.value);
++                        }
++                    }
++                }
++            }
++            table = newTable;
++        }
++
++        /**
++         * Remove; match on key only if value null, else match both.
++         */
++        int remove(int key, int hash, int value) {
++            lock();
++            try {
++                int c = count - 1;
++                HashEntry[] tab = table;
++                int index = hash & (tab.length - 1);
++                HashEntry first = tab[index];
++                HashEntry e = first;
++                while (e != null && (key != e.key)) e = e.next;
++
++                int oldValue = noEntryValue;
++                if (e != null) {
++                    int v = e.value;
++                    if (value == noEntryValue || value == v) {
++                        oldValue = v;
++                        // All entries following removed node can stay
++                        // in list, but all preceding ones need to be
++                        // cloned.
++                        ++modCount;
++                        HashEntry newFirst = e.next;
++                        for (HashEntry p = first; p != e; p = p.next) {
++                            newFirst = new HashEntry(p.key, p.hash, newFirst, p.value);
++                        }
++                        tab[index] = newFirst;
++                        count = c; // write-volatile
++                    }
++                }
++                return oldValue;
++            } finally {
++                unlock();
++            }
++        }
++
++        void clear() {
++            if (count != 0) {
++                lock();
++                try {
++                    HashEntry[] tab = table;
++                    for (int i = 0; i < tab.length; i++) {
++                        tab[i] = null;
++                    }
++                    ++modCount;
++                    count = 0; // write-volatile
++                } finally {
++                    unlock();
++                }
++            }
++        }
++    }
++
++
++
++    /* ---------------- Public operations -------------- */
++
++    /**
++     * Creates a new, empty map with the specified initial
++     * capacity, load factor and concurrency level.
++     *
++     * @param initialCapacity the initial capacity. The implementation
++     * performs internal sizing to accommodate this many elements.
++     * @param loadFactor the load factor threshold, used to control resizing.
++     * Resizing may be performed when the average number of elements per
++     * bin exceeds this threshold.
++     * @param concurrencyLevel the estimated number of concurrently
++     * updating threads. The implementation performs internal sizing
++     * to try to accommodate this many threads.
++     * @param noEntryValue the value used to represent null
++     *
++     * @throws IllegalArgumentException if the initial capacity is
++     * negative or the load factor or concurrencyLevel are
++     * nonpositive.
++     */
++    public ConcurrentShortIntMap(int initialCapacity, float loadFactor, int concurrencyLevel, int noEntryValue) {
++        this(initialCapacity, loadFactor, concurrencyLevel, noEntryValue, DefaultIntHashStrategy.getInstance());
++    }
++
++    /**
++     * Creates a new, empty map with the specified initial
++     * capacity, load factor and concurrency level.
++     *
++     * @param initialCapacity the initial capacity. The implementation
++     * performs internal sizing to accommodate this many elements.
++     * @param loadFactor the load factor threshold, used to control resizing.
++     * Resizing may be performed when the average number of elements per
++     * bin exceeds this threshold.
++     * @param concurrencyLevel the estimated number of concurrently
++     * updating threads. The implementation performs internal sizing
++     * to try to accommodate this many threads.
++     *
++     * @throws IllegalArgumentException if the initial capacity is
++     * negative or the load factor or concurrencyLevel are
++     * nonpositive.
++     */
++    public ConcurrentShortIntMap(int initialCapacity, float loadFactor, int concurrencyLevel) {
++        this(initialCapacity, loadFactor, concurrencyLevel, DEFAULT_NO_ENTRY_VALUE);
++    }
++
++
++    /**
++     * Creates a new, empty map with the specified initial
++     * capacity, load factor, concurrency level, hashing strategy, and no entry value.
++     *
++     * @param initialCapacity the initial capacity. The implementation
++     * performs internal sizing to accommodate this many elements.
++     * @param loadFactor the load factor threshold, used to control resizing.
++     * Resizing may be performed when the average number of elements per
++     * bin exceeds this threshold.
++     * @param concurrencyLevel the estimated number of concurrently
++     * updating threads. The implementation performs internal sizing
++     * to try to accommodate this many threads.
++     * @param noEntryValue the value used to represent null
++     * @param strategy the hashing strategy
++     *
++     * @throws IllegalArgumentException if the initial capacity is
++     * negative or the load factor or concurrencyLevel are
++     * nonpositive.
++     */
++    public ConcurrentShortIntMap(int initialCapacity, float loadFactor, int concurrencyLevel, int noEntryValue, final IntHashStrategy strategy) {
++        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException();
++        this.noEntryValue = noEntryValue;
++        this.strategy = new IntHashStrategy() {
++
++            @Override
++            public int hash(int i) {
++                int hash = strategy.hash(i);
++                hash = supplementHash(hash);
++                return hash;
++            }
++        };
++
++        if (concurrencyLevel > MAX_SEGMENTS) concurrencyLevel = MAX_SEGMENTS;
++
++        // Find power-of-two sizes best matching arguments
++        int sshift = 0;
++        int ssize = 1;
++        while (ssize < concurrencyLevel) {
++            ++sshift;
++            ssize <<= 1;
++        }
++        segmentShift = 32 - sshift;
++        segmentMask = ssize - 1;
++        this.segments = Segment.newArray(ssize);
++
++        if (initialCapacity > MAXIMUM_CAPACITY) initialCapacity = MAXIMUM_CAPACITY;
++        int c = initialCapacity / ssize;
++        if (c * ssize < initialCapacity) ++c;
++        int cap = 1;
++        while (cap < c) cap <<= 1;
++
++        for (int i = 0; i < this.segments.length; ++i) {
++            this.segments[i] = new Segment(cap, loadFactor, getNoEntryValue());
++        }
++    }
++
++    /**
++     * Creates a new, empty map with the specified initial capacity
++     * and load factor and with the default concurrencyLevel (16).
++     *
++     * @param initialCapacity The implementation performs internal
++     * sizing to accommodate this many elements.
++     * @param loadFactor the load factor threshold, used to control resizing.
++     * Resizing may be performed when the average number of elements per
++     * bin exceeds this threshold.
++     *
++     * @throws IllegalArgumentException if the initial capacity of
++     * elements is negative or the load factor is nonpositive
++     * @since 1.6
++     */
++    public ConcurrentShortIntMap(int initialCapacity, float loadFactor) {
++        this(initialCapacity, loadFactor, DEFAULT_CONCURRENCY_LEVEL);
++    }
++
++    /**
++     * Creates a new, empty map with the specified initial capacity,
++     * and with default load factor (0.75) and concurrencyLevel (16).
++     *
++     * @param initialCapacity the initial capacity. The implementation
++     * performs internal sizing to accommodate this many elements.
++     *
++     * @throws IllegalArgumentException if the initial capacity of
++     * elements is negative.
++     */
++    public ConcurrentShortIntMap(int initialCapacity) {
++        this(initialCapacity, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
++    }
++
++    /**
++     * Creates a new, empty map with a default initial capacity (16),
++     * load factor (0.75) and concurrencyLevel (16).
++     */
++    public ConcurrentShortIntMap() {
++        this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
++    }
++
++    /**
++     * Creates a new map with the same mappings as the given map.
++     * The map is created with a capacity of 1.5 times the number
++     * of mappings in the given map or 16 (whichever is greater),
++     * and a default load factor (0.75) and concurrencyLevel (16).
++     *
++     * @param m the map
++     */
++    public ConcurrentShortIntMap(TShortIntMap m) {
++        this(Math.max((int) (m.size() / DEFAULT_LOAD_FACTOR) + 1, DEFAULT_INITIAL_CAPACITY), DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
++        putAll(m);
++    }
++
++    /**
++     * Returns <tt>true</tt> if this map contains no key-value mappings.
++     *
++     * @return <tt>true</tt> if this map contains no key-value mappings
++     */
++    @Override
++    public boolean isEmpty() {
++        final Segment[] segments = this.segments;
++        /*
++         * We keep track of per-segment modCounts to avoid ABA
++         * problems in which an element in one segment was added and
++         * in another removed during traversal, in which case the
++         * table was never actually empty at any point. Note the
++         * similar use of modCounts in the size() and containsValue()
++         * methods, which are the only other methods also susceptible
++         * to ABA problems.
++         */
++        int[] mc = new int[segments.length];
++        int mcsum = 0;
++        for (int i = 0; i < segments.length; ++i) {
++            if (segments[i].count != 0) return false;
++            else mcsum += mc[i] = segments[i].modCount;
++        }
++        // If mcsum happens to be zero, then we know we got a snapshot
++        // before any modifications at all were made.  This is
++        // probably common enough to bother tracking.
++        if (mcsum != 0) {
++            for (int i = 0; i < segments.length; ++i) {
++                if (segments[i].count != 0 || mc[i] != segments[i].modCount) return false;
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Returns the number of key-value mappings in this map.  If the
++     * map contains more than <tt>Integer.MAX_VALUE</tt> elements, returns
++     * <tt>Integer.MAX_VALUE</tt>.
++     *
++     * @return the number of key-value mappings in this map
++     */
++    public int size() {
++        final Segment[] segments = this.segments;
++        long sum = 0;
++        long check = 0;
++        int[] mc = new int[segments.length];
++        // Try a few times to get accurate count. On failure due to
++        // continuous async changes in table, resort to locking.
++        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
++            check = 0;
++            sum = 0;
++            int mcsum = 0;
++            for (int i = 0; i < segments.length; ++i) {
++                sum += segments[i].count;
++                mcsum += mc[i] = segments[i].modCount;
++            }
++            if (mcsum != 0) {
++                for (int i = 0; i < segments.length; ++i) {
++                    check += segments[i].count;
++                    if (mc[i] != segments[i].modCount) {
++                        check = -1; // force retry
++                        break;
++                    }
++                }
++            }
++            if (check == sum) break;
++        }
++        if (check != sum) { // Resort to locking all segments
++            sum = 0;
++            for (int i = 0; i < segments.length; ++i) {
++                segments[i].lock();
++            }
++            for (int i = 0; i < segments.length; ++i) {
++                sum += segments[i].count;
++            }
++            for (int i = 0; i < segments.length; ++i) {
++                segments[i].unlock();
++            }
++        }
++        if (sum > Integer.MAX_VALUE) return Integer.MAX_VALUE;
++        else return (int) sum;
++    }
++
++    /**
++     * Returns the value to which the specified key is mapped,
++     * or {@code null} if this map contains no mapping for the key.
++     * <p/>
++     * <p>More formally, if this map contains a mapping from a key
++     * {@code k} to a value {@code v} such that {@code key.equals(k)},
++     * then this method returns {@code v}; otherwise it returns
++     * {@code null}.  (There can be at most one such mapping.)
++     *
++     * @throws NullPointerException if the specified key is null
++     */
++    @Override
++    public int get(short key) {
++        int hash = strategy.hash(key);
++        return segmentFor(hash).get(key, hash);
++    }
++
++    /**
++     * Tests if the specified object is a key in this table.
++     *
++     * @param key possible key
++     *
++     * @return <tt>true</tt> if and only if the specified object
++     * is a key in this table, as determined by the
++     * <tt>equals</tt> method; <tt>false</tt> otherwise.
++     *
++     * @throws NullPointerException if the specified key is null
++     */
++    public boolean containsKey(short key) {
++        int hash = strategy.hash(key);
++        return segmentFor(hash).containsKey(key, hash);
++    }
++
++    /**
++     * Returns <tt>true</tt> if this map maps one or more keys to the
++     * specified value. Note: This method requires a full internal
++     * traversal of the hash table, and so is much slower than
++     * method <tt>containsKey</tt>.
++     *
++     * @param value value whose presence in this map is to be tested
++     *
++     * @return <tt>true</tt> if this map maps one or more keys to the
++     * specified value
++     *
++     * @throws NullPointerException if the specified value is null
++     */
++    public boolean containsValue(int value) {
++        if (value == getNoEntryValue()) throw new NullPointerException();
++
++        // See explanation of modCount use above
++
++        final Segment[] segments = this.segments;
++        int[] mc = new int[segments.length];
++
++        // Try a few times without locking
++        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
++            int sum = 0;
++            int mcsum = 0;
++            for (int i = 0; i < segments.length; ++i) {
++                int c = segments[i].count;
++                mcsum += mc[i] = segments[i].modCount;
++                if (segments[i].containsValue(value)) return true;
++            }
++            boolean cleanSweep = true;
++            if (mcsum != 0) {
++                for (int i = 0; i < segments.length; ++i) {
++                    int c = segments[i].count;
++                    if (mc[i] != segments[i].modCount) {
++                        cleanSweep = false;
++                        break;
++                    }
++                }
++            }
++            if (cleanSweep) return false;
++        }
++        // Resort to locking all segments
++        for (int i = 0; i < segments.length; ++i) {
++            segments[i].lock();
++        }
++        boolean found = false;
++        try {
++            for (int i = 0; i < segments.length; ++i) {
++                if (segments[i].containsValue(value)) {
++                    found = true;
++                    break;
++                }
++            }
++        } finally {
++            for (int i = 0; i < segments.length; ++i) {
++                segments[i].unlock();
++            }
++        }
++        return found;
++    }
++
++    /* ---------------- Iterator Support -------------- */
++
++    abstract class HashIterator {
++
++        int nextSegmentIndex;
++        int nextTableIndex;
++        HashEntry[] currentTable;
++        HashEntry nextEntry;
++        HashEntry lastReturned;
++
++        HashIterator() {
++            nextSegmentIndex = segments.length - 1;
++            nextTableIndex = -1;
++            advance0();
++        }
++
++        public boolean hasMoreElements() {
++            return hasNext();
++        }
++
++        final void advance0() {
++            if (nextEntry != null && (nextEntry = nextEntry.next) != null) return;
++
++            while (nextTableIndex >= 0) {
++                if ((nextEntry = currentTable[nextTableIndex--]) != null) return;
++            }
++
++            while (nextSegmentIndex >= 0) {
++                Segment seg = segments[nextSegmentIndex--];
++                if (seg.count != 0) {
++                    currentTable = seg.table;
++                    for (int j = currentTable.length - 1; j >= 0; --j) {
++                        if ((nextEntry = currentTable[j]) != null) {
++                            nextTableIndex = j - 1;
++                            return;
++                        }
++                    }
++                }
++            }
++        }
++
++        public boolean hasNext() {
++            return nextEntry != null;
++        }
++
++        HashEntry nextEntry() {
++            if (nextEntry == null) throw new NoSuchElementException();
++            lastReturned = nextEntry;
++            advance0();
++            return lastReturned;
++        }
++
++        public void remove() {
++            if (lastReturned == null) throw new IllegalStateException();
++            ConcurrentShortIntMap.this.remove(lastReturned.key);
++            lastReturned = null;
++        }
++    }
++
++    final class KeyIterator extends HashIterator implements TShortIterator {
++
++        public short next() {
++            return super.nextEntry().key;
++        }
++
++        public short nextElement() {
++            return super.nextEntry().key;
++        }
++    }
++
++    final class ValueIterator extends HashIterator implements TIntIterator {
++
++        public int next() {
++            return super.nextEntry().value;
++        }
++
++        public int nextElement() {
++            return super.nextEntry().value;
++        }
++    }
++
++    /**
++     * Custom Entry class used by EntryIterator.next(), that relays
++     * setValue changes to the underlying map.
++     */
++    final class WriteThroughEntry implements ShortToIntEntry {
++
++        private final short key;
++        private int value;
++
++        WriteThroughEntry(short k, int value) {
++            this.key = k;
++            this.value = value;
++        }
++
++        /**
++         * Set our entry's value and write through to the map. The
++         * value to return is somewhat arbitrary here. Since a
++         * WriteThroughEntry does not necessarily track asynchronous
++         * changes, the most recent "previous" value could be
++         * different from what we return (or could even have been
++         * removed in which case the put will re-establish). We do not
++         * and cannot guarantee more.
++         */
++        public int setValue(int value) {
++            if (value == getNoEntryValue()) throw new NullPointerException();
++            int old = this.value;
++            this.value = value;
++            ConcurrentShortIntMap.this.put(getKey(), value);
++            return old;
++        }
++
++        @Override
++        public short getKey() {
++            return key;
++        }
++
++        @Override
++        public int getValue() {
++            return value;
++        }
++
++        @Override
++        public int hashCode() {
++            int prime = 31;
++            int result = 1;
++            result = prime * result + strategy.hash(getKey());
++            result = prime * result + strategy.hash(getValue());
++            return result;
++        }
++    }
++
++    final class EntryIterator extends HashIterator implements Iterator<ShortToIntEntry> {
++
++        public ShortToIntEntry next() {
++            HashEntry e = super.nextEntry();
++            return new WriteThroughEntry(e.key, e.value);
++        }
++    }
++
++    final class KeySet extends AbstractShortCollection {
++
++        public TShortIterator iterator() {
++            return new KeyIterator();
++        }
++
++        public int size() {
++            return ConcurrentShortIntMap.this.size();
++        }
++
++        public boolean isEmpty() {
++            return ConcurrentShortIntMap.this.isEmpty();
++        }
++
++        public boolean contains(short s) {
++            return ConcurrentShortIntMap.this.containsKey(s);
++        }
++
++        @Override
++        public boolean remove(short s) {
++            return ConcurrentShortIntMap.this.remove(s) != getNoEntryValue();
++        }
++
++        public void clear() {
++            ConcurrentShortIntMap.this.clear();
++        }
++    }
++
++    final class Values extends AbstractIntCollection {
++
++        public TIntIterator iterator() {
++            return new ValueIterator();
++        }
++
++        @Override
++        public int getNoEntryValue() {
++            return ConcurrentShortIntMap.this.getNoEntryValue();
++        }
++
++        public int size() {
++            return ConcurrentShortIntMap.this.size();
++        }
++
++        public boolean isEmpty() {
++            return ConcurrentShortIntMap.this.isEmpty();
++        }
++
++        public boolean contains(int i) {
++            return ConcurrentShortIntMap.this.containsValue(i);
++        }
++
++        public void clear() {
++            ConcurrentShortIntMap.this.clear();
++        }
++
++    }
++
++    final class EntrySet extends AbstractSet<ShortToIntEntry> {
++
++        public Iterator<ShortToIntEntry> iterator() {
++            return new EntryIterator();
++        }
++
++        public int size() {
++            return ConcurrentShortIntMap.this.size();
++        }
++
++        public boolean isEmpty() {
++            return ConcurrentShortIntMap.this.isEmpty();
++        }
++
++        public void clear() {
++            ConcurrentShortIntMap.this.clear();
++        }
++    }
++
++    //
++    // Techcable's Code
++    //
++
++
++    @Override
++    public short getNoEntryKey() {
++        throw new UnsupportedOperationException("We have no \"no entry key\"");
++    }
++
++    @Override
++    public int put(short key, int value) {
++        Preconditions.checkArgument(value != getNoEntryValue(), "null/no entry values not allowed");
++        int hash = strategy.hash(key);
++        return segmentFor(hash).put(key, hash, value, false);
++    }
++
++    @Override
++    public int putIfAbsent(short key, int value) {
++        Preconditions.checkArgument(value != getNoEntryValue(), "null/no entry values not allowed");
++        int hash = strategy.hash(key);
++        return segmentFor(hash).put(key, hash, value, true);
++    }
++
++    public int remove(short key, int value) {
++        Preconditions.checkArgument(value != getNoEntryValue(), "null/no entry values not allowed");
++        int hash = strategy.hash(key);
++        return segmentFor(hash).remove(key, hash, value);
++    }
++
++    @Override
++    public int remove(short key) {
++        int hash = strategy.hash(key);
++        return segmentFor(key).remove(key, hash, getNoEntryValue());
++    }
++
++    @Override
++    public void putAll(Map<? extends Short, ? extends Integer> m) {
++        for (Map.Entry<? extends Short, ? extends Integer> entry : m.entrySet()) {
++            put(entry.getKey(), entry.getValue());
++        }
++    }
++
++    @Override
++    public void putAll(TShortIntMap tIntObjectMap) {
++        tIntObjectMap.forEachEntry(new TShortIntProcedure() {
++
++            @Override
++            public boolean execute(short key, int value) {
++                put(key, value);
++                return true; // continue
++            }
++        });
++    }
++
++    @Override
++    public void clear() {
++        for (Segment segment : segments) {
++            segment.clear();
++        }
++    }
++
++    @Override
++    public TShortSet keySet() {
++        TShortSet keySet = this.keySet;
++        return keySet != null ? keySet : (this.keySet = new KeySet());
++    }
++
++    @Override
++    public short[] keys() {
++        return keySet().toArray();
++    }
++
++    @Override
++    public short[] keys(short[] ints) {
++        return keySet().toArray(ints);
++    }
++
++    @Override
++    public TIntCollection valueCollection() {
++        TIntCollection values = this.values;
++        return values != null ? values : (this.values = new Values());
++    }
++
++    @Override
++    public int[] values() {
++        return valueCollection().toArray();
++    }
++
++    @Override
++    public int[] values(int[] vs) {
++        return valueCollection().toArray(vs);
++    }
++
++    @Override
++    public TShortIntIterator iterator() {
++        return new ConcurrentIntObjectMapIterator();
++    }
++
++    private class ConcurrentIntObjectMapIterator extends HashIterator implements TShortIntIterator {
++
++        @Override
++        public short key() {
++            Preconditions.checkState(entry != null, "advance() was not called");
++            return entry.key;
++        }
++
++        @Override
++        public int value() {
++            Preconditions.checkState(entry != null, "advance() was not called");
++            return entry.value;
++        }
++
++        @Override
++        public int setValue(int val) {
++            return ConcurrentShortIntMap.this.put(key(), val);
++        }
++
++        private HashEntry entry;
++
++        @Override
++        public void advance() {
++            entry = super.nextEntry();
++        }
++    }
++
++    @Override
++    public boolean forEachKey(TShortProcedure tIntProcedure) {
++        TShortIntIterator iterator = iterator();
++        while (iterator.hasNext()) {
++            iterator.advance();
++            short s = iterator.key();
++            if (!tIntProcedure.execute(s)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean forEachValue(TIntProcedure tObjectProcedure) {
++        TShortIntIterator iterator = iterator();
++        while (iterator.hasNext()) {
++            iterator.advance();
++            ;
++            int value = iterator.value();
++            if (!tObjectProcedure.execute(value)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean forEachEntry(TShortIntProcedure tIntObjectProcedure) {
++        TShortIntIterator iterator = iterator();
++        while (iterator.hasNext()) {
++            iterator.advance();
++            short key = iterator.key();
++            int value = iterator.value();
++            if (!tIntObjectProcedure.execute(key, value)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public void transformValues(TIntFunction tObjectFunction) {
++        TShortIntIterator iterator = iterator();
++        while (iterator.hasNext()) {
++            iterator.advance();
++            int oldValue = iterator.value();
++            int newValue = tObjectFunction.execute(oldValue);
++            iterator.setValue(newValue);
++        }
++    }
++
++    @Override
++    public boolean retainEntries(TShortIntProcedure tIntObjectProcedure) {
++        TShortIntIterator iterator = iterator();
++        boolean modified = false;
++        while (iterator.hasNext()) {
++            iterator.advance();
++            short key = iterator.key();
++            int value = iterator.value();
++            if (!tIntObjectProcedure.execute(key, value)) {
++                if (this.remove(key) != getNoEntryValue()) modified = true;
++            }
++        }
++        return modified;
++    }
++
++    public final static int DEFAULT_NO_ENTRY_VALUE = -7897;
++    private final int noEntryValue;
++
++    public int getNoEntryValue() {
++        return noEntryValue;
++    }
++
++    @Override
++    public boolean increment(short key) {
++        return adjustValue(key, 1);
++    }
++
++    @Override
++    public boolean adjustValue(short key, int amount) {
++        // Since put_amount will never be used if tries is less than 0, it won't throw an IllegalArgumentException
++        return adjustOrPutValue0(key, amount, noEntryValue, -1) != noEntryValue;
++    }
++
++    @Override
++    public int adjustOrPutValue(short key, int adjust_amount, int put_amount) {
++        return adjustOrPutValue0(key, adjust_amount, put_amount, RETRIES_BEFORE_LOCK);
++    }
++
++    public int adjustOrPutValue0(short key, int adjust_amount, int put_amount, final int tries) {
++        final int hash = strategy.hash(key);
++        if (tries == 0) segmentFor(hash).lock();
++        try {
++            Segment segment = segmentFor(hash);
++            HashEntry entry = segment.getFirst(hash);
++            while (entry != null) {
++                if (entry.key == key) {
++                    // read and modify
++                    int value = entry.value;
++                    if (value == noEntryValue) value = segment.readValueUnderLock(entry); // See Segment.get
++                    value = value + adjust_amount;
++                    Preconditions.checkArgument(value != noEntryValue, "null/no entry values not allowed");
++                    entry.value = value; // yes, its that simple!
++                    return value;
++                }
++            }
++            if (tries < 0) return noEntryValue; // don't put
++            segment.lock();
++            try {
++                Preconditions.checkArgument(put_amount != noEntryValue, "null/no entry values not allowed");
++                // try rehash
++                if (segment.count + 1 > segment.threshold) segment.rehash();
++                HashEntry first = segment.getFirst(hash);
++                entry = first;
++                while (entry != null && entry.key != key) {
++                }
++                if (entry != null) {
++                    if (tries == 0) throw new IllegalStateException("Didn't find value first time, but did second under lock: " + key + ", " + entry.value);
++                    return adjustOrPutValue0(key, adjust_amount, put_amount, tries - 1);
++                }
++                segment.modCount++;
++                first = new HashEntry(key, hash, first, put_amount);
++                segment.table[hash & (segment.table.length - 1)] = first;
++                segment.count++;
++                return first.value;
++            } finally {
++                segment.unlock();
++            }
++        } finally {
++            if (tries == 0) segmentFor(hash).unlock();
++        }
++    }
++
++    private interface ShortToIntEntry {
++
++        public short getKey();
++
++        public int getValue();
++
++        public int setValue(int value);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/ConcurrentShortObjectMap.java b/src/main/java/net/techcable/tacospigot/ConcurrentShortObjectMap.java
+new file mode 100644
+index 0000000..6fb0f5d
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/ConcurrentShortObjectMap.java
+@@ -0,0 +1,1265 @@
++/*
++* Written by Doug Lea with assistance from members of JCP JSR-166
++* Expert Group and released to the public domain, as explained at
++* http://creativecommons.org/licenses/publicdomain
++*/
++
++package net.techcable.tacospigot;
++
++import java.io.Serializable;
++import java.util.AbstractCollection;
++import java.util.AbstractSet;
++import java.util.Collection;
++import java.util.Enumeration;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.NoSuchElementException;
++import java.util.Set;
++import java.util.concurrent.locks.ReentrantLock;
++
++import net.techcable.tacospigot.IntHashStrategy.DefaultIntHashStrategy;
++
++import com.google.common.base.Preconditions;
++
++import gnu.trove.function.TObjectFunction;
++import gnu.trove.iterator.TIntIterator;
++import gnu.trove.iterator.TIntObjectIterator;
++import gnu.trove.iterator.TShortIterator;
++import gnu.trove.iterator.TShortObjectIterator;
++import gnu.trove.map.TIntObjectMap;
++import gnu.trove.map.TShortObjectMap;
++import gnu.trove.procedure.TIntObjectProcedure;
++import gnu.trove.procedure.TIntProcedure;
++import gnu.trove.procedure.TObjectProcedure;
++import gnu.trove.procedure.TShortObjectProcedure;
++import gnu.trove.procedure.TShortProcedure;
++import gnu.trove.set.TIntSet;
++import gnu.trove.set.TShortSet;
++
++/**
++ * A weakly-consistent mapping of integers to objects with similar performance characteristics to {@link java.util.concurrent.ConcurrentHashMap}
++ * <p>
++ * Reading incurs no locking, but is not guaranteed to show the latest value from the write
++ * Once the write has completed, further reads will return the new value
++ * </p>
++ * Can have a custom integer hasing algorithim
++ *
++ * @author Doug Lea
++ * @author Techcable
++ * @param <V> the type of objects in the map
++ */
++public class ConcurrentShortObjectMap<V> implements TShortObjectMap<V> {
++    private final IntHashStrategy strategy;
++
++    /*
++     * The basic strategy is to subdivide the table among Segments,
++     * each of which itself is a concurrently readable hash table.
++     */
++
++    /* ---------------- Constants -------------- */
++
++    /**
++     * The default initial capacity for this table,
++     * used when not otherwise specified in a constructor.
++     */
++    static final int DEFAULT_INITIAL_CAPACITY = 16;
++
++    /**
++     * The default load factor for this table, used when not
++     * otherwise specified in a constructor.
++     */
++    static final float DEFAULT_LOAD_FACTOR = 0.75f;
++
++    /**
++     * The default concurrency level for this table, used when not
++     * otherwise specified in a constructor.
++     */
++    static final int DEFAULT_CONCURRENCY_LEVEL = 16;
++
++    /**
++     * The maximum capacity, used if a higher value is implicitly
++     * specified by either of the constructors with arguments.  MUST
++     * be a power of two <= 1<<30 to ensure that entries are indexable
++     * using ints.
++     */
++    static final int MAXIMUM_CAPACITY = 1 << 30;
++
++    /**
++     * The maximum number of segments to allow; used to bound
++     * constructor arguments.
++     */
++    static final int MAX_SEGMENTS = 1 << 16; // slightly conservative
++
++    /**
++     * Number of unsynchronized retries in size and containsValue
++     * methods before resorting to locking. This is used to avoid
++     * unbounded retries if tables undergo continuous modification
++     * which would make it impossible to obtain an accurate result.
++     */
++    static final int RETRIES_BEFORE_LOCK = 2;
++
++    /* ---------------- Fields -------------- */
++
++    /**
++     * Mask value for indexing into segments. The upper bits of a
++     * key's hash code are used to choose the segment.
++     */
++    final int segmentMask;
++
++    /**
++     * Shift value for indexing within segments.
++     */
++    final int segmentShift;
++
++    /**
++     * The segments, each of which is a specialized hash table
++     */
++    final Segment<V>[] segments;
++
++    transient TShortSet keySet;
++    transient Set<ShortEntry<V>> entrySet;
++    transient Collection<V> values;
++
++    /* ---------------- Small Utilities -------------- */
++
++    /**
++     * Applies a supplemental hash function to a given hashCode, which
++     * defends against poor quality hash functions.  This is critical
++     * because ConcurrentHashMap uses power-of-two length hash tables,
++     * that otherwise encounter collisions for hashCodes that do not
++     * differ in lower or upper bits.
++     */
++    private static int supplementHash(int h) {
++        // Spread bits to regularize both segment and index locations,
++        // using variant of single-word Wang/Jenkins hash.
++        h += (h << 15) ^ 0xffffcd7d;
++        h ^= (h >>> 10);
++        h += (h << 3);
++        h ^= (h >>> 6);
++        h += (h << 2) + (h << 14);
++        return h ^ (h >>> 16);
++    }
++
++    /**
++     * Returns the segment that should be used for key with given hash
++     *
++     * @param hash the hash code for the key
++     *
++     * @return the segment
++     */
++    final Segment<V> segmentFor(int hash) {
++        return segments[(hash >>> segmentShift) & segmentMask];
++    }
++
++    /* ---------------- Inner Classes -------------- */
++
++    /**
++     * ConcurrentHashMap list entry. Note that this is never exported
++     * out as a user-visible Map.Entry.
++     * <p/>
++     * Because the value field is volatile, not final, it is legal wrt
++     * the Java Memory Model for an unsynchronized reader to see null
++     * instead of initial value when read via a data race.  Although a
++     * reordering leading to this is not likely to ever actually
++     * occur, the Segment.readValueUnderLock method is used as a
++     * backup in case a null (pre-initialized) value is ever seen in
++     * an unsynchronized access method.
++     */
++    static final class HashEntry<V> {
++
++        final short key;
++        final int hash;
++        volatile V value;
++        final HashEntry<V> next;
++
++        HashEntry(short key, int hash, HashEntry<V> next, V value) {
++            this.key = key;
++            this.hash = hash;
++            this.next = next;
++            this.value = value;
++        }
++
++        @SuppressWarnings("unchecked")
++        static final <V> HashEntry<V>[] newArray(int i) {
++            return new HashEntry[i];
++        }
++    }
++
++    /**
++     * Segments are specialized versions of hash tables.  This
++     * subclasses from ReentrantLock opportunistically, just to
++     * simplify some locking and avoid separate construction.
++     */
++    static final class Segment<V> extends ReentrantLock implements Serializable {
++        /*
++         * Segments maintain a table of entry lists that are ALWAYS
++         * kept in a consistent state, so can be read without locking.
++         * Next fields of nodes are immutable (final).  All list
++         * additions are performed at the front of each bin. This
++         * makes it easy to check changes, and also fast to traverse.
++         * When nodes would otherwise be changed, new nodes are
++         * created to replace them. This works well for hash tables
++         * since the bin lists tend to be short. (The average length
++         * is less than two for the default load factor threshold.)
++         *
++         * Read operations can thus proceed without locking, but rely
++         * on selected uses of volatiles to ensure that completed
++         * write operations performed by other threads are
++         * noticed. For most purposes, the "count" field, tracking the
++         * number of elements, serves as that volatile variable
++         * ensuring visibility.  This is convenient because this field
++         * needs to be read in many read operations anyway:
++         *
++         *   - All (unsynchronized) read operations must first read the
++         *     "count" field, and should not look at table entries if
++         *     it is 0.
++         *
++         *   - All (synchronized) write operations should write to
++         *     the "count" field after structurally changing any bin.
++         *     The operations must not take any action that could even
++         *     momentarily cause a concurrent read operation to see
++         *     inconsistent data. This is made easier by the nature of
++         *     the read operations in Map. For example, no operation
++         *     can reveal that the table has grown but the threshold
++         *     has not yet been updated, so there are no atomicity
++         *     requirements for this with respect to reads.
++         *
++         * As a guide, all critical volatile reads and writes to the
++         * count field are marked in code comments.
++         */
++
++        private static final long serialVersionUID = 2249069246763182397L;
++
++        /**
++         * The number of elements in this segment's region.
++         */
++        transient volatile int count;
++
++        /**
++         * Number of updates that alter the size of the table. This is
++         * used during bulk-read methods to make sure they see a
++         * consistent snapshot: If modCounts change during a traversal
++         * of segments computing size or checking containsValue, then
++         * we might have an inconsistent view of state so (usually)
++         * must retry.
++         */
++        transient int modCount;
++
++        /**
++         * The table is rehashed when its size exceeds this threshold.
++         * (The value of this field is always <tt>(int)(capacity *
++         * loadFactor)</tt>.)
++         */
++        transient int threshold;
++
++        /**
++         * The per-segment table.
++         */
++        transient volatile HashEntry<V>[] table;
++
++        /**
++         * The load factor for the hash table.  Even though this value
++         * is same for all segments, it is replicated to avoid needing
++         * links to outer object.
++         */
++        final float loadFactor;
++
++        Segment(int initialCapacity, float lf) {
++            loadFactor = lf;
++            setTable(HashEntry.<V>newArray(initialCapacity));
++        }
++
++        @SuppressWarnings("unchecked")
++        static final <V> Segment<V>[] newArray(int i) {
++            return new Segment[i];
++        }
++
++        /**
++         * Sets table to new HashEntry array.
++         * Call only while holding lock or in constructor.
++         */
++        void setTable(HashEntry<V>[] newTable) {
++            threshold = (int) (newTable.length * loadFactor);
++            table = newTable;
++        }
++
++        /**
++         * Returns properly casted first entry of bin for given hash.
++         */
++        HashEntry<V> getFirst(int hash) {
++            HashEntry<V>[] tab = table;
++            return tab[hash & (tab.length - 1)];
++        }
++
++        /**
++         * Reads value field of an entry under lock. Called if value
++         * field ever appears to be null. This is possible only if a
++         * compiler happens to reorder a HashEntry initialization with
++         * its table assignment, which is legal under memory model
++         * but is not known to ever occur.
++         */
++        V readValueUnderLock(HashEntry<V> e) {
++            lock();
++            try {
++                return e.value;
++            } finally {
++                unlock();
++            }
++        }
++
++        /* Specialized implementations of map methods */
++
++        V get(short key, int hash) {
++            if (count != 0) { // read-volatile
++                HashEntry<V> e = getFirst(hash);
++                while (e != null) {
++                    if (key == e.key) {
++                        V v = e.value;
++                        if (v != null) return v;
++                        return readValueUnderLock(e); // recheck
++                    }
++                    e = e.next;
++                }
++            }
++            return null;
++        }
++
++        boolean containsKey(short key, int hash) {
++            if (count != 0) { // read-volatile
++                HashEntry<V> e = getFirst(hash);
++                while (e != null) {
++                    if (key == e.key) return true;
++                    e = e.next;
++                }
++            }
++            return false;
++        }
++
++        boolean containsValue(Object value) {
++            if (count != 0) { // read-volatile
++                HashEntry<V>[] tab = table;
++                int len = tab.length;
++                for (int i = 0; i < len; i++) {
++                    for (HashEntry<V> e = tab[i]; e != null; e = e.next) {
++                        V v = e.value;
++                        if (v == null) // recheck
++                            v = readValueUnderLock(e);
++                        if (value.equals(v)) return true;
++                    }
++                }
++            }
++            return false;
++        }
++
++        boolean replace(short key, int hash, V oldValue, V newValue) {
++            lock();
++            try {
++                HashEntry<V> e = getFirst(hash);
++                while (e != null && (key != e.key)) e = e.next;
++
++                boolean replaced = false;
++                if (e != null && oldValue.equals(e.value)) {
++                    replaced = true;
++                    e.value = newValue;
++                }
++                return replaced;
++            } finally {
++                unlock();
++            }
++        }
++
++        V replace(short key, int hash, V newValue) {
++            lock();
++            try {
++                HashEntry<V> e = getFirst(hash);
++                while (e != null && (key != e.key)) e = e.next;
++
++                V oldValue = null;
++                if (e != null) {
++                    oldValue = e.value;
++                    e.value = newValue;
++                }
++                return oldValue;
++            } finally {
++                unlock();
++            }
++        }
++
++
++        V put(short key, int hash, V value, boolean onlyIfAbsent) {
++            lock();
++            try {
++                int c = count;
++                if (c++ > threshold) // ensure capacity
++                    rehash();
++                HashEntry<V>[] tab = table;
++                int index = hash & (tab.length - 1);
++                HashEntry<V> first = tab[index];
++                HashEntry<V> e = first;
++                while (e != null && (key != e.key)) e = e.next;
++
++                V oldValue;
++                if (e != null) {
++                    oldValue = e.value;
++                    if (!onlyIfAbsent) e.value = value;
++                } else {
++                    oldValue = null;
++                    ++modCount;
++                    tab[index] = new HashEntry<V>(key, hash, first, value);
++                    count = c; // write-volatile
++                }
++                return oldValue;
++            } finally {
++                unlock();
++            }
++        }
++
++        void rehash() {
++            HashEntry<V>[] oldTable = table;
++            int oldCapacity = oldTable.length;
++            if (oldCapacity >= MAXIMUM_CAPACITY) return;
++
++            /*
++             * Reclassify nodes in each list to new Map.  Because we are
++             * using power-of-two expansion, the elements from each bin
++             * must either stay at same index, or move with a power of two
++             * offset. We eliminate unnecessary node creation by catching
++             * cases where old nodes can be reused because their next
++             * fields won't change. Statistically, at the default
++             * threshold, only about one-sixth of them need cloning when
++             * a table doubles. The nodes they replace will be garbage
++             * collectable as soon as they are no longer referenced by any
++             * reader thread that may be in the midst of traversing table
++             * right now.
++             */
++
++            HashEntry<V>[] newTable = HashEntry.newArray(oldCapacity << 1);
++            threshold = (int) (newTable.length * loadFactor);
++            int sizeMask = newTable.length - 1;
++            for (int i = 0; i < oldCapacity; i++) {
++                // We need to guarantee that any existing reads of old Map can
++                //  proceed. So we cannot yet null out each bin.
++                HashEntry<V> e = oldTable[i];
++
++                if (e != null) {
++                    HashEntry<V> next = e.next;
++                    int idx = e.hash & sizeMask;
++
++                    //  Single node on list
++                    if (next == null) newTable[idx] = e;
++
++                    else {
++                        // Reuse trailing consecutive sequence at same slot
++                        HashEntry<V> lastRun = e;
++                        int lastIdx = idx;
++                        for (HashEntry<V> last = next; last != null; last = last.next) {
++                            int k = last.hash & sizeMask;
++                            if (k != lastIdx) {
++                                lastIdx = k;
++                                lastRun = last;
++                            }
++                        }
++                        newTable[lastIdx] = lastRun;
++
++                        // Clone all remaining nodes
++                        for (HashEntry<V> p = e; p != lastRun; p = p.next) {
++                            int k = p.hash & sizeMask;
++                            HashEntry<V> n = newTable[k];
++                            newTable[k] = new HashEntry<V>(p.key, p.hash, n, p.value);
++                        }
++                    }
++                }
++            }
++            table = newTable;
++        }
++
++        /**
++         * Remove; match on key only if value null, else match both.
++         */
++        V remove(short key, int hash, Object value) {
++            lock();
++            try {
++                int c = count - 1;
++                HashEntry<V>[] tab = table;
++                int index = hash & (tab.length - 1);
++                HashEntry<V> first = tab[index];
++                HashEntry<V> e = first;
++                while (e != null && (key != e.key)) e = e.next;
++
++                V oldValue = null;
++                if (e != null) {
++                    V v = e.value;
++                    if (value == null || value.equals(v)) {
++                        oldValue = v;
++                        // All entries following removed node can stay
++                        // in list, but all preceding ones need to be
++                        // cloned.
++                        ++modCount;
++                        HashEntry<V> newFirst = e.next;
++                        for (HashEntry<V> p = first; p != e; p = p.next) {
++                            newFirst = new HashEntry<V>(p.key, p.hash, newFirst, p.value);
++                        }
++                        tab[index] = newFirst;
++                        count = c; // write-volatile
++                    }
++                }
++                return oldValue;
++            } finally {
++                unlock();
++            }
++        }
++
++        void clear() {
++            if (count != 0) {
++                lock();
++                try {
++                    HashEntry<V>[] tab = table;
++                    for (int i = 0; i < tab.length; i++) {
++                        tab[i] = null;
++                    }
++                    ++modCount;
++                    count = 0; // write-volatile
++                } finally {
++                    unlock();
++                }
++            }
++        }
++    }
++
++
++
++    /* ---------------- Public operations -------------- */
++
++    /**
++     * Creates a new, empty map with the specified initial
++     * capacity, load factor and concurrency level.
++     *
++     * @param initialCapacity the initial capacity. The implementation
++     * performs internal sizing to accommodate this many elements.
++     * @param loadFactor the load factor threshold, used to control resizing.
++     * Resizing may be performed when the average number of elements per
++     * bin exceeds this threshold.
++     * @param concurrencyLevel the estimated number of concurrently
++     * updating threads. The implementation performs internal sizing
++     * to try to accommodate this many threads.
++     *
++     * @throws IllegalArgumentException if the initial capacity is
++     * negative or the load factor or concurrencyLevel are
++     * nonpositive.
++     */
++    public ConcurrentShortObjectMap(int initialCapacity, float loadFactor, int concurrencyLevel) {
++        this(initialCapacity, loadFactor, concurrencyLevel, DefaultIntHashStrategy.getInstance());
++    }
++
++    /**
++     * Creates a new, empty map with the specified initial
++     * capacity, load factor, concurrency level and hashing strategy.
++     *
++     * @param initialCapacity the initial capacity. The implementation
++     * performs internal sizing to accommodate this many elements.
++     * @param loadFactor the load factor threshold, used to control resizing.
++     * Resizing may be performed when the average number of elements per
++     * bin exceeds this threshold.
++     * @param concurrencyLevel the estimated number of concurrently
++     * updating threads. The implementation performs internal sizing
++     * to try to accommodate this many threads.
++     * @param strategy the hashing strategy
++     *
++     * @throws IllegalArgumentException if the initial capacity is
++     * negative or the load factor or concurrencyLevel are
++     * nonpositive.
++     */
++    public ConcurrentShortObjectMap(int initialCapacity, float loadFactor, int concurrencyLevel, final IntHashStrategy strategy) {
++        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0) throw new IllegalArgumentException();
++        this.strategy = new IntHashStrategy() {
++
++            @Override
++            public int hash(int i) {
++                int hash = strategy.hash(i);
++                hash = supplementHash(hash);
++                return hash;
++            }
++        };
++
++        if (concurrencyLevel > MAX_SEGMENTS) concurrencyLevel = MAX_SEGMENTS;
++
++        // Find power-of-two sizes best matching arguments
++        int sshift = 0;
++        int ssize = 1;
++        while (ssize < concurrencyLevel) {
++            ++sshift;
++            ssize <<= 1;
++        }
++        segmentShift = 32 - sshift;
++        segmentMask = ssize - 1;
++        this.segments = Segment.newArray(ssize);
++
++        if (initialCapacity > MAXIMUM_CAPACITY) initialCapacity = MAXIMUM_CAPACITY;
++        int c = initialCapacity / ssize;
++        if (c * ssize < initialCapacity) ++c;
++        int cap = 1;
++        while (cap < c) cap <<= 1;
++
++        for (int i = 0; i < this.segments.length; ++i) {
++            this.segments[i] = new Segment<V>(cap, loadFactor);
++        }
++    }
++
++    /**
++     * Creates a new, empty map with the specified initial capacity
++     * and load factor and with the default concurrencyLevel (16).
++     *
++     * @param initialCapacity The implementation performs internal
++     * sizing to accommodate this many elements.
++     * @param loadFactor the load factor threshold, used to control resizing.
++     * Resizing may be performed when the average number of elements per
++     * bin exceeds this threshold.
++     *
++     * @throws IllegalArgumentException if the initial capacity of
++     * elements is negative or the load factor is nonpositive
++     * @since 1.6
++     */
++    public ConcurrentShortObjectMap(int initialCapacity, float loadFactor) {
++        this(initialCapacity, loadFactor, DEFAULT_CONCURRENCY_LEVEL);
++    }
++
++    /**
++     * Creates a new, empty map with the specified initial capacity,
++     * and with default load factor (0.75) and concurrencyLevel (16).
++     *
++     * @param initialCapacity the initial capacity. The implementation
++     * performs internal sizing to accommodate this many elements.
++     *
++     * @throws IllegalArgumentException if the initial capacity of
++     * elements is negative.
++     */
++    public ConcurrentShortObjectMap(int initialCapacity) {
++        this(initialCapacity, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
++    }
++
++    /**
++     * Creates a new, empty map with a default initial capacity (16),
++     * load factor (0.75) and concurrencyLevel (16).
++     */
++    public ConcurrentShortObjectMap() {
++        this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
++    }
++
++    /**
++     * Creates a new map with the same mappings as the given map.
++     * The map is created with a capacity of 1.5 times the number
++     * of mappings in the given map or 16 (whichever is greater),
++     * and a default load factor (0.75) and concurrencyLevel (16).
++     *
++     * @param m the map
++     */
++    public ConcurrentShortObjectMap(TShortObjectMap<V> m) {
++        this(Math.max((int) (m.size() / DEFAULT_LOAD_FACTOR) + 1, DEFAULT_INITIAL_CAPACITY), DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
++        putAll(m);
++    }
++
++    /**
++     * Returns <tt>true</tt> if this map contains no key-value mappings.
++     *
++     * @return <tt>true</tt> if this map contains no key-value mappings
++     */
++    @Override
++    public boolean isEmpty() {
++        final Segment<V>[] segments = this.segments;
++        /*
++         * We keep track of per-segment modCounts to avoid ABA
++         * problems in which an element in one segment was added and
++         * in another removed during traversal, in which case the
++         * table was never actually empty at any point. Note the
++         * similar use of modCounts in the size() and containsValue()
++         * methods, which are the only other methods also susceptible
++         * to ABA problems.
++         */
++        int[] mc = new int[segments.length];
++        int mcsum = 0;
++        for (int i = 0; i < segments.length; ++i) {
++            if (segments[i].count != 0) return false;
++            else mcsum += mc[i] = segments[i].modCount;
++        }
++        // If mcsum happens to be zero, then we know we got a snapshot
++        // before any modifications at all were made.  This is
++        // probably common enough to bother tracking.
++        if (mcsum != 0) {
++            for (int i = 0; i < segments.length; ++i) {
++                if (segments[i].count != 0 || mc[i] != segments[i].modCount) return false;
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Returns the number of key-value mappings in this map.  If the
++     * map contains more than <tt>Integer.MAX_VALUE</tt> elements, returns
++     * <tt>Integer.MAX_VALUE</tt>.
++     *
++     * @return the number of key-value mappings in this map
++     */
++    public int size() {
++        final Segment<V>[] segments = this.segments;
++        long sum = 0;
++        long check = 0;
++        int[] mc = new int[segments.length];
++        // Try a few times to get accurate count. On failure due to
++        // continuous async changes in table, resort to locking.
++        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
++            check = 0;
++            sum = 0;
++            int mcsum = 0;
++            for (int i = 0; i < segments.length; ++i) {
++                sum += segments[i].count;
++                mcsum += mc[i] = segments[i].modCount;
++            }
++            if (mcsum != 0) {
++                for (int i = 0; i < segments.length; ++i) {
++                    check += segments[i].count;
++                    if (mc[i] != segments[i].modCount) {
++                        check = -1; // force retry
++                        break;
++                    }
++                }
++            }
++            if (check == sum) break;
++        }
++        if (check != sum) { // Resort to locking all segments
++            sum = 0;
++            for (int i = 0; i < segments.length; ++i) {
++                segments[i].lock();
++            }
++            for (int i = 0; i < segments.length; ++i) {
++                sum += segments[i].count;
++            }
++            for (int i = 0; i < segments.length; ++i) {
++                segments[i].unlock();
++            }
++        }
++        if (sum > Integer.MAX_VALUE) return Integer.MAX_VALUE;
++        else return (int) sum;
++    }
++
++    /**
++     * Returns the value to which the specified key is mapped,
++     * or {@code null} if this map contains no mapping for the key.
++     * <p/>
++     * <p>More formally, if this map contains a mapping from a key
++     * {@code k} to a value {@code v} such that {@code key.equals(k)},
++     * then this method returns {@code v}; otherwise it returns
++     * {@code null}.  (There can be at most one such mapping.)
++     *
++     * @throws NullPointerException if the specified key is null
++     */
++    @Override
++    public V get(short key) {
++        int hash = strategy.hash(key);
++        return segmentFor(hash).get(key, hash);
++    }
++
++    /**
++     * Tests if the specified object is a key in this table.
++     *
++     * @param key possible key
++     *
++     * @return <tt>true</tt> if and only if the specified object
++     * is a key in this table, as determined by the
++     * <tt>equals</tt> method; <tt>false</tt> otherwise.
++     *
++     * @throws NullPointerException if the specified key is null
++     */
++    public boolean containsKey(short key) {
++        int hash = strategy.hash(key);
++        return segmentFor(hash).containsKey(key, hash);
++    }
++
++    /**
++     * Returns <tt>true</tt> if this map maps one or more keys to the
++     * specified value. Note: This method requires a full internal
++     * traversal of the hash table, and so is much slower than
++     * method <tt>containsKey</tt>.
++     *
++     * @param value value whose presence in this map is to be tested
++     *
++     * @return <tt>true</tt> if this map maps one or more keys to the
++     * specified value
++     *
++     * @throws NullPointerException if the specified value is null
++     */
++    public boolean containsValue(Object value) {
++        if (value == null) throw new NullPointerException();
++
++        // See explanation of modCount use above
++
++        final Segment<V>[] segments = this.segments;
++        int[] mc = new int[segments.length];
++
++        // Try a few times without locking
++        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
++            int sum = 0;
++            int mcsum = 0;
++            for (int i = 0; i < segments.length; ++i) {
++                int c = segments[i].count;
++                mcsum += mc[i] = segments[i].modCount;
++                if (segments[i].containsValue(value)) return true;
++            }
++            boolean cleanSweep = true;
++            if (mcsum != 0) {
++                for (int i = 0; i < segments.length; ++i) {
++                    int c = segments[i].count;
++                    if (mc[i] != segments[i].modCount) {
++                        cleanSweep = false;
++                        break;
++                    }
++                }
++            }
++            if (cleanSweep) return false;
++        }
++        // Resort to locking all segments
++        for (int i = 0; i < segments.length; ++i) {
++            segments[i].lock();
++        }
++        boolean found = false;
++        try {
++            for (int i = 0; i < segments.length; ++i) {
++                if (segments[i].containsValue(value)) {
++                    found = true;
++                    break;
++                }
++            }
++        } finally {
++            for (int i = 0; i < segments.length; ++i) {
++                segments[i].unlock();
++            }
++        }
++        return found;
++    }
++
++    /**
++     * Returns an enumeration of the values in this table.
++     *
++     * @return an enumeration of the values in this table
++     *
++     * @see #values()
++     */
++    public Enumeration<V> elements() {
++        return new ValueIterator();
++    }
++
++    /* ---------------- Iterator Support -------------- */
++
++    abstract class HashIterator {
++
++        int nextSegmentIndex;
++        int nextTableIndex;
++        HashEntry<V>[] currentTable;
++        HashEntry<V> nextEntry;
++        HashEntry<V> lastReturned;
++
++        HashIterator() {
++            nextSegmentIndex = segments.length - 1;
++            nextTableIndex = -1;
++            advance0();
++        }
++
++        public boolean hasMoreElements() {
++            return hasNext();
++        }
++
++        final void advance0() {
++            if (nextEntry != null && (nextEntry = nextEntry.next) != null) return;
++
++            while (nextTableIndex >= 0) {
++                if ((nextEntry = currentTable[nextTableIndex--]) != null) return;
++            }
++
++            while (nextSegmentIndex >= 0) {
++                Segment<V> seg = segments[nextSegmentIndex--];
++                if (seg.count != 0) {
++                    currentTable = seg.table;
++                    for (int j = currentTable.length - 1; j >= 0; --j) {
++                        if ((nextEntry = currentTable[j]) != null) {
++                            nextTableIndex = j - 1;
++                            return;
++                        }
++                    }
++                }
++            }
++        }
++
++        public boolean hasNext() {
++            return nextEntry != null;
++        }
++
++        HashEntry<V> nextEntry() {
++            if (nextEntry == null) throw new NoSuchElementException();
++            lastReturned = nextEntry;
++            advance0();
++            return lastReturned;
++        }
++
++        public void remove() {
++            if (lastReturned == null) throw new IllegalStateException();
++            ConcurrentShortObjectMap.this.remove(lastReturned.key);
++            lastReturned = null;
++        }
++    }
++
++    final class KeyIterator extends HashIterator implements TShortIterator {
++
++        public short next() {
++            return super.nextEntry().key;
++        }
++
++        public int nextElement() {
++            return super.nextEntry().key;
++        }
++    }
++
++    final class ValueIterator extends HashIterator implements Iterator<V>, Enumeration<V> {
++
++        public V next() {
++            return super.nextEntry().value;
++        }
++
++        public V nextElement() {
++            return super.nextEntry().value;
++        }
++    }
++
++    /**
++     * Custom Entry class used by EntryIterator.next(), that relays
++     * setValue changes to the underlying map.
++     */
++    final class WriteThroughEntry implements ShortEntry<V> {
++
++        private final short key;
++        private V value;
++
++        WriteThroughEntry(short k, V value) {
++            this.key = k;
++            this.value = value;
++        }
++
++        /**
++         * Set our entry's value and write through to the map. The
++         * value to return is somewhat arbitrary here. Since a
++         * WriteThroughEntry does not necessarily track asynchronous
++         * changes, the most recent "previous" value could be
++         * different from what we return (or could even have been
++         * removed in which case the put will re-establish). We do not
++         * and cannot guarantee more.
++         */
++        public V setValue(V value) {
++            if (value == null) throw new NullPointerException();
++            V old = value;
++            this.value = value;
++            ConcurrentShortObjectMap.this.put(getKey(), value);
++            return old;
++        }
++
++        @Override
++        public short getKey() {
++            return key;
++        }
++
++        @Override
++        public V getValue() {
++            return value;
++        }
++
++        @Override
++        public int hashCode() {
++            int prime = 31;
++            int result = 1;
++            result = prime * result + getKey();
++            result = prime * result + getValue().hashCode();
++            return result;
++        }
++    }
++
++    final class EntryIterator extends HashIterator implements Iterator<ShortEntry<V>> {
++
++        public ShortEntry<V> next() {
++            HashEntry<V> e = super.nextEntry();
++            return new WriteThroughEntry(e.key, e.value);
++        }
++    }
++
++    final class KeySet extends AbstractShortCollection {
++
++        public TShortIterator iterator() {
++            return new KeyIterator();
++        }
++
++        public int size() {
++            return ConcurrentShortObjectMap.this.size();
++        }
++
++        public boolean isEmpty() {
++            return ConcurrentShortObjectMap.this.isEmpty();
++        }
++
++        public boolean contains(short i) {
++            return ConcurrentShortObjectMap.this.containsKey(i);
++        }
++
++        @Override
++        public boolean remove(short i) {
++            return ConcurrentShortObjectMap.this.remove(i) != null;
++        }
++
++        public void clear() {
++            ConcurrentShortObjectMap.this.clear();
++        }
++    }
++
++    final class Values extends AbstractCollection<V> {
++
++        public Iterator<V> iterator() {
++            return new ValueIterator();
++        }
++
++        public int size() {
++            return ConcurrentShortObjectMap.this.size();
++        }
++
++        public boolean isEmpty() {
++            return ConcurrentShortObjectMap.this.isEmpty();
++        }
++
++        public boolean contains(Object o) {
++            return ConcurrentShortObjectMap.this.containsValue(o);
++        }
++
++        public void clear() {
++            ConcurrentShortObjectMap.this.clear();
++        }
++    }
++
++    final class EntrySet extends AbstractSet<ShortEntry<V>> {
++
++        public Iterator<ShortEntry<V>> iterator() {
++            return new EntryIterator();
++        }
++
++        public boolean contains(Object o) {
++            if (!(o instanceof ShortEntry)) return false;
++            ShortEntry<?> e = (ShortEntry<?>) o;
++            V v = ConcurrentShortObjectMap.this.get(e.getKey());
++            return v != null && v.equals(e.getValue());
++        }
++
++        public boolean remove(Object o) {
++            if (!(o instanceof Map.Entry)) return false;
++            ShortEntry<?> e = (ShortEntry<?>) o;
++            return ConcurrentShortObjectMap.this.remove(e.getKey(), (V) e.getValue()) != null;
++        }
++
++        public int size() {
++            return ConcurrentShortObjectMap.this.size();
++        }
++
++        public boolean isEmpty() {
++            return ConcurrentShortObjectMap.this.isEmpty();
++        }
++
++        public void clear() {
++            ConcurrentShortObjectMap.this.clear();
++        }
++    }
++
++    //
++    // Techcable's Code
++    //
++
++
++    @Override
++    public short getNoEntryKey() {
++        throw new UnsupportedOperationException("We have no \"no entry key\"");
++    }
++
++    @Override
++    public V put(short key, V value) {
++        Preconditions.checkNotNull(value);
++        int hash = strategy.hash(key);
++        return segmentFor(hash).put(key, hash, value, false);
++    }
++
++    @Override
++    public V putIfAbsent(short key, V value) {
++        Preconditions.checkNotNull(value);
++        int hash = strategy.hash(key);
++        return segmentFor(hash).put(key, hash, value, true);
++    }
++
++    public V remove(short key, V value) {
++        Preconditions.checkNotNull(value);
++        int hash = strategy.hash(key);
++        return segmentFor(hash).remove(key, hash, value);
++    }
++
++    @Override
++    public V remove(short key) {
++        int hash = strategy.hash(key);
++        return segmentFor(key).remove(key, hash, null);
++    }
++
++    @Override
++    public void putAll(Map<? extends Short, ? extends V> m) {
++        for (Map.Entry<? extends Short, ? extends V> entry : m.entrySet()) {
++            put(entry.getKey(), entry.getValue());
++        }
++    }
++
++    @Override
++    public void putAll(TShortObjectMap<? extends V> tIntObjectMap) {
++        tIntObjectMap.forEachEntry(new TShortObjectProcedure<V>() {
++
++            @Override
++            public boolean execute(short a, V b) {
++                put(a, b);
++                return true; // continue
++            }
++        });
++    }
++
++    @Override
++    public void clear() {
++        for (Segment segment : segments) {
++            segment.clear();
++        }
++    }
++
++    @Override
++    public TShortSet keySet() {
++        TShortSet keySet = this.keySet;
++        return keySet != null ? keySet : (this.keySet = new KeySet());
++    }
++
++    @Override
++    public short[] keys() {
++        return keySet().toArray();
++    }
++
++    @Override
++    public short[] keys(short[] ints) {
++        return keySet().toArray(ints);
++    }
++
++    @Override
++    public Collection<V> valueCollection() {
++        Collection<V> values = this.values;
++        return values != null ? values : (this.values = new Values());
++    }
++
++    @Override
++    public Object[] values() {
++        return valueCollection().toArray();
++    }
++
++    @Override
++    public V[] values(V[] vs) {
++        return valueCollection().toArray(vs);
++    }
++
++    @Override
++    public TShortObjectIterator<V> iterator() {
++        return new ConcurrentIntObjectMapIterator();
++    }
++
++    private class ConcurrentIntObjectMapIterator extends HashIterator implements TShortObjectIterator<V> {
++
++        @Override
++        public short key() {
++            Preconditions.checkState(entry != null, "advance() was not called");
++            return entry.key;
++        }
++
++        @Override
++        public V value() {
++            Preconditions.checkState(entry != null, "advance() was not called");
++            return entry.value;
++        }
++
++        @Override
++        public V setValue(V val) {
++            return ConcurrentShortObjectMap.this.put(key(), val);
++        }
++
++        private HashEntry<V> entry;
++
++        @Override
++        public void advance() {
++            entry = super.nextEntry();
++        }
++    }
++
++    @Override
++    public boolean forEachKey(TShortProcedure tIntProcedure) {
++        TShortIterator iterator = keySet().iterator();
++        while (iterator.hasNext()) {
++            short i = iterator.next();
++            if (!tIntProcedure.execute(i)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean forEachValue(TObjectProcedure<? super V> tObjectProcedure) {
++        Iterator<V> iterator = valueCollection().iterator();
++        while (iterator.hasNext()) {
++            V value = iterator.next();
++            if (!tObjectProcedure.execute(value)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public boolean forEachEntry(TShortObjectProcedure<? super V> tIntObjectProcedure) {
++        TShortObjectIterator<V> iterator = iterator();
++        while (iterator.hasNext()) {
++            iterator.advance();
++            short key = iterator.key();
++            V value = iterator.value();
++            if (!tIntObjectProcedure.execute(key, value)) return false;
++        }
++        return true;
++    }
++
++    @Override
++    public void transformValues(TObjectFunction<V, V> tObjectFunction) {
++        TShortObjectIterator<V> iterator = iterator();
++        while (iterator.hasNext()) {
++            iterator.advance();
++            V oldValue = iterator.value();
++            V newValue = tObjectFunction.execute(oldValue);
++            iterator.setValue(newValue);
++        }
++    }
++
++    @Override
++    public boolean retainEntries(TShortObjectProcedure<? super V> tIntObjectProcedure) {
++        TShortObjectIterator<V> iterator = iterator();
++        boolean modified = false;
++        while (iterator.hasNext()) {
++            iterator.advance();
++            short key = iterator.key();
++            V value = iterator.value();
++            if (!tIntObjectProcedure.execute(key, value)) {
++                modified = this.remove(key) != null || modified;
++            }
++        }
++        return modified;
++    }
++
++    private interface ShortEntry<V> {
++
++        public short getKey();
++
++        public V getValue();
++
++        public V setValue(V value);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/ShortHashStrategy.java b/src/main/java/net/techcable/tacospigot/ShortHashStrategy.java
+new file mode 100644
+index 0000000..b0c9baa
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/ShortHashStrategy.java
+@@ -0,0 +1,19 @@
++package net.techcable.tacospigot;
++
++public interface ShortHashStrategy {
++    public int hash(short s);
++
++    public static class DefaultShortHashStrategy implements ShortHashStrategy {
++        private DefaultShortHashStrategy() {}
++
++        @Override
++        public int hash(short s) {
++            return s;
++        }
++
++        private static final DefaultShortHashStrategy instance = new DefaultShortHashStrategy();
++        public static DefaultShortHashStrategy getInstance() {
++            return instance;
++        }
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftChunk.java b/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
+index 8a33e28..e821045 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
+@@ -308,4 +308,17 @@ public class CraftChunk implements Chunk {
+     static {
+         Arrays.fill(emptySkyLight, (byte) 0xFF);
+     }
++
++    // TacoSpigot start
++    @Override
++    public org.bukkit.Material getLastKnownMaterial(int x, int y, int z) {
++        net.minecraft.server.Block block = getHandle().getLastKnownType(x, y, z);
++        return org.bukkit.Material.getMaterial(net.minecraft.server.Block.getId(block));
++    }
++
++    @Override
++    public int getLastKnownMeta(int x, int y, int z) {
++        return getHandle().getLastKnownMeta(x, y, z);
++    }
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index ce10832..dd82018 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -13,6 +13,7 @@ import java.util.Set;
+ import java.util.UUID;
+ 
+ import net.minecraft.server.*;
++import net.techcable.tacospigot.error.ChunkNotLoadedException; // TacoSpigot
+ 
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.BlockChangeDelegate;
+@@ -1500,4 +1501,33 @@ public class CraftWorld implements World {
+         return spigot;
+     }
+     // Spigot end
++    // TacoSpigot start - async block retrieval api
++
++    @Override
++    public int getLastKnownMeta(Location loc) throws ChunkNotLoadedException {
++        return getLastKnownMeta(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
++    }
++
++    @Override
++    public int getLastKnownMeta(int x, int y, int z) throws ChunkNotLoadedException {
++        net.minecraft.server.Chunk chunk = getHandle().getChunkIfLoaded(x, z);
++        if (chunk == null) throw new ChunkNotLoadedException();
++        return chunk.getLastKnownMeta(x & 0xF, y, z & 0xF);
++    }
++
++    @Override
++    public org.bukkit.Material getLastKnownMaterial(Location loc) throws ChunkNotLoadedException {
++        return getLastKnownMaterial(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
++    }
++
++    @Override
++    public org.bukkit.Material getLastKnownMaterial(int x, int y, int z) throws ChunkNotLoadedException {
++        net.minecraft.server.Chunk chunk = getHandle().getChunkIfLoaded(x, z);
++        if (chunk == null) throw new ChunkNotLoadedException();
++        Chunk wrapper = chunk.bukkitChunk;
++        Preconditions.checkNotNull(wrapper, "Null chunk wrapper for %s %s", chunk.locX, chunk.locZ);
++        return wrapper.getLastKnownMaterial(x & 0xF, y, z & 0xF);
++    }
++
++    // TacoSpigot end
+ }
+-- 
+2.4.6.windows.1
+
