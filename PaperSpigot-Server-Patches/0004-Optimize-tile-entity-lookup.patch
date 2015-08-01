@@ -1,4 +1,4 @@
-From 245eb9b46f3c86a5c2ff0ddad70d363b109feac8 Mon Sep 17 00:00:00 2001
+From c1f3221ed30b942ec34c18e1eba5d200de7135f6 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 25 Jul 2015 21:27:30 -0700
 Subject: [PATCH] Optimize tile entity lookup
@@ -8,10 +8,28 @@ Chunk tile entity lookup used to be a Map<BlockPosition, TileEntity>, which is i
 It is replaced with a TShortObjectHashMap which has no hash collisions, better hash distribution, and no object overhead.
 
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index d5f13c0..c9d0cab 100644
+index d5f13c0..b40eb95 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
-@@ -19,6 +19,9 @@ import org.apache.logging.log4j.Logger;
+@@ -1,8 +1,8 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.base.Predicate;
+-import com.google.common.collect.Maps;
+ import com.google.common.collect.Queues;
++
+ import java.util.Arrays;
+ import java.util.Collection;
+ import java.util.Iterator;
+@@ -13,12 +13,17 @@ import java.util.concurrent.Callable;
+ import java.util.concurrent.ConcurrentLinkedQueue;
+ import java.util.concurrent.atomic.AtomicInteger; // PaperSpigot
+ 
++import net.techcable.tacospigot.FakeTileEntityMap; // TacoSpigot
++
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
  import com.google.common.collect.Lists; // CraftBukkit
  import org.bukkit.Bukkit; // CraftBukkit
  
@@ -21,46 +39,58 @@ index d5f13c0..c9d0cab 100644
  public class Chunk {
  
      private static final Logger c = LogManager.getLogger();
-@@ -33,6 +36,38 @@ public class Chunk {
+@@ -33,6 +38,41 @@ public class Chunk {
      public final int locZ;
      private boolean k;
      public final Map<BlockPosition, TileEntity> tileEntities;
 +    // TacoSpigot Start - Optimize tile entity lookup
 +    private final TShortObjectMap<TileEntity> tileEntitiesShort = new TShortObjectHashMap<TileEntity>();
 +
-+    public Collection<TileEntity> listTileEntities() {
-+        return tileEntitiesShort.valueCollection();
-+    }
-+
 +    public TileEntity getTileEntity(BlockPosition position) {
++        if (position == null) return null;
 +        TileEntity tileEntity = tileEntitiesShort.get(toRelativeShort(position));
 +        assert tileEntity != null && !tileEntity.getPosition().equals(position) : "tileEntitiesShort maps the tile entity at " + tileEntity.getPosition() + " to " + position;
-+        assert tileEntity == null && tileEntities.get(position) != null : "TileEntity at " + position.getX() + " " + position.getY() + " " + position.getZ() + " was not in short map with key " + Integer.toHexString(toRelativeShort(position)) + " but was in old map";
 +        return tileEntity;
 +    }
 +
 +    public void addTileEntity(TileEntity entity) {
 +        BlockPosition position = entity == null ? null : entity.getPosition();
 +        if (position == null) return;
-+        tileEntities.put(position, entity);
 +        tileEntitiesShort.put(toRelativeShort(position), entity);
 +    }
 +
 +    public TileEntity removeTileEntity(BlockPosition position) {
 +        if (position == null) return null;
-+        tileEntities.remove(position);
-+        return tileEntitiesShort.remove(toRelativeShort(position));
++        TileEntity tileEntity = tileEntitiesShort.remove(toRelativeShort(position));
++        assert tileEntity != null && !tileEntity.getPosition().equals(position) : "tileEntitiesShort maps the tile entity at " + tileEntity.getPosition() + " to " + position;
++        return tileEntity;
 +    }
 +
-+    private static short toRelativeShort(BlockPosition pos) {
++    public static short toRelativeShort(BlockPosition pos) {
 +        return (short)((pos.getX() & 0xF) | ((pos.getZ() & 0xF) << 4) | ((pos.getY() & 0xFF) << 8));
++    }
++
++    public static BlockPosition fromRelativeShort(int relative) {
++        int x = relative & 0xF;
++        int z = (relative >> 4) & 0xF;
++        int y = (relative >> 8) & 0xFF;
++        return new BlockPosition(x, y, z);
 +    }
 +
 +    // TacoSpigot End
      public final List<Entity>[] entitySlices; // Spigot
      private boolean done;
      private boolean lit;
-@@ -790,13 +825,17 @@ public class Chunk {
+@@ -126,7 +166,7 @@ public class Chunk {
+         this.e = new byte[256];
+         this.f = new int[256];
+         this.g = new boolean[256];
+-        this.tileEntities = Maps.newHashMap();
++        this.tileEntities = new FakeTileEntityMap(this, tileEntitiesShort); // TacoSpigot -- compensate for mojang's violation of encapsulation
+         this.v = 4096;
+         this.w = Queues.newConcurrentLinkedQueue();
+         this.entitySlices = (List[]) (new List[16]); // Spigot
+@@ -790,13 +830,17 @@ public class Chunk {
  
      public TileEntity a(BlockPosition blockposition, Chunk.EnumTileEntityState chunk_enumtileentitystate) {
          // CraftBukkit start
@@ -79,67 +109,6 @@ index d5f13c0..c9d0cab 100644
          // CraftBukkit end
  
          if (tileentity == null) {
-@@ -807,7 +846,7 @@ public class Chunk {
-                 this.w.add(blockposition);
-             }
-         } else if (tileentity.x()) {
--            this.tileEntities.remove(blockposition);
-+            removeTileEntity(blockposition); // TacoSpigot
-             return null;
-         }
- 
-@@ -826,17 +865,20 @@ public class Chunk {
-         tileentity.a(this.world);
-         tileentity.a(blockposition);
-         if (this.getType(blockposition) instanceof IContainer) {
--            if (this.tileEntities.containsKey(blockposition)) {
--                ((TileEntity) this.tileEntities.get(blockposition)).y();
-+            // TacoSpigot start
-+            TileEntity tile = getTileEntity(blockposition);
-+            if (tile != null) {
-+                tile.y();
-             }
-+            // TacoSpigot end
- 
-             tileentity.D();
--            this.tileEntities.put(blockposition, tileentity);
-+            addTileEntity(tileentity); // TacoSpigot
-             // CraftBukkit start
-             // PaperSpigot start - Remove invalid mob spawner tile entities
-         } else if (this.world.paperSpigotConfig.removeInvalidMobSpawnerTEs && tileentity instanceof TileEntityMobSpawner &&
-                 org.bukkit.craftbukkit.util.CraftMagicNumbers.getMaterial(getType(blockposition)) != org.bukkit.Material.MOB_SPAWNER) {
--            this.tileEntities.remove(blockposition);
-+            removeTileEntity(blockposition);// TacoSpigot
-             // PaperSpigot end
-         } else {
-             System.out.println("Attempted to place a tile entity (" + tileentity + ") at " + tileentity.position.getX() + "," + tileentity.position.getY() + "," + tileentity.position.getZ()
-@@ -849,7 +891,7 @@ public class Chunk {
- 
-     public void e(BlockPosition blockposition) {
-         if (this.h) {
--            TileEntity tileentity = (TileEntity) this.tileEntities.remove(blockposition);
-+            TileEntity tileentity = removeTileEntity(blockposition); // TacoSpigot
- 
-             if (tileentity != null) {
-                 tileentity.y();
-@@ -860,7 +902,7 @@ public class Chunk {
- 
-     public void addEntities() {
-         this.h = true;
--        this.world.a(this.tileEntities.values());
-+        this.world.a(listTileEntities()); // TacoSpigot
- 
-         for (int i = 0; i < this.entitySlices.length; ++i) {
-             Iterator iterator = this.entitySlices[i].iterator();
-@@ -878,7 +920,7 @@ public class Chunk {
- 
-     public void removeEntities() {
-         this.h = false;
--        Iterator iterator = this.tileEntities.values().iterator();
-+        Iterator iterator = listTileEntities().iterator(); // TacoSpigot
- 
-         while (iterator.hasNext()) {
-             TileEntity tileentity = (TileEntity) iterator.next();
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
 index 32c94f6..5b1db74 100644
 --- a/src/main/java/net/minecraft/server/World.java
@@ -187,6 +156,148 @@ index 32c94f6..5b1db74 100644
          }
      }
  
+diff --git a/src/main/java/net/techcable/tacospigot/FakeTileEntityMap.java b/src/main/java/net/techcable/tacospigot/FakeTileEntityMap.java
+new file mode 100644
+index 0000000..996c22d
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/FakeTileEntityMap.java
+@@ -0,0 +1,136 @@
++package net.techcable.tacospigot;
++
++import java.util.AbstractMap;
++import java.util.AbstractSet;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.Set;
++
++import net.minecraft.server.BlockPosition;
++import net.minecraft.server.Chunk;
++import net.minecraft.server.TileEntity;
++
++import gnu.trove.iterator.TShortObjectIterator;
++import gnu.trove.map.TShortObjectMap;
++
++public class FakeTileEntityMap extends AbstractMap<BlockPosition, TileEntity> {
++    private final Chunk chunk;
++    private final TShortObjectMap<TileEntity> tileEntitiesShort;
++
++    public FakeTileEntityMap(Chunk chunk, TShortObjectMap<TileEntity> tileEntitiesShort) {
++        this.chunk = chunk;
++        this.tileEntitiesShort = tileEntitiesShort;
++    }
++
++    @Override
++    public int size() {
++        return tileEntitiesShort.size();
++    }
++
++    @Override
++    public boolean containsKey(Object key) {
++        if (key == null || !(key instanceof BlockPosition)) return false;
++        return chunk.getTileEntity((BlockPosition) key) != null;
++    }
++
++    @Override
++    public boolean containsValue(Object value) {
++        return tileEntitiesShort.containsValue(value);
++    }
++
++    @Override
++    public TileEntity get(Object key) {
++        if (key == null) return null;
++        return chunk.getTileEntity((BlockPosition) key);
++    }
++
++    @Override
++    public TileEntity put(BlockPosition key, TileEntity value) {
++        if (value == null) return chunk.removeTileEntity(key);
++        if (!value.getPosition().equals(key)) throw new IllegalStateException("Tried to add tile entity with thte position set to " + value.getPosition() + " to " + key);
++        TileEntity old = get(key);
++        chunk.addTileEntity(value);
++        return old;
++    }
++
++    @Override
++    public TileEntity remove(Object key) {
++        if (key == null) return null;
++        return chunk.removeTileEntity((BlockPosition) key);
++    }
++
++    @Override
++    public void clear() {
++        tileEntitiesShort.clear();
++    }
++
++    @Override
++    public Set<Entry<BlockPosition, TileEntity>> entrySet() {
++        return new AbstractSet<Entry<BlockPosition,TileEntity>>() {
++
++            @Override
++            public int size() {
++                return tileEntitiesShort.size();
++            }
++
++            @Override
++            public boolean contains(Object o) {
++                Map.Entry<BlockPosition, TileEntity> entry = (Map.Entry<BlockPosition, TileEntity>) o;
++                TileEntity tileEntity = FakeTileEntityMap.this.get(entry.getKey());
++                return tileEntity == null ? entry.getValue() == null : tileEntity.equals(entry.getValue());
++            }
++
++            @Override
++            public Iterator<Entry<BlockPosition, TileEntity>> iterator() {
++                final TShortObjectIterator<TileEntity> backing = tileEntitiesShort.iterator();
++                return new Iterator<Entry<BlockPosition, TileEntity>>() {
++
++
++                    @Override
++                    public boolean hasNext() {
++                        return backing.hasNext();
++                    }
++
++                    @Override
++                    public Entry<BlockPosition, TileEntity> next() {
++                        backing.advance();
++                        final short key = backing.key();
++                        return new Map.Entry<BlockPosition, TileEntity>() {
++
++                            @Override
++                            public BlockPosition getKey() {
++                                return Chunk.fromRelativeShort(key);
++                            }
++
++                            @Override
++                            public TileEntity getValue() {
++                                return FakeTileEntityMap.this.get(getKey());
++                            }
++
++                            @Override
++                            public TileEntity setValue(TileEntity value) {
++                                return FakeTileEntityMap.this.put(getKey(), value);
++                            }
++                        };
++                    }
++
++                    @Override
++                    public void remove() {
++                        backing.remove();
++                    }
++                };
++            }
++
++            @Override
++            public boolean remove(Object o) {
++                Map.Entry<BlockPosition, TileEntity> entry = (Map.Entry<BlockPosition, TileEntity>) o;
++                return FakeTileEntityMap.this.remove(entry.getKey(), entry.getValue());
++            }
++
++            @Override
++            public void clear() {
++                FakeTileEntityMap.this.clear();
++            }
++        };
++    }
++}
 -- 
 2.4.6.windows.1
 

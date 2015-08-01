@@ -1,23 +1,22 @@
-From 55854dd15161008395947a335959229566ffab58 Mon Sep 17 00:00:00 2001
+From 734b4645dca42bbb0ee085b5fc8091f95512eca4 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 30 Jul 2015 23:57:17 -0700
 Subject: [PATCH] Implement async block retrieval api
 
 
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index c9d0cab..8417499 100644
+index b40eb95..6b3db5f 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
-@@ -13,6 +13,8 @@ import java.util.concurrent.Callable;
- import java.util.concurrent.ConcurrentLinkedQueue;
+@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  import java.util.concurrent.atomic.AtomicInteger; // PaperSpigot
  
+ import net.techcable.tacospigot.FakeTileEntityMap; // TacoSpigot
 +import net.techcable.tacospigot.ConcurrentShortIntMap; // TacoSpigot
-+
+ 
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
- 
-@@ -68,6 +70,56 @@ public class Chunk {
+@@ -73,6 +74,56 @@ public class Chunk {
      }
  
      // TacoSpigot End
@@ -74,7 +73,7 @@ index c9d0cab..8417499 100644
      public final List<Entity>[] entitySlices; // Spigot
      private boolean done;
      private boolean lit;
-@@ -206,6 +258,7 @@ public class Chunk {
+@@ -211,6 +262,7 @@ public class Chunk {
                          }
  
                          this.sections[k1].setType(k, i1 & 15, l, iblockdata);
@@ -82,7 +81,7 @@ index c9d0cab..8417499 100644
                      }
                  }
              }
-@@ -615,6 +668,7 @@ public class Chunk {
+@@ -620,6 +672,7 @@ public class Chunk {
              }
  
              chunksection.setType(i, j & 15, k, iblockdata);
