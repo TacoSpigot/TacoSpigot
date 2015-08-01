@@ -1,4 +1,4 @@
-From af58a7268b808a40ce7c6373a3e8dd028e86c20d Mon Sep 17 00:00:00 2001
+From 55854dd15161008395947a335959229566ffab58 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 30 Jul 2015 23:57:17 -0700
 Subject: [PATCH] Implement async block retrieval api
@@ -90,6 +90,37 @@ index c9d0cab..8417499 100644
              if (block1 != block) {
                  if (!this.world.isClientSide) {
                      block1.remove(this.world, blockposition, iblockdata1);
+diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+index 206e3aa..08f5f74 100644
+--- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
++++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+@@ -361,11 +361,24 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+                 if (Block.d.a(packed) == null) {
+                     Block block = Block.getById(ex << 8 | id);
+                     if (block != null) {
++                        // TacoSpigot start - track data object, update chunk data cache
++                        IBlockData dataObj;
+                         try {
+-                            data = block.toLegacyData(block.fromLegacyData(data));
++                            dataObj = block.fromLegacyData(data);
++                            data = block.toLegacyData(dataObj);
+                         } catch (Exception ignored) {
+-                            data = block.toLegacyData(block.getBlockData());
++                            dataObj = block.getBlockData();
++                            data = block.toLegacyData(dataObj);
+                         }
++                        /* Make sure the variables are x, y, z
++                         * x has no shift
++                         * y is << 8
++                         * z is << 4
++                         * In addition, remember to make y absolute
++                         */
++                        final int fullY = ((b1 << 4) ^ 0xF) | (j1 & 0xF);
++                        chunk.onChange(i1, fullY, k1, dataObj);
++                        // TacoSpigot end
+                         packed = ex << 12 | id << 4 | data;
+                     }
+                 }
 diff --git a/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java b/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java
 new file mode 100644
 index 0000000..5752183
@@ -3421,6 +3452,18 @@ index ce10832..dd82018 100644
 +
 +    // TacoSpigot end
  }
+diff --git a/src/main/java/org/bukkit/craftbukkit/generator/CustomChunkGenerator.java b/src/main/java/org/bukkit/craftbukkit/generator/CustomChunkGenerator.java
+index 9ecdad4..127058a 100644
+--- a/src/main/java/org/bukkit/craftbukkit/generator/CustomChunkGenerator.java
++++ b/src/main/java/org/bukkit/craftbukkit/generator/CustomChunkGenerator.java
+@@ -127,6 +127,7 @@ public class CustomChunkGenerator extends InternalChunkGenerator {
+ 
+                                     Block b = Block.getById(blk & 0xFF);
+                                     csbytes[(cy << 8) | (cz << 4) | cx] = (char) Block.d.b(b.getBlockData());
++                                    chunk.onChange(cx, ((sec << 4) ^ 0xF) | (cy & 0xF), cz, b.getBlockData()); // TacoSpigot
+                                 }
+                             }
+                         }
 -- 
 2.4.6.windows.1
 
