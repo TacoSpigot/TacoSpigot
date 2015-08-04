@@ -1,4 +1,4 @@
-From c1f3221ed30b942ec34c18e1eba5d200de7135f6 Mon Sep 17 00:00:00 2001
+From 00fedb8bc3b895e5c11b4381166274854a17e1db Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 25 Jul 2015 21:27:30 -0700
 Subject: [PATCH] Optimize tile entity lookup
@@ -6,9 +6,11 @@ Subject: [PATCH] Optimize tile entity lookup
 world.getTileEntity() iterates through all the tile entities in the world,which is replaced with a per-chunk map lookup.
 Chunk tile entity lookup used to be a Map<BlockPosition, TileEntity>, which is inefficent as BlockPosition isn't designed for relative (to the chunk) position.
 It is replaced with a TShortObjectHashMap which has no hash collisions, better hash distribution, and no object overhead.
+NMS delays tile entity addition while tile entiites are being ticked (to prevent CME), but pretends they are there in getTileEntity().
+We optimize this to a per-chunk hashmap like the normal lookups, to further improve getTileEntity().
 
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index d5f13c0..b40eb95 100644
+index d5f13c0..be6f41c 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
 @@ -1,8 +1,8 @@
@@ -21,7 +23,7 @@ index d5f13c0..b40eb95 100644
  import java.util.Arrays;
  import java.util.Collection;
  import java.util.Iterator;
-@@ -13,12 +13,17 @@ import java.util.concurrent.Callable;
+@@ -13,12 +13,18 @@ import java.util.concurrent.Callable;
  import java.util.concurrent.ConcurrentLinkedQueue;
  import java.util.concurrent.atomic.AtomicInteger; // PaperSpigot
  
@@ -33,41 +35,92 @@ index d5f13c0..b40eb95 100644
  import com.google.common.collect.Lists; // CraftBukkit
  import org.bukkit.Bukkit; // CraftBukkit
  
++import gnu.trove.iterator.TShortObjectIterator;
 +import gnu.trove.map.hash.TShortObjectHashMap; // TacoSpigot
 +import gnu.trove.map.TShortObjectMap; // TacoSpigot
 +
  public class Chunk {
  
      private static final Logger c = LogManager.getLogger();
-@@ -33,6 +38,41 @@ public class Chunk {
+@@ -33,6 +39,91 @@ public class Chunk {
      public final int locZ;
      private boolean k;
      public final Map<BlockPosition, TileEntity> tileEntities;
 +    // TacoSpigot Start - Optimize tile entity lookup
 +    private final TShortObjectMap<TileEntity> tileEntitiesShort = new TShortObjectHashMap<TileEntity>();
++    private final TShortObjectMap<TileEntity> tileEntitiesToAdd = new TShortObjectHashMap<TileEntity>();
++
++    public TileEntity getTileEntityToAdd(BlockPosition pos) {
++        if (pos == null) return null;
++        TileEntity tile = tileEntitiesToAdd.get(toRelativeShort(pos));
++        assert tile == null || tile.getPosition().equals(pos) || toRelative(tile.getPosition()).equals(pos) : "tileEntitiesShort maps the tile entity at " + tile.getPosition() + " to " + pos;
++        return tile;
++    }
++
++    public void addTileEntityToAdd(TileEntity tile) {
++        if (tile == null) return;
++        assert tile.getPosition() != null : "Tile entity at " + tile.getPosition() + " has a null position";
++        tileEntitiesToAdd.put(toRelativeShort(tile.getPosition()), tile);
++    }
++
++    public TileEntity removeTileEntityToAdd(BlockPosition position) {
++        if (position == null) return null;
++        TileEntity tileEntity = tileEntitiesToAdd.remove(toRelativeShort(position));
++        assert tileEntity == null || tileEntity.getPosition().equals(position) || toRelative(tileEntity.getPosition()).equals(position) : "tileEntitiesShort maps the tile entity at " + tileEntity.getPosition() + " to " + position;
++        return tileEntity;
++    }
++
++    public Iterator<TileEntity> tileEntityToAddIterator() {
++        final TShortObjectIterator<TileEntity> iterator = tileEntitiesToAdd.iterator();
++        return new Iterator<TileEntity>() {
++
++            @Override
++            public boolean hasNext() {
++                return iterator.hasNext();
++            }
++
++            boolean nextCalled = false;
++            @Override
++            public TileEntity next() {
++                iterator.advance();
++                nextCalled = true;
++                return iterator.value();
++            }
++
++            @Override
++            public void remove() {
++                iterator.remove();
++            }
++        };
++    }
 +
 +    public TileEntity getTileEntity(BlockPosition position) {
 +        if (position == null) return null;
 +        TileEntity tileEntity = tileEntitiesShort.get(toRelativeShort(position));
-+        assert tileEntity != null && !tileEntity.getPosition().equals(position) : "tileEntitiesShort maps the tile entity at " + tileEntity.getPosition() + " to " + position;
++        assert tileEntity == null || tileEntity.getPosition().equals(position) || toRelative(tileEntity.getPosition()).equals(position) : "tileEntitiesShort maps the tile entity at " + tileEntity.getPosition() + " to " + position;
 +        return tileEntity;
 +    }
 +
 +    public void addTileEntity(TileEntity entity) {
-+        BlockPosition position = entity == null ? null : entity.getPosition();
-+        if (position == null) return;
-+        tileEntitiesShort.put(toRelativeShort(position), entity);
++        if (entity == null) return;
++        assert entity.getPosition() != null : "Tile entity at " + entity.getPosition() + " has a null position";
++        tileEntitiesShort.put(toRelativeShort(entity.getPosition()), entity);
 +    }
 +
 +    public TileEntity removeTileEntity(BlockPosition position) {
 +        if (position == null) return null;
 +        TileEntity tileEntity = tileEntitiesShort.remove(toRelativeShort(position));
-+        assert tileEntity != null && !tileEntity.getPosition().equals(position) : "tileEntitiesShort maps the tile entity at " + tileEntity.getPosition() + " to " + position;
++        assert tileEntity == null || tileEntity.getPosition().equals(position) || toRelative(tileEntity.getPosition()).equals(position) : "tileEntitiesShort maps the tile entity at " + tileEntity.getPosition() + " to " + position;
 +        return tileEntity;
 +    }
 +
 +    public static short toRelativeShort(BlockPosition pos) {
++        assert pos != null : "Can't calculate null for non-position";
 +        return (short)((pos.getX() & 0xF) | ((pos.getZ() & 0xF) << 4) | ((pos.getY() & 0xFF) << 8));
++    }
++
++    public static BlockPosition toRelative(BlockPosition pos) {
++        return new BlockPosition(pos.getX() & 0xF, pos.getY(), pos.getZ() & 0xF);
 +    }
 +
 +    public static BlockPosition fromRelativeShort(int relative) {
@@ -81,7 +134,7 @@ index d5f13c0..b40eb95 100644
      public final List<Entity>[] entitySlices; // Spigot
      private boolean done;
      private boolean lit;
-@@ -126,7 +166,7 @@ public class Chunk {
+@@ -126,7 +217,7 @@ public class Chunk {
          this.e = new byte[256];
          this.f = new int[256];
          this.g = new boolean[256];
@@ -90,7 +143,7 @@ index d5f13c0..b40eb95 100644
          this.v = 4096;
          this.w = Queues.newConcurrentLinkedQueue();
          this.entitySlices = (List[]) (new List[16]); // Spigot
-@@ -790,13 +830,17 @@ public class Chunk {
+@@ -790,13 +881,17 @@ public class Chunk {
  
      public TileEntity a(BlockPosition blockposition, Chunk.EnumTileEntityState chunk_enumtileentitystate) {
          // CraftBukkit start
@@ -110,23 +163,178 @@ index d5f13c0..b40eb95 100644
  
          if (tileentity == null) {
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 32c94f6..5b1db74 100644
+index 32c94f6..9a6cb61 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -1940,10 +1940,33 @@ public abstract class World implements IBlockAccess {
+@@ -58,10 +58,16 @@ public abstract class World implements IBlockAccess {
+     };
+     // Spigot end
+     protected final List<Entity> g = Lists.newArrayList();
+-    public final List<TileEntity> h = Lists.newArrayList();
++
++    // TacoSpigot start - get rid of the 'list based' tile entity system
++    // public final List<TileEntity> h = Lists.newArrayList(); // was loadedTileEntityList
++    // *is* tickableTileEntities
+     public final Set<TileEntity> tileEntityList = new org.github.paperspigot.WorldTileEntityList(this); // PaperSpigot
+-    private final List<TileEntity> b = Lists.newArrayList();
++    // private final List<TileEntity> b = Lists.newArrayList(); // was tileEntitiesToAdd
++    // *is* tileEntitiesToRemove
+     private final List<TileEntity> c = Lists.newArrayList();
++    // TacoSpigot end
++
+     public final List<EntityHuman> players = Lists.newArrayList();
+     public final List<Entity> k = Lists.newArrayList();
+     protected final IntHashMap<Entity> entitiesById = new IntHashMap();
+@@ -92,7 +98,7 @@ public abstract class World implements IBlockAccess {
+     private int L;
+     public boolean allowMonsters; // CraftBukkit - public
+     public boolean allowAnimals; // CraftBukkit - public
+-    private boolean M;
++    private boolean M; // TacoSpigot NOTE - is delayAddingTileEntities
+     private final WorldBorder N;
+     int[] H;
+ 
+@@ -224,8 +230,8 @@ public abstract class World implements IBlockAccess {
+             public void b(WorldBorder worldborder, double d0) {}
+ 
+             public void c(WorldBorder worldborder, double d0) {}
+-        }); 
+-        this.getServer().addWorld(this.world); 
++        });
++        this.getServer().addWorld(this.world);
+         // CraftBukkit end
+         this.keepSpawnInMemory = this.paperSpigotConfig.keepSpawnInMemory; // PaperSpigot
+         timings = new SpigotTimings.WorldTimingsHandler(this); // Spigot - code below can generate new world and access timings
+@@ -763,7 +769,7 @@ public abstract class World implements IBlockAccess {
+     {
+         return getType( blockposition, true );
+     }
+-    
++
+     public IBlockData getType(BlockPosition blockposition, boolean useCaptured) {
+         // CraftBukkit start - tree generation
+         if (captureTreeGeneration && useCaptured) {
+@@ -1198,10 +1204,10 @@ public abstract class World implements IBlockAccess {
+                                 entity.h(true);
+                             }
+ 
+-                            IBlockData block; 
++                            IBlockData block;
+                             if (!this.getWorldBorder().a(blockposition) && flag1) {
+                                 block = Blocks.STONE.getBlockData();
+-                            } else 
++                            } else
+                             {
+                                 block = chunk.getBlockData( blockposition );
+                             }
+@@ -1473,7 +1479,7 @@ public abstract class World implements IBlockAccess {
+         // CraftBukkit start - From below, clean up tile entities before ticking them
+         if (!this.c.isEmpty()) {
+             this.tileEntityList.removeAll(this.c);
+-            this.h.removeAll(this.c);
++            // this.h.removeAll(this.c); // TacoSpigot - remove unneeded code
+             this.c.clear();
+         }
+         // CraftBukkit end
+@@ -1514,7 +1520,7 @@ public abstract class World implements IBlockAccess {
+ 
+             if (tileentity.x()) {
+                 iterator.remove();
+-                this.h.remove(tileentity);
++                // this.h.remove(tileentity); // TacoSpigot - remove unneeded code
+                 if (this.isLoaded(tileentity.getPosition())) {
+                     this.getChunkAtWorldCoords(tileentity.getPosition()).e(tileentity.getPosition());
+                 }
+@@ -1533,27 +1539,27 @@ public abstract class World implements IBlockAccess {
+         // CraftBukkit end */
+ 
+         this.methodProfiler.c("pendingBlockEntities");
+-        if (!this.b.isEmpty()) {
+-            for (int l = 0; l < this.b.size(); ++l) {
+-                TileEntity tileentity1 = (TileEntity) this.b.get(l);
+-
+-                if (!tileentity1.x()) {
++        // TacoSpigot start - optimize tileEntityToAdd
++        for (Chunk chunk : ((ChunkProviderServer)chunkProvider).chunks.values()) {
++            Iterator<TileEntity> tileEntityToAddIterator = chunk.tileEntityToAddIterator();
++            while (tileEntityToAddIterator.hasNext()) {
++                TileEntity tileEntityToAdd = tileEntityToAddIterator.next();
++                if (!tileEntityToAdd.x()) { // isInvalid
+                     /* CraftBukkit start - Order matters, moved down
+                     if (!this.h.contains(tileentity1)) {
+                         this.a(tileentity1);
+                     }
+                     // CraftBukkit end */
+ 
+-                    if (this.isLoaded(tileentity1.getPosition())) {
+-                        this.getChunkAtWorldCoords(tileentity1.getPosition()).a(tileentity1.getPosition(), tileentity1);
++                    if (this.isLoaded(tileEntityToAdd.getPosition())) {
++                        chunk.a(tileEntityToAdd.getPosition(), tileEntityToAdd);
+                     }
+ 
+-                    this.notify(tileentity1.getPosition());
++                    this.notify(tileEntityToAdd.getPosition());
+                 }
+             }
+-
+-            this.b.clear();
+         }
++        // TacoSpigot end
+ 
+         timings.tileEntityPending.stopTiming(); // Spigot
+         this.methodProfiler.b();
+@@ -1561,7 +1567,10 @@ public abstract class World implements IBlockAccess {
+     }
+ 
+     public boolean a(TileEntity tileentity) {
+-        boolean flag = this.h.add(tileentity);
++        // TacoSpigot start - remove unneeded code
++        boolean flag = true; // This is always true. WTF Mojang?
++        // boolean flag = this.h.add(tileentity);
++        // TacoSpigot end
+ 
+         if (flag && tileentity instanceof IUpdatePlayerListBox) {
+             this.tileEntityList.add(tileentity);
+@@ -1572,14 +1581,19 @@ public abstract class World implements IBlockAccess {
+ 
+     public void a(Collection<TileEntity> collection) {
+         if (this.M) {
+-            this.b.addAll(collection);
++            // TacoSpigot start
++            for (TileEntity tileEntityToAdd : collection) {
++                Chunk chunk = getChunkAtWorldCoords(tileEntityToAdd.getPosition());
++                chunk.addTileEntityToAdd(tileEntityToAdd);
++            }
++            // TacoSpigot end
+         } else {
+             Iterator iterator = collection.iterator();
+ 
+             while (iterator.hasNext()) {
+                 TileEntity tileentity = (TileEntity) iterator.next();
+ 
+-                this.h.add(tileentity);
++                // this.h.add(tileentity); // TacoSpigot - remove unneeded code
+                 if (tileentity instanceof IUpdatePlayerListBox) {
+                     this.tileEntityList.add(tileentity);
+                 }
+@@ -1940,34 +1954,59 @@ public abstract class World implements IBlockAccess {
  
      public Map<BlockPosition, TileEntity> capturedTileEntities = Maps.newHashMap();
  
-+    // TacoSpigot start - Optimize tile entity lookup
++    // TacoSpigot start - Optimize tile entity lookup.
 +    public TileEntity getTileEntityIfLoaded(BlockPosition position) {
++        if (!this.isValidLocation(position)) return null;
 +        Chunk chunk = getChunkIfLoaded(position.getX() >> 4, position.getZ() >> 4);
 +        if (chunk == null) return null;
-+        TileEntity tileEntity = chunk.getTileEntity(position);
-+        if (tileEntity != null && tileEntity.x()) { // isInvalid
-+            chunk.removeTileEntity(tileEntity.getPosition());
-+            return null;
++
++        if (this.M) {
++            TileEntity toAdd = chunk.getTileEntity(position);
++            if (toAdd != null && !toAdd.x()) { // isInvalid
++                return toAdd;
++            }
 +        }
-+        return tileEntity;
++
++        return chunk.a(position, Chunk.EnumTileEntityState.IMMEDIATE);
 +    }
 +    // TacoSpigot end
 +
@@ -134,27 +342,99 @@ index 32c94f6..5b1db74 100644
          if (!this.isValidLocation(blockposition)) {
              return null;
          } else {
-+            // TacoSpigot start -- Optimize tile entity lookup
-+            Chunk chunk = getChunkAtWorldCoords(blockposition);
-+            if (chunk == null) return null;
-+            TileEntity tileEntity = chunk.getTileEntity(blockposition);
-+            if (tileEntity != null && tileEntity.x()) {// isInvalid
-+                chunk.removeTileEntity(tileEntity.getPosition());
-+                return null;
-+            }
-+            return tileEntity;
++            // TacoSpigot start - This is unnecessary, its just a performance boost that actually reduces performance because of our edits
 +            /*
              // CraftBukkit start
              if (capturedTileEntities.containsKey(blockposition)) {
                  return capturedTileEntities.get(blockposition);
-@@ -1979,6 +2002,8 @@ public abstract class World implements IBlockAccess {
              }
- 
-             return tileentity;
+             // CraftBukkit end
 +            */
 +            // TacoSpigot end
+ 
+             TileEntity tileentity = null;
+             int i;
+             TileEntity tileentity1;
+ 
+             if (this.M) {
+-                for (i = 0; i < this.b.size(); ++i) {
+-                    tileentity1 = (TileEntity) this.b.get(i);
+-                    if (!tileentity1.x() && tileentity1.getPosition().equals(blockposition)) {
+-                        tileentity = tileentity1;
+-                        break;
+-                    }
++                // TacoSpigot start - optimize delayed tile entity addition
++                // this.M (delayAddingTileEntities) delays tile entity addition, nms handles this as lying about the existence of the tile, then truely them later
++                // We optimize this to use a per-chunk HashMap
++                TileEntity toAdd = getChunkAtWorldCoords(blockposition).getTileEntityToAdd(blockposition);
++                if (toAdd != null && !toAdd.x()) { // isInvalid
++                    tileentity = toAdd;
+                 }
++                // TacoSpigot end
+             }
+ 
+             if (tileentity == null) {
+                 tileentity = this.getChunkAtWorldCoords(blockposition).a(blockposition, Chunk.EnumTileEntityState.IMMEDIATE);
+             }
+ 
++            // TacoSpigot start - remove iteration based method, its *really* stupid
++            // Its completely unnecessary, unlike the above iteration because tileEntitiesToAdd (b) is unused if this.M (delayAddingTileEntities)
++            /*
+             if (tileentity == null) {
+                 for (i = 0; i < this.b.size(); ++i) {
+                     tileentity1 = (TileEntity) this.b.get(i);
+@@ -1977,6 +2016,8 @@ public abstract class World implements IBlockAccess {
+                     }
+                 }
+             }
++            */
++            // TacoSpigot end
+ 
+             return tileentity;
          }
-     }
+@@ -1994,19 +2035,14 @@ public abstract class World implements IBlockAccess {
+             // CraftBukkit end
+             if (this.M) {
+                 tileentity.a(blockposition);
+-                Iterator iterator = this.b.iterator();
+-
+-                while (iterator.hasNext()) {
+-                    TileEntity tileentity1 = (TileEntity) iterator.next();
+-
+-                    if (tileentity1.getPosition().equals(blockposition)) {
+-                        tileentity1.y();
+-                        iterator.remove();
+-                    }
+-                }
++                // TacoSpigot start - optimize tileEntitiesToAdd
++                Chunk chunk = getChunkIfLoaded(blockposition.getX() >> 4, blockposition.getZ() >> 4);
++                TileEntity oldTile = chunk.removeTileEntityToAdd(blockposition);
++                if (oldTile != null) oldTile.y(); // invalidate
+ 
+                 tileentity.a(this); // Spigot - No null worlds
+-                this.b.add(tileentity);
++                chunk.addTileEntityToAdd(tileentity);
++                // TacoSpigot end
+             } else {
+                 this.a(tileentity);
+                 this.getChunkAtWorldCoords(blockposition).a(blockposition, tileentity);
+@@ -2020,11 +2056,14 @@ public abstract class World implements IBlockAccess {
+ 
+         if (tileentity != null && this.M) {
+             tileentity.y();
+-            this.b.remove(tileentity);
++            // TacoSpigot start
++            Chunk chunk = getChunkAtWorldCoords(blockposition);
++            chunk.removeTileEntityToAdd(blockposition);
++            // TacoSpigot end
+         } else {
+             if (tileentity != null) {
+-                this.b.remove(tileentity);
+-                this.h.remove(tileentity);
++                getChunkAtWorldCoords(blockposition).removeTileEntityToAdd(blockposition); // TacoSpigot
++                // this.h.remove(tileentity); // TacoSpigot - remove unneeded code
+                 this.tileEntityList.remove(tileentity);
+             }
  
 diff --git a/src/main/java/net/techcable/tacospigot/FakeTileEntityMap.java b/src/main/java/net/techcable/tacospigot/FakeTileEntityMap.java
 new file mode 100644

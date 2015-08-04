@@ -1,103 +1,69 @@
-From 8955c968817430644139c68a2a900e0b89c5fa7d Mon Sep 17 00:00:00 2001
+From 1cfc5c23acbad4f5891d975d0d67aa6302d0d46a Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 30 Jul 2015 18:12:29 -0700
 Subject: [PATCH] Allow plugins to replace spigot anti-XRay
 
 
-diff --git a/src/main/java/net/techcable/tacospigot/BlockPos.java b/src/main/java/net/techcable/tacospigot/BlockPos.java
+diff --git a/src/main/java/net/techcable/tacospigot/BlockData.java b/src/main/java/net/techcable/tacospigot/BlockData.java
 new file mode 100644
-index 0000000..5fd3381
+index 0000000..ff0d078
 --- /dev/null
-+++ b/src/main/java/net/techcable/tacospigot/BlockPos.java
-@@ -0,0 +1,76 @@
++++ b/src/main/java/net/techcable/tacospigot/BlockData.java
+@@ -0,0 +1,42 @@
 +package net.techcable.tacospigot;
 +
-+import org.bukkit.Location;
-+import org.bukkit.World;
++import org.bukkit.Material;
 +
-+/**
-+ * An immutable block position
-+ */
-+public class BlockPos {
++public class BlockData {
++    private final Material type;
++    private final int metadata;
 +
-+    private final int x, y, z;
-+
-+    /**
-+     * Create a new block position
-+     *
-+     * @param x the x coordinate
-+     * @param y the y coordinate
-+     * @param z the z coordinate
-+     */
-+    public BlockPos(int x, int y, int z) {
-+        this.x = x;
-+        this.y = y;
-+        this.z = z;
++    public BlockData(int blockId, int metadata) {
++        this(Material.getMaterial(blockId), metadata);
 +    }
 +
-+    /**
-+     * Return the x coordinate at this position
-+     *
-+     * @return the x coordinate at this position
-+     */
-+    public int getX() {
-+        return x;
++    public BlockData(Material type, int metadata) {
++        this.type = type;
++        this.metadata = metadata;
 +    }
 +
-+    /**
-+     * Return the y coordinate at this position
-+     *
-+     * @return the y coordinate at this position
-+     */
-+    public int getY() {
-+        return y;
++    public Material getType() {
++        return type;
 +    }
 +
-+    /**
-+     * Return the z coordinate at this position
-+     *
-+     * @return the z coordinate at this position
-+     */
-+    public int getZ() {
-+        return z;
++    public int getBlockId() {
++        return getType().getId();
 +    }
 +
-+    /**
-+     * Convert this block position to a bukkit location
-+     *
-+     * @param world the world the location is in
-+     *
-+     * @return a location at this position in the specified world
-+     */
-+    public Location asLocation(World world) {
-+        return new Location(world, x, y, z); // Create a new one each time, because it is mutable
++    public int getMetadata() {
++        return metadata;
 +    }
 +
-+    /**
-+     * Convert this block position to an absolute position
-+     *
-+     * @param chunkX the x position of the chunk containing this block
-+     * @param chunkZ the z position of the chunk containing this block
-+     *
-+     * @return the absolute position of this block
-+     */
-+    public BlockPos toAbsolute(int chunkX, int chunkZ) {
-+        return new BlockPos((chunkX << 4) | (getX() & 0xF), getY(), (chunkZ << 4) | (getZ() & 0xF));
++    public BlockData withType(Material type) {
++        return new BlockData(type, metadata);
++    }
++
++    public BlockData withBlockId(int blockId) {
++        return withType(Material.getMaterial(blockId));
++    }
++
++    public BlockData withMetadata(int metadata) {
++        return new BlockData(type, metadata);
 +    }
 +
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/xray/AntiXRayEngine.java b/src/main/java/net/techcable/tacospigot/xray/AntiXRayEngine.java
 new file mode 100644
-index 0000000..0e608a9
+index 0000000..0947c67
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/xray/AntiXRayEngine.java
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,65 @@
 +package net.techcable.tacospigot.xray;
 +
-+import net.techcable.tacospigot.BlockPos;
++import net.techcable.tacospigot.BlockData;
 +
-+import org.bukkit.Location;
 +import org.bukkit.World;
++import org.bukkit.entity.Player;
 +
 +/**
 + * An anti-XRay engine that hides blocks in some way
@@ -114,171 +80,47 @@ index 0000000..0e608a9
 +     * </p>
 +     *
 +     * @param world the world where the block was changed
-+     * @param location the location where the block was changed
++     * @param x the x position where the block was changed
++     * @param y the y position where the block was changed
++     * @param z the z position where the block was changed
 +     */
-+    public void onBlockChange(World world, BlockPos location);
++    public void onBlockChange(World world, int x, int y, int z);
 +
 +    /**
-+     * Hide blocks in the chunk data
-+     * <p/>
++     * Modify/hide the given block
 +     * <p>
 +     * This method will always be called from the main thread
++     * The results of this method do not actually change the block on the disk or in memory, only what the player sees
 +     * </p>
 +     *
-+     * @param world the world to modify the chunk data in
-+     * @param chunkX the x position of the chunk
-+     * @param chunkZ the z position of the chunk
-+     * @param data a stream of chunk data to modify
++     * @param player the player viewing this block
++     * @param world the world to modify the data in
++     * @param x the x position of the block to modify
++     * @param y the y position of the block to modify
++     * @param z the z position of the block to modify
++     * @param data the block to modify
++     *
++     * @return the modified data, or null if no modification needed
 +     */
-+    public void obfuscateSync(World world, int chunkX, int chunkZ, ChunkDataIterator data);
++    public BlockData obfuscateSync(Player player, World world, int x, int y, int z, BlockData data);
 +
 +    /**
-+     * Hide blocks in the chunk data
-+     * <p/>
++     * Modify/hide the given block
 +     * <p>
 +     * This method may be called from any thread except the main thread
++     * The results of this method do not actually change the block on the disk or in memory, only what the player sees
 +     * </p>
 +     *
-+     * @param world the world to modify the chunk data in
-+     * @param chunkX the x position of the chunk
-+     * @param chunkZ the z position of the chunk
-+     * @param iterator a stream of chunk data to modify
++     * @param player the player viewing this block
++     * @param world the world to modify the data in
++     * @param x the x position of the block to modify
++     * @param y the y position of the block to modify
++     * @param z the z position of the block to modify
++     * @param data the block to modify
++     *
++     * @return the modified data, or null if no modification needed
 +     */
-+    public void obfuscate(World world, int chunkX, int chunkZ, ChunkDataIterator iterator);
-+
-+}
-diff --git a/src/main/java/net/techcable/tacospigot/xray/ChunkDataIterator.java b/src/main/java/net/techcable/tacospigot/xray/ChunkDataIterator.java
-new file mode 100644
-index 0000000..1439607
---- /dev/null
-+++ b/src/main/java/net/techcable/tacospigot/xray/ChunkDataIterator.java
-@@ -0,0 +1,128 @@
-+package net.techcable.tacospigot.xray;
-+
-+import net.techcable.tacospigot.BlockPos;
-+
-+import org.bukkit.Material;
-+
-+/**
-+ * Reads data from a chunk
-+ */
-+public interface ChunkDataIterator {
-+
-+    /**
-+     * Return if there are more blocks in the chunk
-+     * <p>
-+     * Advance will not throw a {@link java.util.NoSuchElementException} if this returns true
-+     * </p>
-+     *
-+     * @return if there are more blocks in the chunk
-+     */
-+    public boolean hasNext();
-+
-+    /**
-+     * Advance to the next block in the data, returning the coordinate of the block
-+     *
-+     * @return the coordinate of the new block
-+     *
-+     * @throws java.util.NoSuchElementException if there are no more blocks in the chunk
-+     */
-+    public BlockPos advance();
-+
-+    /**
-+     * Return the <b>relative</b> position of the current block in the iterator
-+     * <p>
-+     * If absolute position is desired, use {@link #getAbsolutePosition(int, int)}
-+     * </p>
-+     *
-+     * @return the relative position of the current block in the iterator
-+     */
-+    public BlockPos getCurrentPosition();
-+
-+    /**
-+     * Return the absolute position of the current block in the iterator
-+     *
-+     * @param chunkX the x position of the chunk containing this block
-+     * @param chunkZ the z position of the chunk containing this block
-+     *
-+     * @return the absolute position of the current block in the iterator
-+     */
-+    public BlockPos getAbsolutePosition(int chunkX, int chunkZ);
-+
-+    /**
-+     * Returns the block id at the current location
-+     *
-+     * @param id the new block id
-+     *
-+     * @deprecated magic values
-+     */
-+    @Deprecated
-+    public void setBlockId(int id);
-+
-+    /**
-+     * Set the block type at the current location
-+     *
-+     * @param type the new block type
-+     */
-+    public void setBlockType(Material type);
-+
-+    /**
-+     * Returns the block type at the current block
-+     *
-+     * @return the block type
-+     */
-+    public Material getBlockType();
-+
-+    /**
-+     * Returns the block id at the current block
-+     *
-+     * @return the block id
-+     *
-+     * @deprecated magic values
-+     */
-+    @Deprecated
-+    public int getBlockId();
-+
-+    /**
-+     * Return the metadata at the current block
-+     *
-+     * @return the block metadata
-+     *
-+     * @deprecated magic values
-+     */
-+    @Deprecated
-+    public int getBlockMeta();
-+
-+    /**
-+     * Set the metadata at the current block
-+     *
-+     * @param meta the new block metadata
-+     *
-+     * @deprecated magic values
-+     */
-+    @Deprecated
-+    public void setBlockMeta(int meta);
-+
-+    /**
-+     * Returns if this chunk data contains the current block
-+     *
-+     * @return if the block has been sent
-+     */
-+    public boolean isSent();
-+
-+    /**
-+     * Returns if this chunk data contains the specified "section"
-+     * <p>
-+     * Chunks can have up to 16 sections, which are vertical portions of the chunk
-+     * Each 16 has 16 x y and z blocks
-+     * </p>
-+     *
-+     * @param section the section id
-+     *
-+     * @return if this chunk data contains the specified section
-+     *
-+     * @deprecated sections may not exist in the current form in future versions of minecraft
-+     */
-+    @Deprecated
-+    public boolean isSent(int section);
++    public BlockData obfuscate(Player player, World world, int x, int y, int z, BlockData data);
 +
 +}
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
