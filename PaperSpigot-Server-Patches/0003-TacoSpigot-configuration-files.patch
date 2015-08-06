@@ -1,11 +1,11 @@
-From a1e1008b88aaf4223907fe138f8cbe262dbaa00f Mon Sep 17 00:00:00 2001
+From 5f335b5fc30e82a0136f6df74689c8d34acf6638 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index c65ad6c..a72e441 100644
+index 6dfb161..055a669 100644
 --- a/src/main/java/net/minecraft/server/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/DedicatedServer.java
 @@ -181,6 +181,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
@@ -17,7 +17,7 @@ index c65ad6c..a72e441 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 99473d1..32c94f6 100644
+index ab0d9c7..5bb3291 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -157,6 +157,8 @@ public abstract class World implements IBlockAccess {
@@ -221,10 +221,10 @@ index 0000000..456aee9
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index ca9c4a9..75b5d58 100644
+index 97a53d3..dad0e33 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -688,6 +688,7 @@ public final class CraftServer implements Server {
+@@ -689,6 +689,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          org.github.paperspigot.PaperSpigotConfig.init((File) console.options.valueOf("paper-settings")); // PaperSpigot
@@ -232,7 +232,7 @@ index ca9c4a9..75b5d58 100644
          for (WorldServer world : console.worlds) {
              world.worldData.setDifficulty(difficulty);
              world.setSpawnFlags(monsters, animals);
-@@ -704,6 +705,7 @@ public final class CraftServer implements Server {
+@@ -705,6 +706,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperSpigotConfig.init(); // PaperSpigot

@@ -1,4 +1,4 @@
-From 00fedb8bc3b895e5c11b4381166274854a17e1db Mon Sep 17 00:00:00 2001
+From 18b11126c134b83f45f4da26f0e8151b203739d7 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 25 Jul 2015 21:27:30 -0700
 Subject: [PATCH] Optimize tile entity lookup
@@ -10,7 +10,7 @@ NMS delays tile entity addition while tile entiites are being ticked (to prevent
 We optimize this to a per-chunk hashmap like the normal lookups, to further improve getTileEntity().
 
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index d5f13c0..be6f41c 100644
+index 7efacfa..e437381 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
 @@ -1,8 +1,8 @@
@@ -163,7 +163,7 @@ index d5f13c0..be6f41c 100644
  
          if (tileentity == null) {
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 32c94f6..9a6cb61 100644
+index 5bb3291..b34b43d 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -58,10 +58,16 @@ public abstract class World implements IBlockAccess {
@@ -227,7 +227,7 @@ index 32c94f6..9a6cb61 100644
                              {
                                  block = chunk.getBlockData( blockposition );
                              }
-@@ -1473,7 +1479,7 @@ public abstract class World implements IBlockAccess {
+@@ -1472,7 +1478,7 @@ public abstract class World implements IBlockAccess {
          // CraftBukkit start - From below, clean up tile entities before ticking them
          if (!this.c.isEmpty()) {
              this.tileEntityList.removeAll(this.c);
@@ -236,7 +236,7 @@ index 32c94f6..9a6cb61 100644
              this.c.clear();
          }
          // CraftBukkit end
-@@ -1514,7 +1520,7 @@ public abstract class World implements IBlockAccess {
+@@ -1513,7 +1519,7 @@ public abstract class World implements IBlockAccess {
  
              if (tileentity.x()) {
                  iterator.remove();
@@ -245,7 +245,7 @@ index 32c94f6..9a6cb61 100644
                  if (this.isLoaded(tileentity.getPosition())) {
                      this.getChunkAtWorldCoords(tileentity.getPosition()).e(tileentity.getPosition());
                  }
-@@ -1533,27 +1539,27 @@ public abstract class World implements IBlockAccess {
+@@ -1532,27 +1538,27 @@ public abstract class World implements IBlockAccess {
          // CraftBukkit end */
  
          this.methodProfiler.c("pendingBlockEntities");
@@ -283,7 +283,7 @@ index 32c94f6..9a6cb61 100644
  
          timings.tileEntityPending.stopTiming(); // Spigot
          this.methodProfiler.b();
-@@ -1561,7 +1567,10 @@ public abstract class World implements IBlockAccess {
+@@ -1560,7 +1566,10 @@ public abstract class World implements IBlockAccess {
      }
  
      public boolean a(TileEntity tileentity) {
@@ -295,7 +295,7 @@ index 32c94f6..9a6cb61 100644
  
          if (flag && tileentity instanceof IUpdatePlayerListBox) {
              this.tileEntityList.add(tileentity);
-@@ -1572,14 +1581,19 @@ public abstract class World implements IBlockAccess {
+@@ -1571,14 +1580,19 @@ public abstract class World implements IBlockAccess {
  
      public void a(Collection<TileEntity> collection) {
          if (this.M) {
@@ -317,7 +317,7 @@ index 32c94f6..9a6cb61 100644
                  if (tileentity instanceof IUpdatePlayerListBox) {
                      this.tileEntityList.add(tileentity);
                  }
-@@ -1940,34 +1954,59 @@ public abstract class World implements IBlockAccess {
+@@ -1939,34 +1953,59 @@ public abstract class World implements IBlockAccess {
  
      public Map<BlockPosition, TileEntity> capturedTileEntities = Maps.newHashMap();
  
@@ -383,7 +383,7 @@ index 32c94f6..9a6cb61 100644
              if (tileentity == null) {
                  for (i = 0; i < this.b.size(); ++i) {
                      tileentity1 = (TileEntity) this.b.get(i);
-@@ -1977,6 +2016,8 @@ public abstract class World implements IBlockAccess {
+@@ -1976,6 +2015,8 @@ public abstract class World implements IBlockAccess {
                      }
                  }
              }
@@ -392,7 +392,7 @@ index 32c94f6..9a6cb61 100644
  
              return tileentity;
          }
-@@ -1994,19 +2035,14 @@ public abstract class World implements IBlockAccess {
+@@ -1993,19 +2034,14 @@ public abstract class World implements IBlockAccess {
              // CraftBukkit end
              if (this.M) {
                  tileentity.a(blockposition);
@@ -418,7 +418,7 @@ index 32c94f6..9a6cb61 100644
              } else {
                  this.a(tileentity);
                  this.getChunkAtWorldCoords(blockposition).a(blockposition, tileentity);
-@@ -2020,11 +2056,14 @@ public abstract class World implements IBlockAccess {
+@@ -2019,11 +2055,14 @@ public abstract class World implements IBlockAccess {
  
          if (tileentity != null && this.M) {
              tileentity.y();
