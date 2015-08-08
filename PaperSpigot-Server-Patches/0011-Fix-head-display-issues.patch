@@ -1,0 +1,30 @@
+From 07886353f0ea581bf6a77c19ff110274d7538b6c Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Fri, 7 Aug 2015 19:31:31 -0700
+Subject: [PATCH] Fix head display issues
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
+index ce5425f..4c8031c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
+@@ -3,6 +3,7 @@ package org.bukkit.craftbukkit.inventory;
+ import java.util.Map;
+ 
+ import net.minecraft.server.GameProfileSerializer;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.NBTBase;
+ import net.minecraft.server.NBTTagCompound;
+ 
+@@ -132,7 +133,7 @@ class CraftMetaSkull extends CraftMetaItem implements SkullMeta {
+         if (name == null) {
+             profile = null;
+         } else {
+-            profile = new GameProfile(null, name);
++            profile = MinecraftServer.getServer().getUserCache().getProfile(name); // TacoSpigot - don't lookup if already lookedup
+         }
+ 
+         return true;
+-- 
+2.4.6.windows.1
+
