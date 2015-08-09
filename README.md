@@ -1,9 +1,11 @@
 TacoSpigot
 ===========
 
-A high performance Spigot fork that adds new features.
+A even-higher high performance Spigot fork that adds new features.
 
-[IRC Support and Project Discussion](http://irc.spi.gt/iris/?channels=taco)
+[IRC Support and Project Discussion](http://irc.spi.gt/iris/?channels=techcable)
+
+[Contribution Guidelines](Contributing.md)
 
 
 How To
