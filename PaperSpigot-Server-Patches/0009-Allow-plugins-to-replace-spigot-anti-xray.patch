@@ -1,11 +1,11 @@
-From a7e8baaf5ec5e42dfe5ce2fc75fc8a147603ec09 Mon Sep 17 00:00:00 2001
+From bff09a1e8876d810986186825028e2e5d2efe269 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 31 Jul 2015 10:33:42 -0700
 Subject: [PATCH] Allow plugins to replace spigot anti xray
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
-index a389819..fda5f6e 100644
+index 1a2484d..9a32581 100644
 --- a/src/main/java/net/minecraft/server/EntityPlayer.java
 +++ b/src/main/java/net/minecraft/server/EntityPlayer.java
 @@ -250,9 +250,9 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
@@ -21,29 +21,54 @@ index a389819..fda5f6e 100644
  
                  Iterator iterator2 = arraylist1.iterator();
 diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java b/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
-index a0021fb..68453d1 100644
+index a0021fb..8acb86c 100644
 --- a/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
 +++ b/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
-@@ -14,12 +14,12 @@ public class PacketPlayOutMapChunk implements Packet<PacketListenerPlayOut> {
+@@ -14,14 +14,26 @@ public class PacketPlayOutMapChunk implements Packet<PacketListenerPlayOut> {
  
      public PacketPlayOutMapChunk() {}
  
--    public PacketPlayOutMapChunk(Chunk chunk, boolean flag, int i) {
-+    public PacketPlayOutMapChunk(EntityPlayer player, Chunk chunk, boolean flag, int i) { // TacoSpigot - add player arg
++    private World world; // TacoSpigot - store world
+     public PacketPlayOutMapChunk(Chunk chunk, boolean flag, int i) {
          this.a = chunk.locX;
          this.b = chunk.locZ;
++        this.world = chunk.world; // TacoSpigot - store world
          this.d = flag;
          this.c = chunk.getChunkMap(flag, i); // PaperSpigot
 -        chunk.world.spigotConfig.antiXrayInstance.obfuscateSync(chunk.locX, chunk.locZ, c.b, c.a, chunk.world);
-+        chunk.world.spigotConfig.antiXrayInstance.obfuscateSync(player, chunk.locX, chunk.locZ, c.b, c.a, chunk.world); // Spigot // TacoSpigot - add player arg
++        // chunk.world.spigotConfig.antiXrayInstance.obfuscateSync(chunk.locX, chunk.locZ, c.b, c.a, chunk.world); // Spigot // TacoSpigot - use in below constructor
      }
  
++    // TacoSpigot start - add entity arg
++    private boolean obfuscated = false;
++    // This must be added as a separate constructor for compatibility reasons
++    public PacketPlayOutMapChunk(EntityPlayer player, Chunk chunk, boolean flag, int i) {
++        this(chunk, flag, i);
++        chunk.world.spigotConfig.antiXrayInstance.obfuscateSync(player, chunk.locX, chunk.locZ, c.b, c.a, chunk.world); // TacoSpigot - add player arg
++        obfuscated = true;
++    }
++    // TacoSpigot server
++
      public void a(PacketDataSerializer packetdataserializer) throws IOException {
+         this.a = packetdataserializer.readInt();
+         this.b = packetdataserializer.readInt();
+@@ -32,6 +44,11 @@ public class PacketPlayOutMapChunk implements Packet<PacketListenerPlayOut> {
+     }
+ 
+     public void b(PacketDataSerializer packetdataserializer) throws IOException {
++        // TacoSpigot start - obfuscate chunk buffer
++        if (!obfuscated) {
++            world.spigotConfig.antiXrayInstance.obfuscateSync(null, a, b, c.b, c.a, world); // Player is unknown, as it would have otherwise been obfuscated
++        }
++        // TacoSpigot end
+         packetdataserializer.writeInt(this.a);
+         packetdataserializer.writeInt(this.b);
+         packetdataserializer.writeBoolean(this.d);
 diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMapChunkBulk.java b/src/main/java/net/minecraft/server/PacketPlayOutMapChunkBulk.java
-index 00c0538..923772a 100644
+index 00c0538..8d5cbfd 100644
 --- a/src/main/java/net/minecraft/server/PacketPlayOutMapChunkBulk.java
 +++ b/src/main/java/net/minecraft/server/PacketPlayOutMapChunkBulk.java
-@@ -10,10 +10,12 @@ public class PacketPlayOutMapChunkBulk implements Packet<PacketListenerPlayOut>
+@@ -10,6 +10,7 @@ public class PacketPlayOutMapChunkBulk implements Packet<PacketListenerPlayOut>
      private PacketPlayOutMapChunk.ChunkMap[] c;
      private boolean d;
      private World world; // Spigot
@@ -51,13 +76,21 @@ index 00c0538..923772a 100644
  
      public PacketPlayOutMapChunkBulk() {}
  
--    public PacketPlayOutMapChunkBulk(List<Chunk> list) {
-+    public PacketPlayOutMapChunkBulk(EntityPlayer player, List<Chunk> list) {
-+        this.player = player; // TacoSpigot
-         int i = list.size();
+@@ -33,6 +34,13 @@ public class PacketPlayOutMapChunkBulk implements Packet<PacketListenerPlayOut>
+         world = ((Chunk) list.get(0)).getWorld(); // Spigot
+     }
  
-         this.a = new int[i];
-@@ -70,7 +72,7 @@ public class PacketPlayOutMapChunkBulk implements Packet<PacketListenerPlayOut>
++    // TacoSpigot start - add player argument
++    public PacketPlayOutMapChunkBulk(EntityPlayer player, List<Chunk> chunks) {
++        this(chunks);
++        this.player = player;
++    }
++    // TacoSpigot end
++
+     public void a(PacketDataSerializer packetdataserializer) throws IOException {
+         this.d = packetdataserializer.readBoolean();
+         int i = packetdataserializer.e();
+@@ -70,7 +78,7 @@ public class PacketPlayOutMapChunkBulk implements Packet<PacketListenerPlayOut>
          }
  
          for (i = 0; i < this.a.length; ++i) {
@@ -96,17 +129,20 @@ index 38586aa..a44151a 100644
                              if ((this.f & 1 << k) != 0) {
 diff --git a/src/main/java/net/techcable/tacospigot/xray/AntiXRayWrapper.java b/src/main/java/net/techcable/tacospigot/xray/AntiXRayWrapper.java
 new file mode 100644
-index 0000000..53595c7
+index 0000000..1c158fa
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/xray/AntiXRayWrapper.java
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,197 @@
 +package net.techcable.tacospigot.xray;
 +
++import java.io.IOException;
 +import java.util.HashSet;
 +import java.util.Set;
++import java.util.concurrent.TimeUnit;
 +
 +import net.minecraft.server.BlockPosition;
 +import net.minecraft.server.EntityPlayer;
++import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.World;
 +import net.techcable.tacospigot.BlockData;
 +
@@ -189,6 +225,7 @@ index 0000000..53595c7
 +    }
 +
 +    public static final int BLOCKS_PER_SECTION = 16 * 16 * 16;
++    private long lastWarn = 0;
 +
 +    /**
 +     * Removes all non exposed ores from the chunk buffer.
@@ -204,7 +241,7 @@ index 0000000..53595c7
 +                // Iteration order must be y, z, x in order to properly keep the index and the position in sync
 +                for (int y = 0; y < 16; y++) { // ys are relative to the section, similarly to how x and z are relative to the chunk
 +                    for (int z = 0; z < 16; z++) {
-+                        for (int x = 0; x < 16; x++) {
++                        xloop : for (int x = 0; x < 16; x++) {
 +                            try {
 +                                // For some reason we can get too far ahead of ourselves (concurrent modification on bulk chunks?) so if we do, just abort and move on
 +                                if (index + 1 >= buffer.length) continue;
@@ -227,7 +264,29 @@ index 0000000..53595c7
 +                                // note that the chunk has already been checked, eliminating a lot
 +                                if (!isValidLocation(realX, realY, realZ, 1)) continue;
 +
-+                                data = engine.obfuscate(player.getBukkitEntity(), world.getWorld(), realX, realY, realZ, data);
++                                try {
++                                    data = engine.obfuscate(player == null ? null : player.getBukkitEntity(), world.getWorld(), realX, realY, realZ, data);
++                                } catch (NullPointerException e) {
++                                    /*
++                                     * They expected a non null player, but there wasn't one
++                                     * Certain plugins (LibsDisguises) initialize the packet through reflection, and TacoSpigot adding an argument creates issues with them
++                                     * We obfuscate the chunk anyway, and warn the user they have an incompatibile plugin
++                                     */
++                                    if (player == null) {
++                                        boolean hasToString;
++                                        try {
++                                            engine.getClass().getDeclaredMethod("toString");
++                                            hasToString = true;
++                                        } catch (NoSuchMethodException e2) {
++                                            hasToString = false;
++                                        }
++                                        if (shouldWarn()) {
++                                            String name = hasToString ? engine.toString() : engine.getClass().getSimpleName();
++                                            warn("XRay Engine %s expected a non-null player, did a plugin initialize the chunk packet?", name);
++                                            warn("Plugins that are known to cause this issue: LibsDisguises");
++                                        }
++                                    }
++                                }
 +
 +                                if (data != null) { // It changed
 +                                    combinedId = (byte) ((data.getBlockId() << 4) | (data.getMetadata() & 0xF));
@@ -242,6 +301,16 @@ index 0000000..53595c7
 +                }
 +            }
 +        }
++    }
++
++    private boolean shouldWarn() {
++        return System.currentTimeMillis() - lastWarn >= TimeUnit.MINUTES.toMillis(5);
++    }
++
++    private void warn(String msg, Object... args) {
++        msg = String.format(msg, args);
++        MinecraftServer.LOGGER.warn(msg);
++        lastWarn = System.currentTimeMillis();
 +    }
 +
 +    private static boolean isValidLocation(int x, int y, int z, int radius) {
