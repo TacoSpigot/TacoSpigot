@@ -1,4 +1,4 @@
-From 3d87435416f3b4689353f8e157a50fea31c65995 Mon Sep 17 00:00:00 2001
+From 828236df476b7cb4022b6c472795518e71fecaf9 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 27 Jul 2015 08:21:37 -0700
 Subject: [PATCH] Add an option to make the DataWatcher non-locking
@@ -8,11 +8,16 @@ Before this patch the data watcher used a TIntObjectHashMap<> and a ReadWriteLoc
 This patch also optimizes the DataWatcher value map hash code.
 
 diff --git a/src/main/java/net/minecraft/server/DataWatcher.java b/src/main/java/net/minecraft/server/DataWatcher.java
-index dec091e..cafb09a 100644
+index dec091e..6805431 100644
 --- a/src/main/java/net/minecraft/server/DataWatcher.java
 +++ b/src/main/java/net/minecraft/server/DataWatcher.java
-@@ -9,25 +9,41 @@ import java.util.List;
+@@ -7,27 +7,87 @@ import java.util.ArrayList;
+ import java.util.Iterator;
+ import java.util.List;
  import java.util.Map;
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.locks.Condition;
++import java.util.concurrent.locks.Lock;
  import java.util.concurrent.locks.ReadWriteLock;
  import java.util.concurrent.locks.ReentrantReadWriteLock;
 +
@@ -27,10 +32,51 @@ index dec091e..cafb09a 100644
  public class DataWatcher {
  
 +    // TacoSpigot start - initialize variables based on weather weakly consistent
++    public static final ReadWriteLock NO_OP_RW_LOCK = new ReadWriteLock() {
++
++        @Override
++        public Lock readLock() {
++            return NO_OP_LOCK;
++        }
++
++        @Override
++        public Lock writeLock() {
++            return NO_OP_LOCK;
++        }
++    };
++
++    public static final Lock NO_OP_LOCK = new Lock() {
++
++        @Override
++        public void lock() {}
++
++        @Override
++        public void lockInterruptibly() throws InterruptedException {}
++
++        @Override
++        public boolean tryLock() {
++            return true; // Make them think they are safe >:)
++        }
++
++        @Override
++        public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
++            return true; // Make them think they are safe >:)
++        }
++
++        @Override
++        public void unlock() {}
++
++        @Override
++        public Condition newCondition() {
++            throw new UnsupportedOperationException("Techcable is lazy with his no-ops");
++        }
++    };
++
 +    public DataWatcher(Entity entity) {
 +        this.a = entity;
 +        if (TacoSpigotConfig.dataWatcherWeaklyConsistent) {
 +            dataValues = new ConcurrentIntObjectMap<WatchableObject>(10, 0.5f, 16, new DataWatcherHashStrategy());
++            f = NO_OP_RW_LOCK; // Plugins assume they can lock, so we have to null op it
 +        } else {
 +            dataValues = new TIntObjectHashMap<WatchableObject>(10, 0.05f);
 +            f = new ReentrantReadWriteLock();
@@ -61,102 +107,7 @@ index dec091e..cafb09a 100644
  
      public <T> void a(int i, T t0) {
          int integer = classToId.get(t0.getClass()); // Spigot
-@@ -41,9 +57,9 @@ public class DataWatcher {
-         } else {
-             DataWatcher.WatchableObject datawatcher_watchableobject = new DataWatcher.WatchableObject(integer, i, t0); // Spigot
- 
--            this.f.writeLock().lock();
-+            if (f != null) this.f.writeLock().lock(); // TacoSpigot
-             this.dataValues.put(i, datawatcher_watchableobject); // Spigot
--            this.f.writeLock().unlock();
-+            if (f != null) this.f.writeLock().unlock(); // TacoSpigot
-             this.b = false;
-         }
-     }
-@@ -51,9 +67,9 @@ public class DataWatcher {
-     public void add(int i, int j) {
-         DataWatcher.WatchableObject datawatcher_watchableobject = new DataWatcher.WatchableObject(j, i, (Object) null);
- 
--        this.f.writeLock().lock();
-+        if (f != null) this.f.writeLock().lock(); // TacoSpigot
-         this.dataValues.put(i, datawatcher_watchableobject); // Spigot
--        this.f.writeLock().unlock();
-+        if (f != null)this.f.writeLock().unlock(); // TacoSpigot
-         this.b = false;
-     }
- 
-@@ -82,7 +98,7 @@ public class DataWatcher {
-     }
- 
-     private DataWatcher.WatchableObject j(int i) {
--        this.f.readLock().lock();
-+        if (f != null) this.f.readLock().lock(); // TacoSpigot
- 
-         DataWatcher.WatchableObject datawatcher_watchableobject;
- 
-@@ -96,7 +112,7 @@ public class DataWatcher {
-             throw new ReportedException(crashreport);
-         }
- 
--        this.f.readLock().unlock();
-+        if (f != null) this.f.readLock().unlock(); // TacoSpigot
-         return datawatcher_watchableobject;
-     }
- 
-@@ -143,7 +159,7 @@ public class DataWatcher {
-         ArrayList arraylist = null;
- 
-         if (this.e) {
--            this.f.readLock().lock();
-+            if (f != null) this.f.readLock().lock(); // TacoSpigot
-             Iterator iterator = this.dataValues.valueCollection().iterator(); // Spigot
- 
-             while (iterator.hasNext()) {
-@@ -170,7 +186,7 @@ public class DataWatcher {
-                 }
-             }
- 
--            this.f.readLock().unlock();
-+            if (f != null) this.f.readLock().unlock(); // TacoSpigot
-         }
- 
-         this.e = false;
-@@ -178,7 +194,7 @@ public class DataWatcher {
-     }
- 
-     public void a(PacketDataSerializer packetdataserializer) throws IOException {
--        this.f.readLock().lock();
-+        if (f != null) this.f.readLock().lock(); // TacoSpigot
-         Iterator iterator = this.dataValues.valueCollection().iterator(); // Spigot
- 
-         while (iterator.hasNext()) {
-@@ -187,14 +203,14 @@ public class DataWatcher {
-             a(packetdataserializer, datawatcher_watchableobject);
-         }
- 
--        this.f.readLock().unlock();
-+        if (f != null) this.f.readLock().unlock(); // TacoSpigot
-         packetdataserializer.writeByte(127);
-     }
- 
-     public List<DataWatcher.WatchableObject> c() {
-         ArrayList arraylist = Lists.newArrayList(); // Spigot
- 
--        this.f.readLock().lock();
-+        if (f != null) this.f.readLock().lock(); // TacoSpigot
- 
-         arraylist.addAll(this.dataValues.valueCollection()); // Spigot
-         // Spigot start - copy ItemStacks to prevent ConcurrentModificationExceptions
-@@ -213,7 +229,7 @@ public class DataWatcher {
-         }
-         // Spigot end
- 
--        this.f.readLock().unlock();
-+        if (f != null) this.f.readLock().unlock(); // TacoSpigot
-         return arraylist;
-     }
- 
-@@ -384,4 +400,17 @@ public class DataWatcher {
+@@ -384,4 +444,17 @@ public class DataWatcher {
              this.d = flag;
          }
      }
