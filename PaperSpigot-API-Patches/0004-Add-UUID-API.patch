@@ -1,0 +1,1129 @@
+From e0177c408c8fa692d09014924e99a6e721cd9f90 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Fri, 7 Aug 2015 23:53:54 -0700
+Subject: [PATCH] Add UUID API
+
+
+diff --git a/src/main/java/net/techcable/tacospigot/uuid/CachingLookup.java b/src/main/java/net/techcable/tacospigot/uuid/CachingLookup.java
+new file mode 100644
+index 0000000..b1532aa
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/uuid/CachingLookup.java
+@@ -0,0 +1,309 @@
++package net.techcable.tacospigot.uuid;
++
++import java.math.BigDecimal;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Iterator;
++import java.util.LinkedHashMap;
++import java.util.LinkedHashSet;
++import java.util.List;
++import java.util.Map;
++import java.util.Map.Entry;
++import java.util.Set;
++import java.util.UUID;
++import java.util.concurrent.TimeUnit;
++
++import com.google.common.base.Preconditions;
++import com.google.common.cache.CacheBuilder;
++import com.google.common.cache.CacheLoader;
++import com.google.common.cache.LoadingCache;
++import com.google.common.collect.Lists;
++import com.google.common.collect.Maps;
++
++/**
++ * A lookup that temporarily stores profiles in memory for later use
++ * <p/>
++ * Expects the backing lookup to log errors
++ */
++public class CachingLookup implements ProfileLookup {
++
++    private final ProfileLookup backing;
++    private final CacheSettings settings;
++
++    /**
++     * Create a new caching lookup with the given backing profile lookup and default settings
++     *
++     * @param backing the backing profile lookup
++     */
++    public CachingLookup(ProfileLookup backing) {
++        this(backing, null);
++    }
++
++    /**
++     * Create a new caching lookup with the giving backing lookup and settings
++     *
++     * @param backup the backing profile lookup
++     * @param settings cache settings
++     */
++    public CachingLookup(ProfileLookup backup, CacheSettings settings) {
++        this.backing = backup;
++        this.settings = settings;
++    }
++
++    private static final PlayerProfile FAILED_PROFILE = new PlayerProfile();
++
++    private final LoadingCache<UUID, PlayerProfile> idCache = CacheBuilder.newBuilder().expireAfterWrite(getSettings().time, TimeUnit.MILLISECONDS).maximumSize(getSettings().maxAmount).build(new CacheLoader<UUID, PlayerProfile>() {
++
++        @Override
++        public PlayerProfile load(UUID id) throws Exception {
++            PlayerProfile profile = backing.lookup(id);
++            return profile == null ? FAILED_PROFILE : profile;
++        }
++    });
++    private final LoadingCache<String, PlayerProfile> nameCache = CacheBuilder.newBuilder().expireAfterWrite(getSettings().time, TimeUnit.MILLISECONDS).maximumSize(getSettings().maxAmount).build(new CacheLoader<String, PlayerProfile>() {
++
++        @Override
++        public PlayerProfile load(String name) throws Exception {
++            PlayerProfile profile = backing.lookup(name);
++            return profile == null ? FAILED_PROFILE : profile;
++        }
++    });
++
++    // Implementation
++
++
++    @Override
++    public PlayerProfile lookup(String name) {
++        PlayerProfile profile = nameCache.getUnchecked(name);
++        if (profile != null && profile != FAILED_PROFILE) return profile.clone();
++        profile = backing.lookup(name);
++        cache(name, profile);
++        return profile;
++    }
++
++    @Override
++    public Collection<PlayerProfile> lookup(Collection<String> rawNames) {
++        Preconditions.checkNotNull(rawNames, "The name list can't be null");
++        List<String> names = Lists.newLinkedList(rawNames);
++        Collection<PlayerProfile> profiles = new ArrayList<PlayerProfile>(rawNames.size());
++        Iterator<String> i = names.iterator();
++        while (i.hasNext()) {
++            String name = i.next();
++            PlayerProfile profile = nameCache.getIfPresent(name);
++            if (profile != null && profile != FAILED_PROFILE) { // Don't cache failures
++                i.remove(); // Remove it so it isn't looked up from mojang
++                profiles.add(profile);
++                cache(name, profile);
++            }
++        }
++        if (names.isEmpty()) return profiles; // Everything is cached, and backup might do a http request even if names is empty
++        Map<String, PlayerProfile> tempMap = new LinkedHashMap<String, PlayerProfile>(names.size()); // Maintain ordering
++        for (String name : names) {
++            tempMap.put(name, PlayerProfile.NULL_PROFILE);
++        }
++        for (PlayerProfile profile : backing.lookup(names)) { // JLS specifies that lookup() will only be called once
++            cache(profile);
++            tempMap.put(profile.getName(), profile);
++        }
++        cacheAll(tempMap);
++        profiles.addAll(tempMap.values());
++        return profiles;
++    }
++
++    @Override
++    public PlayerProfile lookup(UUID id) {
++        PlayerProfile profile = idCache.getUnchecked(id);
++        if (profile == null) return null;
++        cache(id, profile);
++        return profile.clone();
++    }
++
++    @Override
++    public void lookupProperties(PlayerProfile profile) {
++        cache(profile);
++        backing.lookupProperties(profile);
++    }
++
++    public void cache(PlayerProfile profile) {
++        cache(profile.getId(), profile);
++        cache(profile.getName(), profile);
++    }
++
++    // Id cache logic
++
++    public void cache(UUID id, PlayerProfile profile) {
++        if (profile == FAILED_PROFILE) return; // Don't cache failures due to io and parsing
++        PlayerProfile existing = idCache.getUnchecked(id);
++        tryPutId(id, existing, profile); // just id
++        if (profile != PlayerProfile.NULL_PROFILE) cache(profile.getName(), profile);
++    }
++
++    private boolean shouldReplaceId(PlayerProfile existing, PlayerProfile updated) {
++        if (existing == null) return true;
++        if (existing == FAILED_PROFILE) return updated != FAILED_PROFILE;
++        if (existing == PlayerProfile.NULL_PROFILE) return updated != PlayerProfile.NULL_PROFILE;
++        if (existing == updated) return false;
++        if (!existing.getName().equals(updated.getName())) return true; // Changed name
++        return existing.hasProperties() != updated.hasProperties();
++    }
++
++    private void tryPutId(UUID id, PlayerProfile existing, PlayerProfile profile) {
++        if (shouldReplaceId(existing, profile)) {
++            PlayerProfile old = idCache.asMap().put(id, profile);
++            if (old != existing) { // Concurrent modification
++                tryPutId(id, old, profile);
++            }
++        }
++    }
++
++    // name cache logic
++
++    public void cacheAll(Map<String, PlayerProfile> map) {
++        for (Entry<String, PlayerProfile> entry : map.entrySet()) {
++            String name = entry.getKey();
++            PlayerProfile profile = entry.getValue();
++            cache(name, profile);
++        }
++    }
++
++    public void cache(String name, PlayerProfile profile) {
++        if (profile == FAILED_PROFILE) return; // Don't cache failures due to io and parsing
++        PlayerProfile existing = nameCache.getUnchecked(name);
++        tryPutName(name, existing, profile);
++        if (profile != PlayerProfile.NULL_PROFILE) cache(profile.getId(), profile);
++    }
++
++
++    private void tryPutName(String name, PlayerProfile existing, PlayerProfile profile) {
++        if (shouldReplaceName(existing, profile)) {
++            PlayerProfile old = nameCache.asMap().put(name, profile);
++            if (old != existing) { // Concurrent modification
++                tryPutName(name, old, profile);
++            }
++        }
++    }
++
++    private boolean shouldReplaceName(PlayerProfile existing, PlayerProfile updated) {
++        if (existing == null) return true;
++        if (existing == PlayerProfile.NULL_PROFILE) return updated != PlayerProfile.NULL_PROFILE;
++        if (existing == FAILED_PROFILE) return updated != FAILED_PROFILE;
++        if (existing == updated) return false;
++        if (!existing.getId().equals(updated.getId())) return true; // Changed name
++        return existing.hasProperties() != updated.hasProperties();
++    }
++
++
++    // Equals and hashcode
++
++    @Override
++    public int hashCode() {
++        return backing.hashCode();
++    }
++
++    @Override
++    public boolean equals(Object obj) {
++        return (obj instanceof ProfileLookup && equalsNoOther((ProfileLookup) obj)) || obj.equals(this);
++    }
++
++    @Override
++    public boolean equalsNoOther(ProfileLookup other) {
++        return other != null && other == this || backing.equals(other);
++    }
++
++    // Settings
++
++    protected static CacheSettings defaultSettings = new CacheSettings(TimeUnit.HOURS, 1, 8000);
++
++    public static CacheSettings getDefaultSettings() {
++        return defaultSettings;
++    }
++
++    protected static void setDefaultSettings(CacheSettings defaultSettings) {
++        CachingLookup.defaultSettings = defaultSettings;
++    }
++
++    /**
++     * Get the settings for this cache
++     * <p>
++     * If this cache's settings have been specified at construction, return that.
++     * Otherwise, it returns the default settings
++     * </p>
++     *
++     * @return the settings for this cache
++     */
++    public CacheSettings getSettings() {
++        return settings == null ? defaultSettings : settings;
++    }
++
++    public static class CacheSettings {
++
++        private final long time;
++        private final int maxAmount;
++
++        public CacheSettings(TimeUnit unit, long time, int maxAmount) {
++            this.time = unit.toMillis(time);
++            this.maxAmount = maxAmount;
++        }
++
++        public long getTime() {
++            return time;
++        }
++
++        public TimeUnit calculateAppropriateTimeUnit() {
++            BigDecimal realtime = BigDecimal.valueOf(time);
++            realtime = divide(realtime, 1000); // seconds
++            realtime = divide(realtime, 60); // minutes
++            realtime = divide(realtime, 60); // hours
++            realtime = divide(realtime, 24); // days
++            if (isEqual(realtime, TimeUnit.MILLISECONDS.toDays(time))) return TimeUnit.DAYS; // Can be represented exactly as a day
++            realtime = BigDecimal.valueOf(time); // reset
++            realtime = divide(realtime, 1000); // seconds
++            realtime = divide(realtime, 60); // minutes
++            realtime = divide(realtime, 60); // hours
++            if (isEqual(realtime, TimeUnit.MILLISECONDS.toHours(time))) return TimeUnit.HOURS; // Can be represented exactly as an hour
++            realtime = BigDecimal.valueOf(time); // reset
++            realtime = divide(realtime, 1000); // seconds
++            realtime = divide(realtime, 60); // minutes
++            if (isEqual(realtime, TimeUnit.MILLISECONDS.toMinutes(time))) return TimeUnit.MINUTES;
++            realtime = BigDecimal.valueOf(time); // reset
++            realtime = divide(realtime, 1000); // seconds
++            if (isEqual(realtime, TimeUnit.MILLISECONDS.toSeconds(time))) return TimeUnit.SECONDS;
++            return TimeUnit.MILLISECONDS; // Can only be represented as milliseconds
++        }
++
++        public int getMaxAmount() {
++            return maxAmount;
++        }
++
++        @Override
++        public boolean equals(Object o) {
++            if (this == o) return true;
++            if (o == null || getClass() != o.getClass()) return false;
++
++            CacheSettings that = (CacheSettings) o;
++
++            if (maxAmount != that.maxAmount) return false;
++            if (time != that.time) return false;
++
++            return true;
++        }
++
++        @Override
++        public int hashCode() {
++            int result = (int) (time ^ (time >>> 32));
++            result = 31 * result + maxAmount;
++            return result;
++        }
++    }
++
++    private static boolean isEqual(BigDecimal first, long second) {
++        BigDecimal secondBig = BigDecimal.valueOf(second);
++        return first.compareTo(secondBig) == 0;
++    }
++
++    private static BigDecimal divide(BigDecimal realtime, long by) {
++        return realtime.divide(BigDecimal.valueOf(by));
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/uuid/DualLookup.java b/src/main/java/net/techcable/tacospigot/uuid/DualLookup.java
+new file mode 100644
+index 0000000..df2bcba
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/uuid/DualLookup.java
+@@ -0,0 +1,83 @@
++package net.techcable.tacospigot.uuid;
++
++import java.util.Collection;
++import java.util.List;
++import java.util.UUID;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.Lists;
++
++/**
++ * Lookups are first done using the primary, then using the backup if the primary failed
++ * <p/>
++ * Useful to allow lookups to continue from a secondary source even if the server goes down
++ */
++public class DualLookup implements ProfileLookup {
++
++    private final ProfileLookup primary, backup;
++
++    /**
++     * Create a dual-lookup with the given primary and backup
++     *
++     * @param primary the primary lookup to use
++     * @param backup the backup lookup to use
++     */
++    public DualLookup(ProfileLookup primary, ProfileLookup backup) {
++        this.primary = primary;
++        this.backup = backup;
++    }
++
++    @Override
++    public PlayerProfile lookup(String name) {
++        PlayerProfile profile = primary.lookup(name);
++        if (profile == null) profile = backup.lookup(name);
++        return profile;
++    }
++
++    @Override
++    public Collection<PlayerProfile> lookup(Collection<String> rawNames) {
++        Preconditions.checkNotNull(rawNames, "Null list of names");
++        List<String> names = Lists.newLinkedList(rawNames);
++        Collection<PlayerProfile> profiles = primary.lookup(names);
++        if (profiles.size() != names.size()) {
++            names.removeAll(profiles);
++            Collection<PlayerProfile> backupLookedup = backup.lookup(names);
++            profiles.addAll(backupLookedup);
++        }
++        return profiles;
++    }
++
++    @Override
++    public PlayerProfile lookup(UUID id) {
++        PlayerProfile profile = primary.lookup(id);
++        if (profile == null) profile = backup.lookup(id);
++        return profile;
++    }
++
++    @Override
++    public void lookupProperties(PlayerProfile profile) {
++        if (profile.hasProperties()) return;
++        primary.lookupProperties(profile);
++        if (!profile.hasProperties()) {
++            backup.lookupProperties(profile);
++        }
++    }
++
++    // equals and hash code
++
++
++    @Override
++    public boolean equals(Object obj) {
++        return (obj instanceof ProfileLookup && equalsNoOther((ProfileLookup) obj)) || obj.equals(this);
++    }
++
++    @Override
++    public int hashCode() {
++        return super.hashCode();
++    }
++
++    @Override
++    public boolean equalsNoOther(ProfileLookup other) {
++        return other instanceof DualLookup && ((DualLookup) other).primary.equals(this.primary) && ((DualLookup) other).backup.equals(this.backup);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/uuid/PlayerProfile.java b/src/main/java/net/techcable/tacospigot/uuid/PlayerProfile.java
+new file mode 100644
+index 0000000..4514407
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/uuid/PlayerProfile.java
+@@ -0,0 +1,153 @@
++package net.techcable.tacospigot.uuid;
++
++import java.util.Map.Entry;
++import java.util.UUID;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.ImmutableMultimap;
++
++/**
++ * Profile data for a player
++ * Contains their uuid and username
++ * <p/>
++ * This may or may not have properties
++ *
++ * @author Techcable
++ */
++public class PlayerProfile implements Cloneable {
++
++    /**
++     * A profile used for null when non-null profiles are required
++     */
++    public static final PlayerProfile NULL_PROFILE = new PlayerProfile();
++
++    protected PlayerProfile() {
++        this.id = UUID.randomUUID();
++        this.name = null;
++    }
++
++    /**
++     * Create a new player profile with the given id and name
++     *
++     * @param id the player uuid
++     * @param name the player name
++     *
++     * @throws java.lang.NullPointerException if id or name is null
++     */
++    public PlayerProfile(UUID id, String name) {
++        Preconditions.checkNotNull(id, "No null ids");
++        Preconditions.checkNotNull(name, "No null names");
++        this.id = id;
++        this.name = name;
++    }
++
++    /**
++     * Create a new player profile with the given id, name, and properties
++     * <p>
++     * Copies the properties so modifications to the given property map won't be reflected in the returned profile
++     * </p>
++     *
++     * @param id the player id
++     * @param name the player name
++     * @param properties the properties to create
++     *
++     * @throws java.lang.NullPointerException if id or name is null
++     */
++    public PlayerProfile(UUID id, String name, PropertyMap properties) {
++        this(id, name);
++        this.properties = properties;
++        if (properties != null) copyProperties();
++    }
++
++    private PropertyMap properties;
++    private final UUID id;
++    private final String name;
++
++    /**
++     * Get this player's uuid
++     *
++     * @return this players uuid
++     */
++    public UUID getId() {
++        return id;
++    }
++
++    /**
++     * Get this player's name
++     *
++     * @return this player's name
++     */
++    public String getName() {
++        return name;
++    }
++
++    /**
++     * Get this player's properties
++     * <p>
++     * Returns null if the player has no properties
++     * </p>
++     *
++     * @return a map of this player's properties or null if not retrieved
++     */
++    public PropertyMap getProperties() {
++        return properties;
++    }
++
++    /**
++     * Return if this profile has properties
++     *
++     * @return if this profile has properties
++     */
++    public boolean hasProperties() {
++        return properties != null;
++    }
++
++
++    @Override
++    public boolean equals(Object o) {
++        if (this == NULL_PROFILE) return o == NULL_PROFILE || o == null;
++        if (this == o) return true;
++        if (!(o instanceof PlayerProfile)) return false;
++
++        PlayerProfile profile = (PlayerProfile) o;
++
++        if (!id.equals(profile.id)) return false;
++        if (!name.equals(profile.name)) return false;
++        if (properties != null ? !properties.equals(profile.properties) : profile.properties != null) return false;
++
++        return true;
++    }
++
++    @Override
++    public int hashCode() {
++        if (this == NULL_PROFILE) return 0;
++        int result = properties != null ? properties.hashCode() : 0;
++        result = 31 * result + id.hashCode();
++        result = 31 * result + name.hashCode();
++        return result;
++    }
++
++    /**
++     * Clone the underlying properties, so modifications to the property map won't be reflected in this profile
++     * <p>
++     * If this profile has no properties, it will create them
++     * </p>
++     */
++    public synchronized void copyProperties() {
++        if (properties == null) {
++            this.properties = new PropertyMap();
++            return;
++        }
++        PropertyMap cloned = new PropertyMap();
++        ImmutableMultimap<String, Property> clonedMap = this.properties.asMap(); // This is thread safe :)
++        for (Entry<String, Property> entry : clonedMap.entries()) {
++            cloned.addProperty(entry.getValue());
++        }
++        this.properties = cloned;
++    }
++
++    public PlayerProfile clone() {
++        return new PlayerProfile(getId(), getName(), getProperties());
++    }
++
++}
+diff --git a/src/main/java/net/techcable/tacospigot/uuid/ProfileLookup.java b/src/main/java/net/techcable/tacospigot/uuid/ProfileLookup.java
+new file mode 100644
+index 0000000..2cdec98
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/uuid/ProfileLookup.java
+@@ -0,0 +1,117 @@
++package net.techcable.tacospigot.uuid;
++
++import java.util.Collection;
++import java.util.UUID;
++
++/**
++ * Gets profile information
++ * <p>
++ * You can use {@link org.bukkit.Server#getLookup()} to get an instance of this class
++ * Implementations are <b>required</b> to log all errors <i>except</i> non-existent players, which you must <b>not</b> log.
++ * This way, plugins can stay-safe knowing the user is allerted to lookup errors, without going through the trouble of allerting them themselves.
++ * </p>
++ */
++public interface ProfileLookup {
++
++    /**
++     * Lookup a profile with the given name
++     * <p/>
++     * If lookup fails, null is returned
++     * If there is no player with the given name, then {@link net.techcable.tacospigot.uuid.PlayerProfile#NULL_PROFILE} is returned
++     * The returned player profile may or may not include properties
++     * If properties are needed, proceed to use a property lookup
++     *
++     * @param name look for a profile with this name
++     *
++     * @return a profile with the given name
++     *
++     * @throws java.lang.NullPointerException if the name is null
++     */
++    public PlayerProfile lookup(String name);
++
++    /**
++     * Lookup the profiles of the given name
++     * <p/>
++     * Returned profiles are guarenteed to be in the same order names are, if names is an {@link java.util.List}
++     * If there is no player with a name {@link net.techcable.tacospigot.uuid.PlayerProfile#NULL_PROFILE} is used
++     * If lookup fails an empty collection is returned
++     * The returned player profiles may or may not include properties
++     * If properties are needed, proceed to lookup properties
++     * Null names are ignored
++     *
++     * @param names the list of names to lookup
++     *
++     * @return the player profiles associated with the provided names
++     */
++    public Collection<PlayerProfile> lookup(Collection<String> names);
++
++    /**
++     * Lookup a profile with the given uuid
++     * <p/>
++     * This method returns null if lookup failed
++     * This method returns {@link net.techcable.tacospigot.uuid.PlayerProfile#NULL_PROFILE} if no player with the name exists
++     * The returned player profile may or may not include properties
++     *
++     * @param id look for a profile with this uuid
++     *
++     * @return a profile with the given id
++     *
++     * @throws java.lang.NullPointerException if the uuid is null
++     */
++    public PlayerProfile lookup(UUID id);
++
++    /**
++     * Lookup the properties of the given profile
++     * <p/>
++     * This method does nothing if the profile already has properties
++     * This method does nothing if lookup failed
++     * This method does nothing if the player has no properties
++     *
++     * @param profile the profile to lookup properties for
++     *
++     * @throws java.lang.NullPointerException if the profile is null
++     */
++    public void lookupProperties(PlayerProfile profile);
++
++    /**
++     * If the other object is a {@link net.techcable.tacospigot.uuid.ProfileLookup} return if the underlying data source is the same
++     * <p>
++     * If this method would normally return false, you <b>must</b> check if {@code other.equals(this)}
++     * This allows wrappers to check for equality of the underlying data source, instead of you checking them
++     * </p>
++     *
++     * @param other the object to check for data source equality
++     *
++     * @return if the other object is a ProfileLookup, return if the underlying data source is the same
++     */
++    @Override
++    public boolean equals(Object other);
++
++    /**
++     * Return the hashcode of the underlying data source
++     * <p>
++     * Objects with different hashcodes <b>must not</b> {@link #equals(Object)}
++     * </p>
++     *
++     * @return the hashcode of the underlying data source
++     */
++    public int hashCode();
++
++    /**
++     * If the other object is a {@link net.techcable.tacospigot.uuid.ProfileLookup} return if the underlying data source is the same
++     * <p>
++     * Not intended for direct client consumption, use {@link #equals(java.lang.Object)} instead
++     * If this method would normally return false, you <b>must not</b> check if {@code other.equals(this)
++     * This prevents infinite recursion by {@link #equals(Object)} calling itself
++     * </p>
++     *
++     * @param other the object to check for data source equality
++     *
++     * @return if the other object is a ProfileLookup, return if the underlying data source is the same
++     *
++     * @deprecated not intended for direct client consumption, use {@link #equals(Object)} instead
++     */
++    @Deprecated
++    public boolean equalsNoOther(ProfileLookup other);
++
++}
+\ No newline at end of file
+diff --git a/src/main/java/net/techcable/tacospigot/uuid/Property.java b/src/main/java/net/techcable/tacospigot/uuid/Property.java
+new file mode 100644
+index 0000000..51c84a3
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/uuid/Property.java
+@@ -0,0 +1,119 @@
++package net.techcable.tacospigot.uuid;
++
++import java.util.concurrent.atomic.AtomicReference;
++
++import com.google.common.base.Preconditions;
++
++/**
++ * A property a player can have on its profile
++ */
++public class Property {
++
++    private final String name, value, signature;
++
++    /**
++     * Create a unsigned property with the given name and value
++     *
++     * @param name the name of this property
++     * @param value the value of this property
++     */
++    public Property(String name, String value) {
++        this(name, value, null);
++    }
++
++    /**
++     * Create a signed property with the given name and value
++     * <p>
++     * Signature must be Base64-encoded, although this is not currently checked
++     * </p>
++     *
++     * @param name the name of this property
++     * @param value the value of this property
++     * @param signature the base64-encoded signature of this property
++     */
++    public Property(String name, String value, String signature) {
++        this.name = name;
++        this.value = value;
++        this.signature = signature;
++    }
++
++    private static TextureParser textureParser;
++
++    protected static void setTextureParser(TextureParser textureParser) {
++        Property.textureParser = textureParser;
++    }
++
++    /**
++     * Return if the profile has a signature
++     *
++     * @return if the profile has a signature
++     */
++    public boolean isSigned() {
++        return signature != null;
++    }
++
++    /**
++     * Return the profile's signature
++     * <p>
++     * A signature is a Base64 Encoded, singed using Yggdrasil's private key
++     * </p>
++     *
++     * @return the profile signature
++     */
++    public String getSignature() {
++        return signature;
++    }
++
++    /**
++     * Return the name of this property
++     *
++     * @return the name of this property
++     */
++    public String getName() {
++        return name;
++    }
++
++    /**
++     * Return this property's value
++     *
++     * @return the value of this property
++     */
++    public String getValue() {
++        return value;
++    }
++
++    // Kind of like lombok @Getter(lazy=true), without support for null-values
++    // If the value is null, it is un-computed
++    // Otherwise the value is the computed value
++    private final AtomicReference<TextureData> textureData = new AtomicReference<TextureData>();
++
++    /**
++     * Convert this property into texture data
++     * <p>
++     * Should never be null
++     * </p>
++     *
++     * @return this property in the form of texture data
++     *
++     * @throws java.lang.IllegalArgumentException if this property is not valid texture data
++     * @throws java.lang.UnsupportedOperationException if parsing texture data is unsupported
++     */
++    public TextureData parseTextureData() {
++        if (textureData.get() == null) {
++            synchronized (textureData) {
++                if (textureData.get() == null) {
++                    if (textureParser == null) throw new UnsupportedOperationException("Texture parsing is unsupported");
++                    TextureData parsed = textureParser.parse(this);
++                    Preconditions.checkArgument(parsed != null, "Invalid texture data: " + value);
++                    textureData.set(parsed);
++                }
++            }
++        }
++        return textureData.get();
++    }
++
++    protected static interface TextureParser {
++
++        public TextureData parse(Property property);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/uuid/PropertyMap.java b/src/main/java/net/techcable/tacospigot/uuid/PropertyMap.java
+new file mode 100644
+index 0000000..037faeb
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/uuid/PropertyMap.java
+@@ -0,0 +1,70 @@
++package net.techcable.tacospigot.uuid;
++
++import java.util.Collection;
++import java.util.Set;
++
++import com.google.common.collect.HashMultimap;
++import com.google.common.collect.ImmutableMultimap;
++import com.google.common.collect.Multimaps;
++import com.google.common.collect.SetMultimap;
++
++/**
++ * A player's profile properties
++ */
++public class PropertyMap {
++
++    private final SetMultimap<String, Property> backing = Multimaps.synchronizedSetMultimap(HashMultimap.<String, Property>create());
++
++    /**
++     * Get the properties with the specified name
++     *
++     * @param name the name of the property
++     *
++     * @return all properties with the given name
++     */
++    public Collection<Property> getProperty(String name) {
++        return backing.get(name);
++    }
++
++    /**
++     * Add the given property to this map
++     * <p>
++     * This will <b>not override properties with the same name</b>
++     * </p>
++     *
++     * @param property the property to add
++     */
++    public void addProperty(Property property) {
++        backing.put(property.getName(), property);
++    }
++
++    /**
++     * Get the names of all properties
++     *
++     * @return the names of all properties
++     */
++    public Set<String> getPropertyNames() {
++        return backing.keySet();
++    }
++
++    /**
++     * Create a copy of this map
++     * <p>
++     * This is a 'shallow' copy and doesn't copy the underlying properties or names
++     * Modifications to this map won't be reflected in the returned copy
++     * </p>
++     *
++     * @return a copy of this map
++     */
++    public ImmutableMultimap<String, Property> asMap() {
++        return ImmutableMultimap.copyOf(backing);
++    }
++
++    /**
++     * Clear all properties
++     */
++    public void clear() {
++        backing.clear();
++    }
++
++}
+diff --git a/src/main/java/net/techcable/tacospigot/uuid/TextureData.java b/src/main/java/net/techcable/tacospigot/uuid/TextureData.java
+new file mode 100644
+index 0000000..f26c3cf
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/uuid/TextureData.java
+@@ -0,0 +1,82 @@
++package net.techcable.tacospigot.uuid;
++
++import java.net.URL;
++
++/**
++ * Data about a player's skin and cape
++ * <p>
++ * Can be retrieved from a property using {@link Property#parseTextureData()}
++ * </p>
++ */
++public class TextureData {
++
++    private final ArmStyle armStyle;
++    private final URL skinUrl, capeUrl;
++
++    public static ArmStyle DEFAULT_ARM_STYLE = ArmStyle.SQUARE;
++
++    public TextureData(URL skinUrl, URL capeUrl) {
++        this.skinUrl = skinUrl;
++        this.capeUrl = capeUrl;
++        this.armStyle = DEFAULT_ARM_STYLE;
++    }
++
++    public TextureData(URL skinUrl, URL capeUrl, ArmStyle armStyle) {
++        this.skinUrl = skinUrl;
++        this.capeUrl = capeUrl;
++        this.armStyle = armStyle;
++    }
++
++    /**
++     * Return the style of the player's arm, or null if no skin is set
++     *
++     * @return the style of the player's arm, or null if no skin is set
++     */
++    public ArmStyle getArmStyle() {
++        return armStyle;
++    }
++
++    /**
++     * Return if the player has a custom skin
++     * <p>
++     * Guarantees that {@link #getSkin()} won't return null
++     * </p>
++     *
++     * @return if the player has a skin set
++     */
++    public boolean hasSkin() {
++        return skinUrl != null;
++    }
++
++    /**
++     * Return the url of the player skin, or null if the skin is unset
++     *
++     * @return the url of the player skin, or null if unset
++     */
++    public URL getSkin() {
++        return skinUrl;
++    }
++
++    /**
++     * Return if the player has a cape
++     *
++     * @return if the player has a cape
++     */
++    public boolean hasCape() {
++        return capeUrl != null;
++    }
++
++    /**
++     * Return the cape of the player skin, or null if the skin is unset
++     *
++     * @return the cape of the player skin, or null if unset
++     */
++    public URL getCape() {
++        return capeUrl;
++    }
++
++    public static enum ArmStyle {
++        SLIM,
++        SQUARE;
++    }
++}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 584fe11..14dd3b3 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -12,6 +12,8 @@ import java.util.Set;
+ import java.util.UUID;
+ import java.util.logging.Logger;
+ 
++import net.techcable.tacospigot.uuid.ProfileLookup; // TacoSpigot
++
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.command.CommandException;
+ import org.bukkit.command.CommandSender;
+@@ -1135,4 +1137,44 @@ public final class Bukkit {
+     {
+         return server.spigot();
+     }
++
++    // TacoSpigot start -- uuid api
++
++    /**
++     * Get the server's profile lookup
++     * <p>
++     * It is recommended that this lookup caches.
++     * It does cache in craftbukkit.
++     * </p>
++     *
++     * @return the server's profile lookup
++     */
++    public static ProfileLookup getLookup() {
++        return server.getLookup();
++    }
++
++    /**
++     * Set the server's profile lookup
++     *
++     * @param lookup the new lookup
++     */
++    public static void setLookup(ProfileLookup lookup) {
++        server.setLookup(lookup);
++    }
++
++    /**
++     * Get the lookup that uses mojang
++     * <p>
++     * This is the server's default lookup
++     * This must <b>not</b> cache
++     * </p>
++     *
++     * @return the mojang lookup
++     */
++    public static ProfileLookup getMojangLookup() {
++        return server.getMojangLookup();
++    }
++
++    // TacoSpigot end
++
+ }
+diff --git a/src/main/java/org/bukkit/OfflinePlayer.java b/src/main/java/org/bukkit/OfflinePlayer.java
+index e98706a..94199c2 100644
+--- a/src/main/java/org/bukkit/OfflinePlayer.java
++++ b/src/main/java/org/bukkit/OfflinePlayer.java
+@@ -3,6 +3,8 @@ package org.bukkit;
+ import java.util.Date;
+ import java.util.UUID;
+ 
++import net.techcable.tacospigot.uuid.PlayerProfile; // TacoSpigot
++
+ import org.bukkit.configuration.serialization.ConfigurationSerializable;
+ import org.bukkit.entity.AnimalTamer;
+ import org.bukkit.entity.Player;
+@@ -41,6 +43,20 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+      */
+     public boolean isBanned();
+ 
++    // TacoSpigot start - add uuid api
++
++    /**
++     * Return the player's profile
++     * <p>
++     * Note that this method would probably be called {@code getProfile()} if the implementation hadn't already taken this name
++     * </p>
++     *
++     * @return the player's profile
++     */
++    public PlayerProfile getPlayerProfile();
++
++    // TacoSpigot end
++
+     /**
+      * Bans or unbans this player
+      *
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 26acdda..5422744 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -12,6 +12,8 @@ import java.util.Set;
+ import java.util.UUID;
+ import java.util.logging.Logger;
+ 
++import net.techcable.tacospigot.uuid.ProfileLookup; // TacoSpigot
++
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.command.CommandException;
+ import org.bukkit.command.CommandSender;
+@@ -966,4 +968,38 @@ public interface Server extends PluginMessageRecipient {
+     }
+ 
+     Spigot spigot();
++
++    // TacoSpigot start -- uuid api
++
++    /**
++     * Get the server's profile lookup
++     * <p>
++     * It is recommended that this lookup caches.
++     * It does cache in craftbukkit.
++     * </p>
++     *
++     * @return the server's profile lookup
++     */
++    public ProfileLookup getLookup();
++
++    /**
++     * Set the server's profile lookup
++     *
++     * @param lookup the new lookup
++     */
++    public void setLookup(ProfileLookup lookup);
++
++    /**
++     * Get the lookup that uses mojang
++     * <p>
++     * This is the server's default lookup
++     * This must <b>not</b> cache
++     * </p>
++     *
++     * @return the mojang lookup
++     */
++    public ProfileLookup getMojangLookup();
++
++    // TacoSpigot end
++
+ }
+-- 
+2.4.6.windows.1
+
