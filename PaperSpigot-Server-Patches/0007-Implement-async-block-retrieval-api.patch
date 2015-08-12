@@ -1,25 +1,17 @@
-From 56fc5dbf832e74d07406598cf6fc1dcc53b66839 Mon Sep 17 00:00:00 2001
+From ceda0dae54b115133efc9abe13614639f3534705 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 30 Jul 2015 23:57:17 -0700
 Subject: [PATCH] Implement async block retrieval api
 
 
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index e437381..427b821 100644
+index 7efacfa..e0bc8aa 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
-@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
- import java.util.concurrent.atomic.AtomicInteger; // PaperSpigot
- 
- import net.techcable.tacospigot.FakeTileEntityMap; // TacoSpigot
-+import net.techcable.tacospigot.ConcurrentShortIntMap; // TacoSpigot
- 
- import org.apache.logging.log4j.LogManager;
- import org.apache.logging.log4j.Logger;
-@@ -124,6 +125,23 @@ public class Chunk {
-     }
- 
-     // TacoSpigot End
+@@ -33,6 +33,23 @@ public class Chunk {
+     public final int locZ;
+     private boolean k;
+     public final Map<BlockPosition, TileEntity> tileEntities;
 +    // TacoSpigot start - implement async block data retrieval api
 +    public Block getLastKnownType(int x, int y, int z) {
 +        return Block.getById(getLastKnownBlockId(x, y, z));
