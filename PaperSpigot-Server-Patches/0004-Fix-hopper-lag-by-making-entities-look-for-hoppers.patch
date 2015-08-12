@@ -1,4 +1,4 @@
-From c7e409831efdb1ccb1a80ae4f9ad551df07fd4fa Mon Sep 17 00:00:00 2001
+From 4ac45e94a58a2ad8812991557f8d9d5fd4338b1c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -8,10 +8,44 @@ entity is above the hopper (which there often isn't) it will do a bounding
 box search for minecart chests and minecart hoppers.
 If it can't find an inventory, it will then look for a dropped item, which is another bounding box search.
 This patch eliminates that expensive check by having dropped items and minecart hoppers/chests look for hoppers instead.
-Hoppers are tile entitys meaning you can do a few simple map lookups (7 max) to find the nearest hopper in range.
+Hoppers are tile entities meaning you can do a simple tile entity lookup to find the nearest hopper in range.
 Pushing out of hoppers causes a bouding box lookup, which this patch replaces with a map lookup.
 This patch may cause problems if you have an insane amout of dropped items, which is why it can be disabled in the configuration.
 
+diff --git a/src/main/java/net/minecraft/server/ChunkSection.java b/src/main/java/net/minecraft/server/ChunkSection.java
+index 907c57b..558282c 100644
+--- a/src/main/java/net/minecraft/server/ChunkSection.java
++++ b/src/main/java/net/minecraft/server/ChunkSection.java
+@@ -9,6 +9,7 @@ public class ChunkSection {
+     private NibbleArray emittedLight;
+     private NibbleArray skyLight;
+     boolean isDirty; // PaperSpigot
++    public int hopperCount; // TacoSpigot
+ 
+     public ChunkSection(int i, boolean flag) {
+         this.yPos = i;
+@@ -49,6 +50,13 @@ public class ChunkSection {
+                 --this.tickingBlockCount;
+             }
+         }
++        // TacoSpigot start - count hoppers
++        if (block == Blocks.HOPPER) { // If the old block is a hopper
++            if (block1 != Blocks.HOPPER) hopperCount--; // If the new one isn't a hopper, we lost a hopper
++        } else if (block1 == Blocks.HOPPER) { // If the new block is a hopper (and the old one isnt)
++            hopperCount++; // We got a hopper
++        }
++        // TacoSpigot end
+ 
+         if (block1 != Blocks.AIR) {
+             ++this.nonEmptyBlockCount;
+@@ -116,6 +124,7 @@ public class ChunkSection {
+                             ++this.tickingBlockCount;
+                         }
+                     }
++                    if (block == Blocks.HOPPER) this.hopperCount++; // TacoSpigot - count hoppers
+                 }
+             }
+         }
 diff --git a/src/main/java/net/minecraft/server/EntityItem.java b/src/main/java/net/minecraft/server/EntityItem.java
 index 1f8b1c7..63cd4bd 100644
 --- a/src/main/java/net/minecraft/server/EntityItem.java
@@ -74,7 +108,7 @@ index c6487f2..8ca2d29 100644
          return this.items[i];
      }
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index cab636a..ece9858 100644
+index cab636a..cd4bdc1 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -18,6 +18,25 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
@@ -103,64 +137,45 @@ index cab636a..ece9858 100644
      // CraftBukkit start - add fields and methods
      public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
      private int maxStack = MAX_STACK;
-@@ -174,7 +193,27 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -174,9 +193,8 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
              --this.g;
              if (!this.n()) {
                  this.d(0);
 -                this.m();
-+                // TacoSpigot start
-+                if (!world.tacoSpigotConfig.isHopperPushBased) {
-+                    this.m(); // m() handles everything
-+                } else if (BlockHopper.f(this.u())) { // Otherwise entities look for us and we look for tiles
-+                    TileEntity above = world.getTileEntityIfLoaded(getPosition().up());
-+                    boolean needsUpdate = false;
-+
-+                    if (!this.p()) {
-+                        needsUpdate = this.r();
-+                    }
-+
-+                    if (above != null && above instanceof IInventory) {
-+                        needsUpdate = acceptItem(this, (IInventory)above) || needsUpdate;
-+                    }
-+
-+                    if (needsUpdate) {
-+                        this.d(world.spigotConfig.hopperTransfer);
-+                        this.update();
-+                    }
-+                }
-+                // TacoSpigot end
++                this.m(); // m() handles everything
              }
- 
+-
          }
-@@ -236,7 +275,10 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+     }
+ 
+@@ -236,7 +254,10 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
      }
  
      private boolean r() {
 -        IInventory iinventory = this.H();
 +        // TacoSpigot start - Don't use inefficient H() which does another bounding box search
-+        TileEntity tile = getWorld().getTileEntityIfLoaded(getPosition().shift(BlockHopper.b(this.u())));
++        TileEntity tile = getWorld().getTileEntity(getPosition().shift(BlockHopper.b(this.u())));
 +        IInventory iinventory = tile instanceof IInventory ? (IInventory) tile : null;
 +        // TacoSpigot end
  
          if (iinventory == null) {
              return false;
-@@ -341,9 +383,25 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -341,9 +362,23 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
 +    // TacoSpigot start - Split methods, one that pushes and one that pulls
 +    @Deprecated
      public static boolean a(IHopper ihopper) {
-+        if (!ihopper.getWorld().tacoSpigotConfig.isHopperPushBased) throw new AssertionError("hoppers should not be using TileEntityHopper.a(IHopper) in push-mode");
-         IInventory iinventory = b(ihopper);
-+        // Find and tick nearby entities, from below
-+        Iterator iterator = a(ihopper.getWorld(), ihopper.A(), ihopper.B() + 1.0D, ihopper.C()).iterator();
-+        while (iterator.hasNext()) {
-+            EntityItem entityitem = (EntityItem) iterator.next();
-+
-+            if (a(ihopper, entityitem)) {
-+                return true;
-+            }
+-        IInventory iinventory = b(ihopper);
++        IInventory iinventory;
++        if (ihopper.getWorld().tacoSpigotConfig.isHopperPushBased && ihopper instanceof TileEntityHopper) {
++            TileEntityHopper tileHopper = (TileEntityHopper) ihopper;
++            TileEntity above = ihopper.getWorld().getTileEntity(tileHopper.getPosition().up()); // Only pull from a above, because everything else comes to us
++            if (above instanceof IInventory) iinventory = (IInventory) above;
++            else iinventory = null;
++        } else {
++            iinventory = b(ihopper); // Use old behavior for BB entity searching
 +        }
 +        return acceptItem(ihopper, iinventory);
 +    }
@@ -170,7 +185,7 @@ index cab636a..ece9858 100644
          if (iinventory != null) {
              EnumDirection enumdirection = EnumDirection.DOWN;
  
-@@ -357,6 +415,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -357,6 +392,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
  
                  for (int i = 0; i < aint.length; ++i) {
                      if (a(ihopper, iinventory, aint[i], enumdirection)) {
@@ -178,7 +193,7 @@ index cab636a..ece9858 100644
                          return true;
                      }
                  }
-@@ -365,11 +424,14 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -365,11 +401,12 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
  
                  for (int k = 0; k < j; ++k) {
                      if (a(ihopper, iinventory, k, enumdirection)) {
@@ -187,109 +202,72 @@ index cab636a..ece9858 100644
                      }
                  }
              }
-         } else {
-+            // TacoSpigot start - move above to pull based system
-+            /*
+-        } else {
++        } else if (!ihopper.getWorld().tacoSpigotConfig.isHopperPushBased && ihopper instanceof TileEntityHopper) { // TacoSpigot - only search for entities in 'pull mode'
              Iterator iterator = a(ihopper.getWorld(), ihopper.A(), ihopper.B() + 1.0D, ihopper.C()).iterator();
  
              while (iterator.hasNext()) {
-@@ -379,6 +441,8 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
-                     return true;
-                 }
-             }
-+            */
-+            // TacoSpigot end
-         }
- 
-         return false;
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..82922f0
+index 0000000..1a4e771
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,58 @@
 +package net.techcable.tacospigot;
 +
 +import java.util.ArrayList;
-+import java.util.HashSet;
 +import java.util.List;
-+import java.util.Set;
 +
 +import net.minecraft.server.BlockPosition;
++import net.minecraft.server.Chunk;
++import net.minecraft.server.ChunkSection;
 +import net.minecraft.server.Entity;
 +import net.minecraft.server.EntityItem;
 +import net.minecraft.server.IInventory;
++import net.minecraft.server.MathHelper;
 +import net.minecraft.server.TileEntity;
 +import net.minecraft.server.TileEntityHopper;
 +import net.minecraft.server.World;
 +
++import com.google.common.base.Preconditions;
 +import com.google.common.collect.ImmutableList;
 +
 +public class HopperHelper {
-+
-+    public static boolean acceptItem(TileEntity entity, IInventory inventory) {
-+        if (!entity.getWorld().tacoSpigotConfig.isHopperPushBased) return false;
-+        ImmutableList<TileEntityHopper> hoppers = getHoppers(entity.getWorld(), entity.getPosition());
-+        return acceptItem(hoppers, inventory);
-+    }
-+
 +    public static boolean acceptItem(Entity entity, IInventory inventory) {
 +        if (!entity.getWorld().tacoSpigotConfig.isHopperPushBased) return false;
-+        ImmutableList<TileEntityHopper> acceptors = getAcceptors(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
-+        return acceptItem(acceptors, inventory);
++        TileEntityHopper hopper = getHopper(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
++        if (hopper == null) return false;
++        if (!hopper.isWantItem()) return false;
++        return TileEntityHopper.acceptItem(hopper, inventory);
 +    }
 +
 +    public static boolean acceptItemEntity(EntityItem entity) {
 +        if (!entity.getWorld().tacoSpigotConfig.isHopperPushBased) return false;
 +        if (!entity.isAlive()) return false;
-+        ImmutableList<TileEntityHopper> acceptors = getAcceptors(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
-+        for (TileEntityHopper hopper : acceptors) {
-+            if (hopper.acceptItem(entity)) return true;
-+        }
-+        return false;
-+    }
-+
-+    private static boolean acceptItem(ImmutableList<TileEntityHopper> acceptors, IInventory inventory) {
-+        for (TileEntityHopper acceptor : acceptors) {
-+            if (acceptItem(acceptor, inventory)) {
-+                return true;
-+            }
-+        }
-+        return false;
-+    }
-+
-+    private static boolean acceptItem(TileEntityHopper hopper, IInventory inventory) {
-+        if (!hopper.isWantItem()) return false;
-+        return TileEntityHopper.acceptItem(hopper, inventory);
++        TileEntityHopper hopper = getHopper(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
++        if (hopper == null) return false;
++        return hopper.acceptItem(entity);
 +    }
 +
 +    // Finding the acceptors
 +
-+    private static ImmutableList<TileEntityHopper> getAcceptors(World world, double x, double y, double z) {
-+        List<TileEntityHopper> hoppers = new ArrayList<TileEntityHopper>(7);
-+        // Vanilla checks for all items in a 0.5 block range, so we have to check for all hoppers in a 0.5 block range
-+        // This is a much simpler check and is the main benefit of our optimization
-+        double range = 0.5;
-+        Set<BlockPosition> positions = new HashSet<BlockPosition>(7); // Eliminate duplicates
-+        positions.add(new BlockPosition(x, y, z));
-+        positions.add(new BlockPosition(x + range, y, z));
-+        positions.add(new BlockPosition(x, y + range, z));
-+        positions.add(new BlockPosition(x, y, z + range));
-+        positions.add(new BlockPosition(x - range, y, z));
-+        positions.add(new BlockPosition(x, y - range, z));
-+        positions.add(new BlockPosition(x, y, z - range));
-+        for (BlockPosition position : positions) {
-+            TileEntity tile = world.getTileEntityIfLoaded(position);
-+            if (tile == null || !(tile instanceof TileEntityHopper)) continue;
-+            hoppers.add((TileEntityHopper) tile);
-+        }
-+        return ImmutableList.copyOf(hoppers);
++    private static TileEntityHopper getHopper(World world, double rawX, double rawY, double rawZ) {
++        int x = MathHelper.floor(rawX);
++        int y = MathHelper.floor(rawY) - 1; // Check below
++        int z = MathHelper.floor(rawZ);
++        if (!hasHopper(world, x, y, z)) return null;
++        BlockPosition position = new BlockPosition(x, y, z);
++        TileEntity tile = world.getTileEntity(position);
++        if (tile == null || !(tile instanceof TileEntityHopper)) return null;
++        return (TileEntityHopper) tile;
 +    }
 +
-+    private static ImmutableList<TileEntityHopper> getHoppers(World world, BlockPosition position) {
-+        TileEntity tile = world.getTileEntityIfLoaded(position);
-+        if (tile == null || !(tile instanceof TileEntityHopper)) return ImmutableList.of();
-+        return ImmutableList.of((TileEntityHopper) tile);
++    private static boolean hasHopper(World world, int x, int y, int z) {
++        Chunk chunk = world.getChunkIfLoaded(x >> 4, z >> 4);
++        if (chunk == null) return false; // Not loaded
++        int sectionId = y >> 4;
++        ChunkSection section1 = chunk.getSections()[sectionId];
++        return section1 != null && section1.hopperCount > 0;
 +    }
 +
 +}
