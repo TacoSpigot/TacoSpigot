@@ -1,4 +1,4 @@
-From bff09a1e8876d810986186825028e2e5d2efe269 Mon Sep 17 00:00:00 2001
+From 51dcbfe58165e70bf026990eabe234cec3b4af1d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 31 Jul 2015 10:33:42 -0700
 Subject: [PATCH] Allow plugins to replace spigot anti xray
@@ -21,7 +21,7 @@ index 1a2484d..9a32581 100644
  
                  Iterator iterator2 = arraylist1.iterator();
 diff --git a/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java b/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
-index a0021fb..8acb86c 100644
+index a0021fb..688d2c9 100644
 --- a/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
 +++ b/src/main/java/net/minecraft/server/PacketPlayOutMapChunk.java
 @@ -14,14 +14,26 @@ public class PacketPlayOutMapChunk implements Packet<PacketListenerPlayOut> {
@@ -58,7 +58,7 @@ index a0021fb..8acb86c 100644
      public void b(PacketDataSerializer packetdataserializer) throws IOException {
 +        // TacoSpigot start - obfuscate chunk buffer
 +        if (!obfuscated) {
-+            world.spigotConfig.antiXrayInstance.obfuscateSync(null, a, b, c.b, c.a, world); // Player is unknown, as it would have otherwise been obfuscated
++            world.spigotConfig.antiXrayInstance.obfuscate(null, a, b, c.b, c.a, world); // Player is unknown, as it would have otherwise been obfuscated
 +        }
 +        // TacoSpigot end
          packetdataserializer.writeInt(this.a);
