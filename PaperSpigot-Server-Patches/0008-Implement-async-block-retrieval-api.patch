@@ -1,11 +1,11 @@
-From 9b2265ac139c44bf32323dcaa9609b700253ae82 Mon Sep 17 00:00:00 2001
+From 56fc5dbf832e74d07406598cf6fc1dcc53b66839 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 30 Jul 2015 23:57:17 -0700
 Subject: [PATCH] Implement async block retrieval api
 
 
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index e437381..0f27670 100644
+index e437381..427b821 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
 @@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
@@ -16,84 +16,35 @@ index e437381..0f27670 100644
  
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
-@@ -124,6 +125,56 @@ public class Chunk {
+@@ -124,6 +125,23 @@ public class Chunk {
      }
  
      // TacoSpigot End
 +    // TacoSpigot start - implement async block data retrieval api
-+    private static short getPosKey(int x, int y, int z) { // copy of toRelativeShort
-+        return (short)((x & 0x0F) | ((y & 0xF) << 4) | ((y & 0xFF) << 8));
++    public Block getLastKnownType(int x, int y, int z) {
++        return Block.getById(getLastKnownBlockId(x, y, z));
 +    }
 +
-+    private final ConcurrentShortIntMap lastKnownType = new ConcurrentShortIntMap(Short.MAX_VALUE / 3); // About 1/3 of blocks will be non-air
-+    private final ConcurrentShortIntMap lastKnownMeta = new ConcurrentShortIntMap();
-+
-+    public Block getLastKnownType(int x, int y, int z) {
-+        short key = getPosKey(x, y, z);
-+        int blockId = lastKnownType.get(key);
-+        if (blockId == lastKnownType.getNoEntryValue()) return Blocks.AIR;
-+        return Block.getById(blockId);
++    public int getLastKnownBlockId(int x, int y, int z) {
++        if (y >> 4 > 16) throw new IllegalArgumentException("section id is greater than 16: " + (y >> 4));
++        ChunkSection section = getSections()[y >> 4];
++        return section.getLastKnownBlockId(x, y, z);
 +    }
 +
 +    public int getLastKnownMeta(int x, int y, int z) {
-+        short key = getPosKey(x, y, z);
-+        int metadata = lastKnownMeta.get(key);
-+        if (metadata == lastKnownMeta.getNoEntryValue()) return 0;
-+        return metadata;
++        if (y >> 4 > 16) throw new IllegalArgumentException("section id is greater than 16: " + (y >> 4));
++        ChunkSection section = getSections()[y >> 4];
++        return section.getLastKnownMeta(x, y, z);
 +    }
-+
-+    public void onTypeChange(Block block, int x, int y, int z) {
-+        if (block == null) return;
-+        if (block.getMaterial() == Material.AIR) return;
-+        short key = getPosKey(x, y, z);
-+        int blockId = Block.getId(block);
-+        lastKnownType.put(key, blockId);
-+    }
-+
-+    public void onDataChange(IBlockData data, int x, int y, int z) {
-+        if (data == null) return;
-+        short key = getPosKey(x, y, z);
-+        int metadata = data.getBlock().toLegacyData(data);
-+        if (metadata == 0) return;
-+        lastKnownMeta.put(key, metadata);
-+    }
-+
-+    public void onDataChange(IBlockData data, BlockPosition pos) {
-+        if (pos == null) return;
-+        onDataChange(data, pos.getX(), pos.getY(), pos.getZ());
-+    }
-+
-+    public void onChange(int x, int y, int z, IBlockData data) {
-+        if (data == null) return;
-+        onTypeChange(data.getBlock(), x, y, z);
-+        onDataChange(data, x, y, z);
-+    }
-+
 +    // TacoSpigot end
      public final List<Entity>[] entitySlices; // Spigot
      private boolean done;
      private boolean lit;
-@@ -262,6 +313,7 @@ public class Chunk {
-                         }
- 
-                         this.sections[k1].setType(k, i1 & 15, l, iblockdata);
-+                        onChange(k, i, l, iblockdata); // TacoSpigot
-                     }
-                 }
-             }
-@@ -671,6 +723,7 @@ public class Chunk {
-             }
- 
-             chunksection.setType(i, j & 15, k, iblockdata);
-+            onChange(i, j, k, iblockdata); // TacoSpigot
-             if (block1 != block) {
-                 if (!this.world.isClientSide) {
-                     block1.remove(this.world, blockposition, iblockdata1);
 diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
-index 206e3aa..08f5f74 100644
+index 206e3aa..158646b 100644
 --- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 +++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
-@@ -361,11 +361,24 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+@@ -361,11 +361,23 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
                  if (Block.d.a(packed) == null) {
                      Block block = Block.getById(ex << 8 | id);
                      if (block != null) {
@@ -115,11 +66,36 @@ index 206e3aa..08f5f74 100644
 +                         * In addition, remember to make y absolute
 +                         */
 +                        final int fullY = ((b1 << 4) ^ 0xF) | (j1 & 0xF);
-+                        chunk.onChange(i1, fullY, k1, dataObj);
 +                        // TacoSpigot end
                          packed = ex << 12 | id << 4 | data;
                      }
                  }
+diff --git a/src/main/java/net/minecraft/server/ChunkSection.java b/src/main/java/net/minecraft/server/ChunkSection.java
+index 907c57b..78cf03e 100644
+--- a/src/main/java/net/minecraft/server/ChunkSection.java
++++ b/src/main/java/net/minecraft/server/ChunkSection.java
+@@ -20,6 +20,21 @@ public class ChunkSection {
+ 
+     }
+ 
++    // TacoSpigot start - allow thread safe direct access to underlying data
++    public int getLastKnownBlockId(int x, int y, int z) {
++        int combinedId = getCombinedId(x, y, z);
++        return combinedId >> 4;
++    }
++
++    private int getCombinedId(int x, int y, int z) {
++        return this.blockIds[(y & 0xF) << 8 | (z & 0xF) << 4 | (x & 0xF)];
++    }
++
++    public int getLastKnownMeta(int x, int y, int z) {
++        return getCombinedId(x, y, z) & 0xF;
++    }
++    // TacoSpigot end
++
+     // CraftBukkit start
+     public ChunkSection(int y, boolean flag, char[] blockIds) {
+         this.yPos = y;
 diff --git a/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java b/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java
 new file mode 100644
 index 0000000..5752183
@@ -3384,7 +3360,7 @@ index 0000000..b0c9baa
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftChunk.java b/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
-index 8a33e28..e821045 100644
+index 8a33e28..16d4bd6 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
 @@ -308,4 +308,17 @@ public class CraftChunk implements Chunk {
@@ -3395,8 +3371,8 @@ index 8a33e28..e821045 100644
 +    // TacoSpigot start
 +    @Override
 +    public org.bukkit.Material getLastKnownMaterial(int x, int y, int z) {
-+        net.minecraft.server.Block block = getHandle().getLastKnownType(x, y, z);
-+        return org.bukkit.Material.getMaterial(net.minecraft.server.Block.getId(block));
++        int blockId = getHandle().getLastKnownBlockId(x, y, z);
++        return org.bukkit.Material.getMaterial(blockId);
 +    }
 +
 +    @Override
@@ -3451,18 +3427,6 @@ index ce10832..dd82018 100644
 +
 +    // TacoSpigot end
  }
-diff --git a/src/main/java/org/bukkit/craftbukkit/generator/CustomChunkGenerator.java b/src/main/java/org/bukkit/craftbukkit/generator/CustomChunkGenerator.java
-index 04dd15d..2de935b 100644
---- a/src/main/java/org/bukkit/craftbukkit/generator/CustomChunkGenerator.java
-+++ b/src/main/java/org/bukkit/craftbukkit/generator/CustomChunkGenerator.java
-@@ -157,6 +157,7 @@ public class CustomChunkGenerator extends InternalChunkGenerator {
-                                         
-                                         Block b = Block.getById(blk & 0xFF);
-                                         csbytes[(cy << 8) | (cz << 4) | cx] = (char) Block.d.b(b.getBlockData());
-+                                        chunk.onChange(cx, ((sec << 4) ^ 0xF) | (cy & 0xF), cz, b.getBlockData()); // TacoSpigot
-                                     }
-                                 }
-                             }
 -- 
 2.4.6.windows.1
 
