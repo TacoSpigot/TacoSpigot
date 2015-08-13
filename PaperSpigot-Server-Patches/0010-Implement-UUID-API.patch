@@ -1,4 +1,4 @@
-From 175745fb2ac1f8e193b2e3e9d240b5f07d223e54 Mon Sep 17 00:00:00 2001
+From 1f9a29b320485ba4b1ba1a616c4b3266850004da Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 12 Aug 2015 08:42:41 -0700
 Subject: [PATCH] Implement UUID API
@@ -63,10 +63,10 @@ index 44ea98d..3e49c7e 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/uuid/MojangProfileLookup.java b/src/main/java/net/techcable/tacospigot/uuid/MojangProfileLookup.java
 new file mode 100644
-index 0000000..a0fbd78
+index 0000000..8ceb7d4
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/uuid/MojangProfileLookup.java
-@@ -0,0 +1,193 @@
+@@ -0,0 +1,194 @@
 +package net.techcable.tacospigot.uuid;
 +
 +import java.io.IOException;
@@ -99,10 +99,10 @@ index 0000000..a0fbd78
 +    @Override
 +    public PlayerProfile lookup(String name) {
 +        Preconditions.checkNotNull(name, "Name can't be null");
-+        GameProfile nms = MinecraftServer.getServer().getUserCache().getProfile(name);
++        GameProfile nms = MinecraftServer.getServer() != null ? MinecraftServer.getServer().getUserCache().getProfile(name) : null;
 +        if (nms == null) {
 +            Class<?> calling = getCallerClass();
-+            return Iterables.getFirst(lookup(Lists.newArrayList(name)), null);
++            return Iterables.getFirst(lookup(Lists.newArrayList(name), calling), null);
 +        }
 +        return ProfileHelper.toBukkit(nms);
 +    }
@@ -153,6 +153,7 @@ index 0000000..a0fbd78
 +    @Override
 +    public void lookupProperties(PlayerProfile profile) {
 +        Preconditions.checkNotNull(profile, "No null profiles");
++        if (profile.hasProperties()) return;
 +        try {
 +            GameProfile nms = lookupProperties(profile.getId());
 +            ProfileHelper.copyProperties(nms, profile);
@@ -242,7 +243,7 @@ index 0000000..a0fbd78
 +        StackTraceElement[] stack = new Throwable().getStackTrace();
 +        int currentIndex = 0;
 +        for (StackTraceElement element : stack) {
-+            if (currentIndex == 0 && !element.getMethodName().equals("getCallerClass") || !element.getClassName().equals(MojangProfileLookup.class.getName())) {
++            if (currentIndex == 0 && (!element.getMethodName().equals("getCallerClass") || !element.getClassName().endsWith("MojangProfileLookup"))) {
 +                currentIndex = 0; // We aren't on the current method yet
 +                continue;
 +            }
@@ -262,18 +263,21 @@ index 0000000..a0fbd78
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/uuid/ProfileHelper.java b/src/main/java/net/techcable/tacospigot/uuid/ProfileHelper.java
 new file mode 100644
-index 0000000..ed71343
+index 0000000..897f81d
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/uuid/ProfileHelper.java
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,118 @@
 +package net.techcable.tacospigot.uuid;
 +
 +import java.util.Map.Entry;
 +import java.util.UUID;
++import java.util.regex.Matcher;
++import java.util.regex.Pattern;
 +
 +import org.bukkit.Bukkit;
 +import org.bukkit.craftbukkit.util.MojangNameLookup.Response;
 +
++import com.google.common.base.Preconditions;
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
 +import com.mojang.authlib.GameProfile;
@@ -291,6 +295,7 @@ index 0000000..ed71343
 +        if (nms.getProperties() != null) {
 +            for (Entry<String, Property> entry : nms.getProperties().entries()) {
 +                Property property = entry.getValue();
++                if (!bukkit.hasProperties()) bukkit.createProperties();
 +                bukkit.getProperties().addProperty(toBukkit(property));
 +            }
 +        }
@@ -313,8 +318,24 @@ index 0000000..ed71343
 +        return new Property(bukkit.getName(), bukkit.getValue(), bukkit.getSignature());
 +    }
 +
++    public static final Pattern UUID_PATTERN = Pattern.compile("(\\p{XDigit}{8})-?(\\p{XDigit}{4})-?(\\p{XDigit}{4})-?(\\p{XDigit}{4})-?(\\p{XDigit}{12})");
++
++    public static UUID parseUUID(String rawId) {
++        Matcher m = UUID_PATTERN.matcher(rawId);
++        Preconditions.checkArgument(m.matches(), "%s is not a valid uuid", rawId);
++        long mostSignificantBits = Long.parseLong(m.group(1), 16);
++        mostSignificantBits <<= 16;
++        mostSignificantBits |= Long.parseLong(m.group(2), 16);
++        mostSignificantBits <<= 16;
++        mostSignificantBits |= Long.parseLong(m.group(3), 16);
++        long leastSignificantBits = Long.parseLong(m.group(4), 16);
++        leastSignificantBits <<= 48;
++        leastSignificantBits |= Long.parseLong(m.group(5), 16);
++        return new UUID(mostSignificantBits, leastSignificantBits);
++    }
++
 +    public static GameProfile toNMS(Response response) {
-+        UUID id = UUID.fromString(response.id);
++        UUID id = parseUUID(response.id);
 +        GameProfile nms = new GameProfile(id, response.name);
 +        if (response.properties != null) {
 +            for (JsonElement element : response.properties) {
@@ -365,10 +386,14 @@ index 0000000..ed71343
 +
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
-index 4521786..260fee9 100644
+index 4521786..29674e8 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
-@@ -11,6 +11,11 @@ import net.minecraft.server.EntityPlayer;
+@@ -7,10 +7,14 @@ import java.util.List;
+ import java.util.Map;
+ import java.util.UUID;
+ 
+-import net.minecraft.server.EntityPlayer;
  import net.minecraft.server.NBTTagCompound;
  import net.minecraft.server.WorldNBTStorage;
  
@@ -380,7 +405,7 @@ index 4521786..260fee9 100644
  import org.bukkit.BanList;
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
-@@ -39,6 +44,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+@@ -39,6 +43,12 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
          return profile;
      }
  
@@ -601,6 +626,140 @@ index 93a8f0b..706334a 100644
 +        // TacoSpigot end
      }
  }
+diff --git a/src/test/java/net/techcable/tacospigot/uuid/ProfileLookupTest.java b/src/test/java/net/techcable/tacospigot/uuid/ProfileLookupTest.java
+new file mode 100644
+index 0000000..36310b7
+--- /dev/null
++++ b/src/test/java/net/techcable/tacospigot/uuid/ProfileLookupTest.java
+@@ -0,0 +1,128 @@
++package net.techcable.tacospigot.uuid;
++
++import java.lang.reflect.Field;
++import java.net.Proxy;
++import java.util.Collection;
++import java.util.UUID;
++import java.util.logging.Level;
++import java.util.logging.Logger;
++
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.UserCache;
++
++import org.bukkit.Bukkit;
++import org.bukkit.Server;
++import org.bukkit.entity.Player;
++import org.junit.Before;
++import org.junit.Test;
++import org.mockito.invocation.InvocationOnMock;
++import org.mockito.stubbing.Answer;
++
++import com.google.common.collect.ImmutableList;
++import com.mojang.authlib.GameProfileRepository;
++import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
++
++import static org.junit.Assert.*;
++import static org.mockito.Mockito.*;
++
++public class ProfileLookupTest {
++
++    private CachingLookup lookup = new CachingLookup(new MojangProfileLookup());
++
++    public static final ImmutableList<String> NAMES = ImmutableList.of("Techcable", "Dragonslayer293", "PhanaticD", "Byteflux", "vemacs");
++
++    private static Field instanceField;
++    private static Field bukkitServerField;
++    @Before
++    public void setupServer() throws IllegalAccessException, NoSuchFieldException {
++        if (instanceField == null) {
++            for (Field field : MinecraftServer.class.getDeclaredFields()) {
++                if (MinecraftServer.class.isAssignableFrom(field.getType())) {
++                    instanceField = field;
++                    break;
++                }
++            }
++        }
++        if (bukkitServerField == null) {
++            bukkitServerField = Bukkit.class.getDeclaredField("server");
++        }
++        MinecraftServer server = mock(MinecraftServer.class);
++
++        UserCache userCache = mock(UserCache.class);
++
++        when(userCache.getProfile(anyString())).thenReturn(null);
++
++        when(server.getUserCache()).thenReturn(userCache); // No UserCache
++
++        YggdrasilAuthenticationService authenticationService = new YggdrasilAuthenticationService(Proxy.NO_PROXY, UUID.randomUUID().toString());
++
++        GameProfileRepository gameProfileRepository = authenticationService.createProfileRepository();
++
++        when(server.getGameProfileRepository()).thenReturn(gameProfileRepository);
++
++        Logger logger = mock(Logger.class);
++
++        // Log any thrown exceptions
++        doAnswer(new Answer<Void>() {
++
++            @Override
++            public Void answer(InvocationOnMock invocation) throws Throwable {
++                Throwable t = invocation.getArgumentAt(2, Throwable.class);
++                throw t;
++            }
++        }).when(logger).log(any(Level.class), anyString(), any(Throwable.class));
++
++
++        Server bukkitServer = mock(Server.class);
++
++        when(bukkitServer.getLogger()).thenReturn(logger);
++
++        instanceField.setAccessible(true);
++        instanceField.set(null, server);
++
++        bukkitServerField.setAccessible(true);
++        bukkitServerField.set(null, bukkitServer);
++    }
++
++    @Test
++    public void bulkNameLookup() {
++        Collection<PlayerProfile> profiles = lookup.lookup(NAMES);
++        int i = 0;
++        for (PlayerProfile profile : profiles) {
++            String name = NAMES.get(i);
++            assertNotEquals("Existing profile marked as non-existent", PlayerProfile.NULL_PROFILE, profile);
++            assertEquals("Names not expected", name, profile.getName());
++            i++;
++        }
++    }
++
++    @Test
++    public void nameLookup() {
++        for (String name : NAMES) {
++            PlayerProfile profile = lookup.lookup(name);
++            assertNotNull("Unable to lookup profile", profile);
++            assertNotEquals("Existing profile marked as non-existent", PlayerProfile.NULL_PROFILE, profile);
++        }
++    }
++
++    @Test
++    public void propertiesLookup() {
++        for (String name : NAMES) {
++            PlayerProfile profile = lookup.lookup(name);
++            lookup.lookupProperties(profile);
++        }
++    }
++
++    public void uuidLookup() {
++        for (String name : NAMES) {
++            PlayerProfile byName = lookup.lookup(name);
++            assertNotNull("Unable to lookup profile", byName);
++            assertNotEquals("Existing profile marked as non-existent", PlayerProfile.NULL_PROFILE, byName);
++            PlayerProfile profile = lookup.lookup(byName.getId());
++            assertNotNull("Unable to lookup profile", profile);
++            assertNotEquals("Existing profile marked as non-existent", PlayerProfile.NULL_PROFILE, profile);
++            assertEquals("Profile name was not equal to the expected", byName.getName(), profile.getName());
++        }
++    }
++
++}
 -- 
 2.4.6.windows.1
 
