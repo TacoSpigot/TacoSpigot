@@ -1,0 +1,97 @@
+From 29bcfb12c9452c3fe71893c41b1aac89a97cb233 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Fri, 7 Aug 2015 19:31:31 -0700
+Subject: [PATCH] Fix head display issues
+
+Use uuid api.
+
+diff --git a/src/main/java/net/minecraft/server/TileEntitySkull.java b/src/main/java/net/minecraft/server/TileEntitySkull.java
+index 58014c5..fe0525a 100644
+--- a/src/main/java/net/minecraft/server/TileEntitySkull.java
++++ b/src/main/java/net/minecraft/server/TileEntitySkull.java
+@@ -18,6 +18,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
+ import com.mojang.authlib.Agent;
+ import com.mojang.authlib.ProfileLookupCallback;
+ // Spigot end
++// TacSpigot start
++import java.util.logging.Level;
++import java.util.logging.Logger;
++// TacoSpigot end
+ 
+ public class TileEntitySkull extends TileEntity {
+ 
+@@ -30,6 +34,7 @@ public class TileEntitySkull extends TileEntity {
+                     .setNameFormat("Head Conversion Thread - %1$d")
+                     .build()
+     );
++    private static long lastMsg;// TacoSpigot
+     public static final LoadingCache<String, GameProfile> skinCache = CacheBuilder.newBuilder()
+             .maximumSize( 5000 )
+             .expireAfterAccess( 60, TimeUnit.MINUTES )
+@@ -48,12 +53,23 @@ public class TileEntitySkull extends TileEntity {
+ 
+                         @Override
+                         public void onProfileLookupFailed(GameProfile gp, Exception excptn) {
++                            // TacoSpigot start - log errors
++                            Logger logger = Logger.getLogger("");
++                            if (System.currentTimeMillis() - lastMsg < TimeUnit.MINUTES.toMillis(5)) {
++                                String msg = "Unable to lookup profile";
++                                if (excptn == null) {
++                                    logger.warning(msg);
++                                } else {
++                                    logger.log(Level.WARNING, msg, excptn);
++                                }
++                                lastMsg = System.currentTimeMillis();
++                            }
++                            // TacoSpigot end
+                             profiles[0] = gp;
+                         }
+                     };
+ 
+                     MinecraftServer.getServer().getGameProfileRepository().findProfilesByNames(new String[] { key }, Agent.MINECRAFT, gameProfileLookup);
+-
+                     GameProfile profile = profiles[ 0 ];
+                     if (profile == null) {
+                         UUID uuid = EntityHuman.a(new GameProfile(null, key));
+@@ -77,6 +93,11 @@ public class TileEntitySkull extends TileEntity {
+             } );
+     
+     // Spigot end
++    // TacoSpigot start - expose uuid lookup logic
++    public static GameProfile lookup(String name) {
++        return skinCache.getUnchecked(name);
++    }
++    // TacoSpigot end
+ 
+     public TileEntitySkull() {}
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
+index ce5425f..cdf80a9 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
+@@ -13,6 +13,10 @@ import org.bukkit.inventory.meta.SkullMeta;
+ 
+ import com.google.common.collect.ImmutableMap.Builder;
+ import com.mojang.authlib.GameProfile;
++// TacoSpigot start
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.TileEntitySkull;
++// TacoSpigot end
+ 
+ @DelegateDeserialization(SerializableMeta.class)
+ class CraftMetaSkull extends CraftMetaItem implements SkullMeta {
+@@ -132,7 +136,10 @@ class CraftMetaSkull extends CraftMetaItem implements SkullMeta {
+         if (name == null) {
+             profile = null;
+         } else {
+-            profile = new GameProfile(null, name);
++            // TacoSpigot start - cache uuid lookups
++            profile = MinecraftServer.getServer().getUserCache().getProfile(name);
++            if (profile == null) profile = TileEntitySkull.lookup(name);
++            // TacoSpigot end
+         }
+ 
+         return true;
+-- 
+2.4.6.windows.1
+
