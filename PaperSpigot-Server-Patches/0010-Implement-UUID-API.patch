@@ -1,4 +1,4 @@
-From 1f9a29b320485ba4b1ba1a616c4b3266850004da Mon Sep 17 00:00:00 2001
+From d9b67f2f9fb820a51b0479ee4f1507dde43c3c0a Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 12 Aug 2015 08:42:41 -0700
 Subject: [PATCH] Implement UUID API
@@ -63,10 +63,10 @@ index 44ea98d..3e49c7e 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/uuid/MojangProfileLookup.java b/src/main/java/net/techcable/tacospigot/uuid/MojangProfileLookup.java
 new file mode 100644
-index 0000000..8ceb7d4
+index 0000000..46d7ea5
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/uuid/MojangProfileLookup.java
-@@ -0,0 +1,194 @@
+@@ -0,0 +1,202 @@
 +package net.techcable.tacospigot.uuid;
 +
 +import java.io.IOException;
@@ -128,6 +128,9 @@ index 0000000..8ceb7d4
 +            @Override
 +            public void onProfileLookupFailed(GameProfile gameProfile, Exception e) {
 +                if (e instanceof ProfileNotFoundException) return;
++                if (e instanceof RateLimitedException) {
++                    Bukkit.getLogger().warning(MessageFormat.format("Rate limited for name {}", gameProfile.getName()));
++                }
 +                Preconditions.checkNotNull(gameProfile.getName(), "Can't have a null name");
 +                String name = gameProfile.getName();
 +                Bukkit.getLogger().log(Level.WARNING, "Unable to lookup profiles for {0} with the name {1}: {2}", new Object[]{calling.getSimpleName(), name, e.getMessage()});
@@ -142,6 +145,9 @@ index 0000000..8ceb7d4
 +        try {
 +            GameProfile nms = lookupProperties(id);
 +            return ProfileHelper.toBukkit(nms);
++        } catch (RateLimitedException e) {
++            Bukkit.getLogger().warning("Rate limited for id: " + id);
++            return null;
 +        } catch (Exception e) {
 +            Class<?> caller = getCallerClass();
 +            String msg = MessageFormat.format("Could not fetch id for {0} with id {1}", caller.getSimpleName(), id);
@@ -157,6 +163,8 @@ index 0000000..8ceb7d4
 +        try {
 +            GameProfile nms = lookupProperties(profile.getId());
 +            ProfileHelper.copyProperties(nms, profile);
++        } catch (RateLimitedException e) {
++            Bukkit.getLogger().warning(MessageFormat.format("Rate limited for id {}", profile.getId()));
 +        } catch (Exception e) {
 +            Class<?> caller = getCallerClass();
 +            String msg = MessageFormat.format("Could not fetch properties for {0} with name {1} and id {2}", caller.getSimpleName(), profile.getName(), profile.getId());
@@ -385,6 +393,17 @@ index 0000000..897f81d
 +    }
 +
 +}
+diff --git a/src/main/java/net/techcable/tacospigot/uuid/RateLimitedException.java b/src/main/java/net/techcable/tacospigot/uuid/RateLimitedException.java
+new file mode 100644
+index 0000000..f5b252d
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/uuid/RateLimitedException.java
+@@ -0,0 +1,5 @@
++package net.techcable.tacospigot.uuid;
++
++public class RateLimitedException extends RuntimeException {
++
++}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
 index 4521786..29674e8 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
@@ -502,16 +521,15 @@ index 8fdfdcf..5ec080d 100644
      public boolean isOp() {
          return server.getHandle().isOp(getProfile());
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/MojangNameLookup.java b/src/main/java/org/bukkit/craftbukkit/util/MojangNameLookup.java
-index 93a8f0b..706334a 100644
+index 93a8f0b..4c089c6 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/MojangNameLookup.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/MojangNameLookup.java
-@@ -2,50 +2,92 @@ package org.bukkit.craftbukkit.util;
+@@ -1,51 +1,91 @@
+ package org.bukkit.craftbukkit.util;
  
- import com.google.common.base.Charsets;
+-import com.google.common.base.Charsets;
  import com.google.gson.Gson;
 +import com.google.gson.JsonArray;
-+import com.google.gson.JsonIOException;
-+import com.mojang.authlib.yggdrasil.response.Response;
 +
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
@@ -523,19 +541,20 @@ index 93a8f0b..706334a 100644
  import java.net.URL;
  import java.net.URLConnection;
  import java.util.UUID;
+-import org.apache.commons.io.IOUtils;
 +
- import org.apache.commons.io.IOUtils;
- 
 +// TacoSpigot start
++import java.net.HttpURLConnection;
 +import java.io.BufferedReader;
 +import java.io.InputStreamReader;
 +import java.io.Reader;
 +
 +import net.techcable.tacospigot.uuid.PlayerProfile;
++import net.techcable.tacospigot.uuid.RateLimitedException;
 +
 +import org.bukkit.Bukkit;
 +// TacoSpigot end
-+
+ 
  public class MojangNameLookup {
      private static final Logger logger = LogManager.getFormatterLogger(MojangNameLookup.class);
  
@@ -559,6 +578,7 @@ index 93a8f0b..706334a 100644
              connection.setConnectTimeout(15000);
              connection.setReadTimeout(15000);
              connection.setUseCaches(false);
++            if (((HttpURLConnection)connection).getResponseCode() == 429) throw new RateLimitedException(); // TacoSpigot - throw special exception for rate limiting
              inputStream = connection.getInputStream();
 -            String result = IOUtils.toString(inputStream, Charsets.UTF_8);
 +            // TacoSpigot start - propagate exceptions
@@ -604,7 +624,7 @@ index 93a8f0b..706334a 100644
          } catch (IOException ex) {
              IOUtils.closeQuietly(inputStream);
          } finally {
-@@ -53,11 +95,17 @@ public class MojangNameLookup {
+@@ -53,11 +93,17 @@ public class MojangNameLookup {
          }
  
          return null;
@@ -628,33 +648,51 @@ index 93a8f0b..706334a 100644
  }
 diff --git a/src/test/java/net/techcable/tacospigot/uuid/ProfileLookupTest.java b/src/test/java/net/techcable/tacospigot/uuid/ProfileLookupTest.java
 new file mode 100644
-index 0000000..36310b7
+index 0000000..055db63
 --- /dev/null
 +++ b/src/test/java/net/techcable/tacospigot/uuid/ProfileLookupTest.java
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,242 @@
 +package net.techcable.tacospigot.uuid;
 +
++import java.io.File;
++import java.io.FileOutputStream;
++import java.io.IOException;
++import java.io.OutputStream;
++import java.io.PrintStream;
 +import java.lang.reflect.Field;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
 +import java.net.Proxy;
 +import java.util.Collection;
 +import java.util.UUID;
++import java.util.logging.ConsoleHandler;
 +import java.util.logging.Level;
++import java.util.logging.LogRecord;
 +import java.util.logging.Logger;
 +
++import net.minecraft.server.DedicatedServer;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.UserCache;
 +
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.core.appender.AbstractOutputStreamAppender;
++import org.apache.logging.log4j.core.appender.FileManager;
++import org.apache.logging.log4j.core.appender.OutputStreamManager;
++import org.apache.logging.log4j.core.appender.RollingRandomAccessFileAppender;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Server;
-+import org.bukkit.entity.Player;
++import org.bukkit.craftbukkit.LoggerOutputStream;
++import org.bukkit.craftbukkit.Main;
++import org.junit.After;
 +import org.junit.Before;
 +import org.junit.Test;
-+import org.mockito.invocation.InvocationOnMock;
-+import org.mockito.stubbing.Answer;
++import org.spigotmc.SneakyThrow;
 +
 +import com.google.common.collect.ImmutableList;
 +import com.mojang.authlib.GameProfileRepository;
 +import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
++
++import jline.console.ConsoleReader;
 +
 +import static org.junit.Assert.*;
 +import static org.mockito.Mockito.*;
@@ -665,22 +703,120 @@ index 0000000..36310b7
 +
 +    public static final ImmutableList<String> NAMES = ImmutableList.of("Techcable", "Dragonslayer293", "PhanaticD", "Byteflux", "vemacs");
 +
-+    private static Field instanceField;
-+    private static Field bukkitServerField;
-+    @Before
-+    public void setupServer() throws IllegalAccessException, NoSuchFieldException {
-+        if (instanceField == null) {
-+            for (Field field : MinecraftServer.class.getDeclaredFields()) {
-+                if (MinecraftServer.class.isAssignableFrom(field.getType())) {
-+                    instanceField = field;
-+                    break;
-+                }
++    private static Field serverInstanceField; {
++        for (Field field : MinecraftServer.class.getDeclaredFields()) {
++            if (MinecraftServer.class.isAssignableFrom(field.getType())) {
++                serverInstanceField = field;
++                break;
 +            }
 +        }
-+        if (bukkitServerField == null) {
++        if (serverInstanceField == null) throw new RuntimeException("Could not get server instance field");
++    }
++    private static Field bukkitServerField; {
++        try {
 +            bukkitServerField = Bukkit.class.getDeclaredField("server");
++        } catch (NoSuchFieldException e) {
++            throw new RuntimeException("Could not get bukkit server field");
 +        }
-+        MinecraftServer server = mock(MinecraftServer.class);
++    }
++    private static Field managerField; {
++        try {
++            managerField = AbstractOutputStreamAppender.class.getDeclaredField("manager");
++        } catch (NoSuchFieldException e) {
++            throw new RuntimeException("Unable to get manager field", e);
++        }
++    }
++    private static Method closeMethod; {
++        try {
++            closeMethod = OutputStreamManager.class.getDeclaredMethod("close");
++        } catch (NoSuchMethodException e) {
++            throw new RuntimeException("Could not get output stream field", e);
++        }
++    }
++    private static Field pathField; {
++        try {
++            pathField = FileOutputStream.class.getDeclaredField("path");
++        } catch (NoSuchFieldException e) {
++            throw new RuntimeException("Could not get path field", e);
++        }
++    }
++
++    @Before
++    public void setupServer() throws IllegalAccessException, IOException, InvocationTargetException {
++        DedicatedServer server = mock(DedicatedServer.class);
++
++        // Start logging magic - the code here *is different from DedicatedServer.class*
++        final org.apache.logging.log4j.core.Logger logger = ((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger());
++        File logDir = null;
++        for (org.apache.logging.log4j.core.Appender appender : logger.getAppenders().values()) {
++            if (appender instanceof RollingRandomAccessFileAppender) {
++                managerField.setAccessible(true);
++                FileManager manager = (FileManager) managerField.get(appender);
++                closeMethod.setAccessible(true);
++                closeMethod.invoke(manager);
++                File file = new File(manager.getFileName());
++                if (logDir == null) {
++                    logDir = file;
++                    while (!logDir.getName().equals("logs")) {
++                        logDir = file.getParentFile();
++                    }
++                }
++                if (!file.delete()) throw new IOException("Couldn't delete " + file);
++                logger.removeAppender(appender);
++            }
++            if (appender instanceof org.apache.logging.log4j.core.appender.ConsoleAppender) {
++                logger.removeAppender(appender);
++            }
++        }
++        if (logDir != null && !logDir.delete()) throw new IOException("Couldn't delete logs dir");
++        Main.useJline = false; // Don't hurt me intellij!
++        ConsoleReader reader = new ConsoleReader(System.in, System.out);
++        new Thread(new org.bukkit.craftbukkit.util.TerminalConsoleWriterThread(System.out, reader)).start();
++
++        System.setOut(new PrintStream(new LoggerOutputStream(logger, org.apache.logging.log4j.Level.INFO), true));
++        System.setErr(new PrintStream(new LoggerOutputStream(logger, org.apache.logging.log4j.Level.WARN), true));
++
++        final java.util.logging.Logger global = Logger.getLogger("");
++        global.setUseParentHandlers(false);
++        for (java.util.logging.Handler handler : global.getHandlers()) {
++            global.removeHandler(handler);
++        }
++
++        global.addHandler(new ConsoleHandler() { // Log any thrown exceptions
++
++            @Override
++            public void publish(LogRecord record) {
++                Throwable t = record.getThrown();
++                if (t != null) SneakyThrow.sneaky(t);
++                org.apache.logging.log4j.Logger logger = LogManager.getLogger(record.getLoggerName());
++                // Throwable is null by here
++                String msg = getFormatter().formatMessage(record);
++
++                if (Level.CONFIG.intValue() > record.getLevel().intValue()) {
++                    logger.trace(msg);
++                }
++                if (Level.CONFIG.intValue() <= record.getLevel().intValue()) {
++                    logger.debug(msg);
++                } else if (Level.INFO.intValue() <= record.getLevel().intValue()) {
++                    logger.info(msg);
++                } else if (Level.WARNING.intValue() <= record.getLevel().intValue()) {
++                    logger.warn(msg);
++                } else if (Level.SEVERE.intValue() <= record.getLevel().intValue()) {
++                    logger.error(msg);
++                } else {
++                    logger.fatal(msg);
++                }
++            }
++
++            @Override
++            public void flush() {
++            }
++
++            @Override
++            public void close() throws SecurityException {
++            }
++        });
++        // End logging magic
 +
 +        UserCache userCache = mock(UserCache.class);
 +
@@ -694,25 +830,12 @@ index 0000000..36310b7
 +
 +        when(server.getGameProfileRepository()).thenReturn(gameProfileRepository);
 +
-+        Logger logger = mock(Logger.class);
-+
-+        // Log any thrown exceptions
-+        doAnswer(new Answer<Void>() {
-+
-+            @Override
-+            public Void answer(InvocationOnMock invocation) throws Throwable {
-+                Throwable t = invocation.getArgumentAt(2, Throwable.class);
-+                throw t;
-+            }
-+        }).when(logger).log(any(Level.class), anyString(), any(Throwable.class));
-+
-+
 +        Server bukkitServer = mock(Server.class);
 +
-+        when(bukkitServer.getLogger()).thenReturn(logger);
++        when(bukkitServer.getLogger()).thenReturn(global);
 +
-+        instanceField.setAccessible(true);
-+        instanceField.set(null, server);
++        serverInstanceField.setAccessible(true);
++        serverInstanceField.set(null, server);
 +
 +        bukkitServerField.setAccessible(true);
 +        bukkitServerField.set(null, bukkitServer);
@@ -734,6 +857,7 @@ index 0000000..36310b7
 +    public void nameLookup() {
 +        for (String name : NAMES) {
 +            PlayerProfile profile = lookup.lookup(name);
++            if (profile == null) continue; // Rate limit
 +            assertNotNull("Unable to lookup profile", profile);
 +            assertNotEquals("Existing profile marked as non-existent", PlayerProfile.NULL_PROFILE, profile);
 +        }
@@ -747,18 +871,28 @@ index 0000000..36310b7
 +        }
 +    }
 +
++    @Test
 +    public void uuidLookup() {
 +        for (String name : NAMES) {
 +            PlayerProfile byName = lookup.lookup(name);
++            if (byName == null) continue; // Rate limit
 +            assertNotNull("Unable to lookup profile", byName);
 +            assertNotEquals("Existing profile marked as non-existent", PlayerProfile.NULL_PROFILE, byName);
 +            PlayerProfile profile = lookup.lookup(byName.getId());
++            if (profile == null) continue; // Rate limit
 +            assertNotNull("Unable to lookup profile", profile);
 +            assertNotEquals("Existing profile marked as non-existent", PlayerProfile.NULL_PROFILE, profile);
-+            assertEquals("Profile name was not equal to the expected", byName.getName(), profile.getName());
++            assertEquals("Profile name was not equal to the expected", byName, profile);
 +        }
 +    }
 +
++    @After
++    public void destroyServer() throws IllegalAccessException, IOException {
++        bukkitServerField.setAccessible(true);
++        bukkitServerField.set(null, null);
++        serverInstanceField.setAccessible(true);
++        serverInstanceField.set(null, null);
++    }
 +}
 -- 
 2.4.6.windows.1

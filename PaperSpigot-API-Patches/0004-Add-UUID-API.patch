@@ -1,15 +1,91 @@
-From e0177c408c8fa692d09014924e99a6e721cd9f90 Mon Sep 17 00:00:00 2001
+From f4d3d1ad4f1b704ac941468a8c6f510bdb236de4 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 7 Aug 2015 23:53:54 -0700
 Subject: [PATCH] Add UUID API
 
 
+diff --git a/src/main/java/net/techcable/tacospigot/util/TimeUtils.java b/src/main/java/net/techcable/tacospigot/util/TimeUtils.java
+new file mode 100644
+index 0000000..e883019
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/util/TimeUtils.java
+@@ -0,0 +1,70 @@
++package net.techcable.tacospigot.util;
++
++import java.math.BigDecimal;
++import java.math.RoundingMode;
++import java.util.concurrent.TimeUnit;
++
++import org.apache.commons.lang.ArrayUtils;
++
++import com.google.common.base.Verify;
++
++public class TimeUtils {
++
++    private TimeUtils() {}
++
++    public static TimeUnit calculateTimeUnit(long millis) {
++        TimeUnit appropriateUnit = calculateTimeUnit(millis, null);
++        if (appropriateUnit == null) throw new AssertionError("Unable to calculate appropriate unit for " + millis);
++        return appropriateUnit;
++    }
++
++    public static TimeUnit calculateTimeUnit(long millis, TimeUnit defaultUnit) {
++        TimeUnit[] values = TimeUnit.values();
++        ArrayUtils.reverse(values); // From greatest to smallest
++        for (TimeUnit unit : values) {
++            if (fitsUnit(millis, unit)) {
++                return unit;
++            }
++        }
++        return defaultUnit;
++    }
++
++    public static boolean fitsUnit(long millis, TimeUnit unit) {
++        return equals(fromMillisExact(millis, unit), unit.convert(millis, TimeUnit.MILLISECONDS));
++    }
++
++    private static BigDecimal fromMillisExact(long millis, TimeUnit unit) {
++        BigDecimal time = BigDecimal.valueOf(millis);
++        return fromMillisExact(time, unit);
++    }
++
++    private static BigDecimal fromMillisExact(BigDecimal time, TimeUnit unit) {
++        switch (unit) {
++            case SECONDS:
++                return divide(time, 1000);
++            case MINUTES:
++                time = fromMillisExact(time, TimeUnit.SECONDS);
++                return divide(time, 60);
++            case HOURS:
++                time = fromMillisExact(time, TimeUnit.MINUTES);
++                return divide(time, 60);
++            case DAYS:
++                time = fromMillisExact(time, TimeUnit.HOURS);
++                return divide(time, 24);
++            default:
++                return time;
++        }
++    }
++
++    private static BigDecimal divide(BigDecimal what, long by) {
++        try {
++            return what.divide(BigDecimal.valueOf(by), RoundingMode.UNNECESSARY);
++        } catch (ArithmeticException e) {
++            return what.divide(BigDecimal.valueOf(by), RoundingMode.HALF_DOWN);
++        }
++    }
++
++    private static boolean equals(BigDecimal first, long second) {
++        return first.compareTo(BigDecimal.valueOf(second)) == 0;
++    }
++}
 diff --git a/src/main/java/net/techcable/tacospigot/uuid/CachingLookup.java b/src/main/java/net/techcable/tacospigot/uuid/CachingLookup.java
 new file mode 100644
-index 0000000..b1532aa
+index 0000000..b271f58
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/uuid/CachingLookup.java
-@@ -0,0 +1,309 @@
+@@ -0,0 +1,303 @@
 +package net.techcable.tacospigot.uuid;
 +
 +import java.math.BigDecimal;
@@ -26,6 +102,8 @@ index 0000000..b1532aa
 +import java.util.Set;
 +import java.util.UUID;
 +import java.util.concurrent.TimeUnit;
++
++import net.techcable.tacospigot.util.TimeUtils;
 +
 +import com.google.common.base.Preconditions;
 +import com.google.common.cache.CacheBuilder;
@@ -88,11 +166,11 @@ index 0000000..b1532aa
 +
 +    @Override
 +    public PlayerProfile lookup(String name) {
-+        PlayerProfile profile = nameCache.getUnchecked(name);
++        PlayerProfile profile = nameCache.getIfPresent(name);
 +        if (profile != null && profile != FAILED_PROFILE) return profile.clone();
 +        profile = backing.lookup(name);
 +        cache(name, profile);
-+        return profile;
++        return profile == FAILED_PROFILE ? null : profile;
 +    }
 +
 +    @Override
@@ -127,9 +205,8 @@ index 0000000..b1532aa
 +    @Override
 +    public PlayerProfile lookup(UUID id) {
 +        PlayerProfile profile = idCache.getUnchecked(id);
-+        if (profile == null) return null;
 +        cache(id, profile);
-+        return profile.clone();
++        return profile == FAILED_PROFILE ? null : profile;
 +    }
 +
 +    @Override
@@ -147,9 +224,12 @@ index 0000000..b1532aa
 +
 +    public void cache(UUID id, PlayerProfile profile) {
 +        if (profile == FAILED_PROFILE) return; // Don't cache failures due to io and parsing
-+        PlayerProfile existing = idCache.getUnchecked(id);
++        PlayerProfile existing = idCache.getIfPresent(id);
 +        tryPutId(id, existing, profile); // just id
-+        if (profile != PlayerProfile.NULL_PROFILE) cache(profile.getName(), profile);
++        if (profile != PlayerProfile.NULL_PROFILE) {
++            existing = nameCache.getIfPresent(profile.getName());
++            tryPutName(profile.getName(), existing, profile);
++        }
 +    }
 +
 +    private boolean shouldReplaceId(PlayerProfile existing, PlayerProfile updated) {
@@ -158,7 +238,8 @@ index 0000000..b1532aa
 +        if (existing == PlayerProfile.NULL_PROFILE) return updated != PlayerProfile.NULL_PROFILE;
 +        if (existing == updated) return false;
 +        if (!existing.getName().equals(updated.getName())) return true; // Changed name
-+        return existing.hasProperties() != updated.hasProperties();
++        if (!existing.hasProperties()) return updated.hasProperties();
++        return existing.getProperties().size() != updated.getProperties().size();
 +    }
 +
 +    private void tryPutId(UUID id, PlayerProfile existing, PlayerProfile profile) {
@@ -182,9 +263,12 @@ index 0000000..b1532aa
 +
 +    public void cache(String name, PlayerProfile profile) {
 +        if (profile == FAILED_PROFILE) return; // Don't cache failures due to io and parsing
-+        PlayerProfile existing = nameCache.getUnchecked(name);
++        PlayerProfile existing = nameCache.getIfPresent(name);
 +        tryPutName(name, existing, profile);
-+        if (profile != PlayerProfile.NULL_PROFILE) cache(profile.getId(), profile);
++        if (profile != PlayerProfile.NULL_PROFILE) {
++            existing = idCache.getIfPresent(profile.getId());
++            tryPutId(profile.getId(), existing, profile);
++        }
 +    }
 +
 +
@@ -202,8 +286,8 @@ index 0000000..b1532aa
 +        if (existing == PlayerProfile.NULL_PROFILE) return updated != PlayerProfile.NULL_PROFILE;
 +        if (existing == FAILED_PROFILE) return updated != FAILED_PROFILE;
 +        if (existing == updated) return false;
-+        if (!existing.getId().equals(updated.getId())) return true; // Changed name
-+        return existing.hasProperties() != updated.hasProperties();
++        if (!existing.hasProperties()) return updated.hasProperties();
++        return existing.getProperties().size() != updated.getProperties().size();
 +    }
 +
 +
@@ -263,26 +347,12 @@ index 0000000..b1532aa
 +            return time;
 +        }
 +
++        private TimeUnit appropriateUnit;
 +        public TimeUnit calculateAppropriateTimeUnit() {
-+            BigDecimal realtime = BigDecimal.valueOf(time);
-+            realtime = divide(realtime, 1000); // seconds
-+            realtime = divide(realtime, 60); // minutes
-+            realtime = divide(realtime, 60); // hours
-+            realtime = divide(realtime, 24); // days
-+            if (isEqual(realtime, TimeUnit.MILLISECONDS.toDays(time))) return TimeUnit.DAYS; // Can be represented exactly as a day
-+            realtime = BigDecimal.valueOf(time); // reset
-+            realtime = divide(realtime, 1000); // seconds
-+            realtime = divide(realtime, 60); // minutes
-+            realtime = divide(realtime, 60); // hours
-+            if (isEqual(realtime, TimeUnit.MILLISECONDS.toHours(time))) return TimeUnit.HOURS; // Can be represented exactly as an hour
-+            realtime = BigDecimal.valueOf(time); // reset
-+            realtime = divide(realtime, 1000); // seconds
-+            realtime = divide(realtime, 60); // minutes
-+            if (isEqual(realtime, TimeUnit.MILLISECONDS.toMinutes(time))) return TimeUnit.MINUTES;
-+            realtime = BigDecimal.valueOf(time); // reset
-+            realtime = divide(realtime, 1000); // seconds
-+            if (isEqual(realtime, TimeUnit.MILLISECONDS.toSeconds(time))) return TimeUnit.SECONDS;
-+            return TimeUnit.MILLISECONDS; // Can only be represented as milliseconds
++            if (appropriateUnit == null) {
++                appropriateUnit = TimeUtils.calculateTimeUnit(getTime(), null);
++            }
++            return appropriateUnit;
 +        }
 +
 +        public int getMaxAmount() {
@@ -410,14 +480,15 @@ index 0000000..df2bcba
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/uuid/PlayerProfile.java b/src/main/java/net/techcable/tacospigot/uuid/PlayerProfile.java
 new file mode 100644
-index 0000000..4514407
+index 0000000..030b224
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/uuid/PlayerProfile.java
-@@ -0,0 +1,153 @@
+@@ -0,0 +1,202 @@
 +package net.techcable.tacospigot.uuid;
 +
 +import java.util.Map.Entry;
 +import java.util.UUID;
++import java.util.concurrent.atomic.AtomicInteger;
 +
 +import com.google.common.base.Preconditions;
 +import com.google.common.collect.ImmutableMultimap;
@@ -432,12 +503,20 @@ index 0000000..4514407
 + */
 +public class PlayerProfile implements Cloneable {
 +
++    private static final AtomicInteger nextFakeId = new AtomicInteger(); // Initialize before NULL_PROFILE so NULL_PROFILE can use
 +    /**
 +     * A profile used for null when non-null profiles are required
 +     */
 +    public static final PlayerProfile NULL_PROFILE = new PlayerProfile();
 +
++    private final int fakeId;
++
++    private boolean isFake() {
++        return fakeId >= 0;
++    }
++
 +    protected PlayerProfile() {
++        fakeId = nextFakeId.getAndIncrement();
 +        this.id = UUID.randomUUID();
 +        this.name = null;
 +    }
@@ -455,6 +534,7 @@ index 0000000..4514407
 +        Preconditions.checkNotNull(name, "No null names");
 +        this.id = id;
 +        this.name = name;
++        this.fakeId = -1; // Real
 +    }
 +
 +    /**
@@ -509,23 +589,45 @@ index 0000000..4514407
 +        return properties;
 +    }
 +
++
++    private boolean hasProperties;
++
 +    /**
 +     * Return if this profile has properties
 +     *
 +     * @return if this profile has properties
 +     */
 +    public boolean hasProperties() {
-+        return properties != null;
++        return properties != null && hasProperties;
 +    }
 +
++    /**
++     * Invalidate the profile's current properties so it can be looked up again
++     */
++    public void invalidateProperties() {
++        setHasProperties(false);
++    }
++
++    /**
++     * Set if this profile has had its properties looked up
++     *
++     * @param hasProperties if properties have been looked up
++     *
++     * @deprecated only for use by lookups
++     */
++    @Deprecated
++    public void setHasProperties(boolean hasProperties) {
++        Preconditions.checkState(getProperties() == null, "Property map is null, cant have properties");
++        this.hasProperties = hasProperties;
++    }
 +
 +    @Override
 +    public boolean equals(Object o) {
-+        if (this == NULL_PROFILE) return o == NULL_PROFILE || o == null;
 +        if (this == o) return true;
 +        if (!(o instanceof PlayerProfile)) return false;
-+
 +        PlayerProfile profile = (PlayerProfile) o;
++
++        if (isFake()) return profile.isFake() && fakeId == profile.fakeId;
 +
 +        if (!id.equals(profile.id)) return false;
 +        if (!name.equals(profile.name)) return false;
@@ -536,11 +638,27 @@ index 0000000..4514407
 +
 +    @Override
 +    public int hashCode() {
-+        if (this == NULL_PROFILE) return 0;
++        if (isFake()) return (fakeId & 0xFFF) << (fakeId & 0xF); // Try and 'spread' our hash bits
 +        int result = properties != null ? properties.hashCode() : 0;
 +        result = 31 * result + id.hashCode();
 +        result = 31 * result + name.hashCode();
 +        return result;
++    }
++
++    /**
++     * Create this profile's properties
++     * <p/>
++     * Does not fetch from mojang
++     * Clears the profile if it already exists
++     */
++    public void createProperties() {
++        if (properties == null) copyProperties();
++        else {
++            synchronized (this) {
++                properties = null;
++                copyProperties();
++            }
++        }
 +    }
 +
 +    /**
@@ -563,6 +681,7 @@ index 0000000..4514407
 +    }
 +
 +    public PlayerProfile clone() {
++        if (isFake()) return this;
 +        return new PlayerProfile(getId(), getName(), getProperties());
 +    }
 +
@@ -818,10 +937,10 @@ index 0000000..51c84a3
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/uuid/PropertyMap.java b/src/main/java/net/techcable/tacospigot/uuid/PropertyMap.java
 new file mode 100644
-index 0000000..037faeb
+index 0000000..d184896
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/uuid/PropertyMap.java
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,78 @@
 +package net.techcable.tacospigot.uuid;
 +
 +import java.util.Collection;
@@ -891,6 +1010,14 @@ index 0000000..037faeb
 +        backing.clear();
 +    }
 +
++    /**
++     * Get the numer of properites
++     *
++     * @return the number of properties
++     */
++    public int size() {
++        return backing.size();
++    }
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/uuid/TextureData.java b/src/main/java/net/techcable/tacospigot/uuid/TextureData.java
 new file mode 100644
