@@ -1,12 +1,13 @@
-From 29bcfb12c9452c3fe71893c41b1aac89a97cb233 Mon Sep 17 00:00:00 2001
+From b6ced8dcb460c3bb9b8cacf8b6b70b3c34c91c64 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 7 Aug 2015 19:31:31 -0700
 Subject: [PATCH] Fix head display issues
 
-Use uuid api.
+Log issues with head lookups.
+Only lookup players who aren't online.
 
 diff --git a/src/main/java/net/minecraft/server/TileEntitySkull.java b/src/main/java/net/minecraft/server/TileEntitySkull.java
-index 58014c5..fe0525a 100644
+index 58014c5..7f53889 100644
 --- a/src/main/java/net/minecraft/server/TileEntitySkull.java
 +++ b/src/main/java/net/minecraft/server/TileEntitySkull.java
 @@ -18,6 +18,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -28,19 +29,14 @@ index 58014c5..fe0525a 100644
      public static final LoadingCache<String, GameProfile> skinCache = CacheBuilder.newBuilder()
              .maximumSize( 5000 )
              .expireAfterAccess( 60, TimeUnit.MINUTES )
-@@ -48,12 +53,23 @@ public class TileEntitySkull extends TileEntity {
+@@ -48,12 +53,18 @@ public class TileEntitySkull extends TileEntity {
  
                          @Override
                          public void onProfileLookupFailed(GameProfile gp, Exception excptn) {
 +                            // TacoSpigot start - log errors
-+                            Logger logger = Logger.getLogger("");
-+                            if (System.currentTimeMillis() - lastMsg < TimeUnit.MINUTES.toMillis(5)) {
-+                                String msg = "Unable to lookup profile";
-+                                if (excptn == null) {
-+                                    logger.warning(msg);
-+                                } else {
-+                                    logger.log(Level.WARNING, msg, excptn);
-+                                }
++                            if (excptn != null && System.currentTimeMillis() - lastMsg > TimeUnit.MINUTES.toMillis(5)) {
++                                Logger logger = Logger.getLogger("");
++                                logger.log(Level.WARNING, "Unable to lookup profile", excptn);
 +                                lastMsg = System.currentTimeMillis();
 +                            }
 +                            // TacoSpigot end
@@ -53,20 +49,8 @@ index 58014c5..fe0525a 100644
                      GameProfile profile = profiles[ 0 ];
                      if (profile == null) {
                          UUID uuid = EntityHuman.a(new GameProfile(null, key));
-@@ -77,6 +93,11 @@ public class TileEntitySkull extends TileEntity {
-             } );
-     
-     // Spigot end
-+    // TacoSpigot start - expose uuid lookup logic
-+    public static GameProfile lookup(String name) {
-+        return skinCache.getUnchecked(name);
-+    }
-+    // TacoSpigot end
- 
-     public TileEntitySkull() {}
- 
 diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
-index ce5425f..cdf80a9 100644
+index ce5425f..4561697 100644
 --- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
 +++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
 @@ -13,6 +13,10 @@ import org.bukkit.inventory.meta.SkullMeta;
@@ -75,7 +59,7 @@ index ce5425f..cdf80a9 100644
  import com.mojang.authlib.GameProfile;
 +// TacoSpigot start
 +import net.minecraft.server.MinecraftServer;
-+import net.minecraft.server.TileEntitySkull;
++import net.minecraft.server.EntityPlayer;
 +// TacoSpigot end
  
  @DelegateDeserialization(SerializableMeta.class)
@@ -85,9 +69,9 @@ index ce5425f..cdf80a9 100644
              profile = null;
          } else {
 -            profile = new GameProfile(null, name);
-+            // TacoSpigot start - cache uuid lookups
-+            profile = MinecraftServer.getServer().getUserCache().getProfile(name);
-+            if (profile == null) profile = TileEntitySkull.lookup(name);
++            // TacoSpigot start - only trigger lookup for offline players
++            EntityPlayer player = MinecraftServer.getServer().getPlayerList().getPlayer(name);
++            this.profile = player != null ? player.getProfile() : new GameProfile(null, name);
 +            // TacoSpigot end
          }
  
