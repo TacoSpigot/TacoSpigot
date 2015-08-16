@@ -1,4 +1,4 @@
-From 4ac45e94a58a2ad8812991557f8d9d5fd4338b1c Mon Sep 17 00:00:00 2001
+From ce6a33bc05b4fa9b9a5aaca4051fbccee8adcbcd Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -108,7 +108,7 @@ index c6487f2..8ca2d29 100644
          return this.items[i];
      }
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index cab636a..cd4bdc1 100644
+index 760a076..ec785d9 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -18,6 +18,25 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
@@ -148,7 +148,7 @@ index cab636a..cd4bdc1 100644
          }
      }
  
-@@ -236,7 +254,10 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -241,7 +259,10 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
      }
  
      private boolean r() {
@@ -160,7 +160,7 @@ index cab636a..cd4bdc1 100644
  
          if (iinventory == null) {
              return false;
-@@ -341,9 +362,23 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -346,9 +367,23 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
@@ -185,7 +185,7 @@ index cab636a..cd4bdc1 100644
          if (iinventory != null) {
              EnumDirection enumdirection = EnumDirection.DOWN;
  
-@@ -357,6 +392,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -362,6 +397,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
  
                  for (int i = 0; i < aint.length; ++i) {
                      if (a(ihopper, iinventory, aint[i], enumdirection)) {
@@ -193,7 +193,7 @@ index cab636a..cd4bdc1 100644
                          return true;
                      }
                  }
-@@ -365,11 +401,12 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -370,11 +406,12 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
  
                  for (int k = 0; k < j; ++k) {
                      if (a(ihopper, iinventory, k, enumdirection)) {
@@ -286,5 +286,5 @@ index 456aee9..871535f 100644
 +    }
  }
 -- 
-2.4.6.windows.1
+2.4.6.windows.1.812.gd1b00d3
 

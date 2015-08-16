@@ -1,4 +1,4 @@
-From 45ed92e054b754f83335675069244f1fb3967a34 Mon Sep 17 00:00:00 2001
+From 7d7a31179ec511d3ba6ec6625faf7b65409c35cc Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 31 Jul 2015 10:33:42 -0700
 Subject: [PATCH] Allow plugins to replace spigot anti xray
@@ -332,7 +332,7 @@ index 0000000..1c158fa
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/xray/SpigotAntiXray.java b/src/main/java/net/techcable/tacospigot/xray/SpigotAntiXray.java
 new file mode 100644
-index 0000000..efe5925
+index 0000000..a69745b
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/xray/SpigotAntiXray.java
 @@ -0,0 +1,157 @@
@@ -490,7 +490,7 @@ index 0000000..efe5925
 +        // rendering they can be seen through therefor we special
 +        // case them so that the antixray doesn't show the fake
 +        // blocks around them.
-+        return block.isOccluding() && block != Blocks.MOB_SPAWNER;
++        return block.isOccluding() && block != Blocks.MOB_SPAWNER && block != Blocks.BARRIER;
 +    }
 +}
 \ No newline at end of file
@@ -531,7 +531,7 @@ index dd82018..1c22456 100644
  }
 diff --git a/src/main/java/org/spigotmc/AntiXray.java b/src/main/java/org/spigotmc/AntiXray.java
 deleted file mode 100644
-index a59583e..0000000
+index 5466a61..0000000
 --- a/src/main/java/org/spigotmc/AntiXray.java
 +++ /dev/null
 @@ -1,269 +0,0 @@
@@ -801,7 +801,7 @@ index a59583e..0000000
 -        // rendering they can be seen through therefor we special
 -        // case them so that the antixray doesn't show the fake
 -        // blocks around them.
--        return block.isOccluding() && block != Blocks.MOB_SPAWNER;
+-        return block.isOccluding() && block != Blocks.MOB_SPAWNER && block != Blocks.BARRIER;
 -    }
 -}
 diff --git a/src/main/java/org/spigotmc/SpigotWorldConfig.java b/src/main/java/org/spigotmc/SpigotWorldConfig.java
@@ -846,5 +846,5 @@ index ab2f8bf..39fc5fb 100644
  
      public boolean zombieAggressiveTowardsVillager;
 -- 
-2.4.6.windows.1
+2.4.6.windows.1.812.gd1b00d3
 

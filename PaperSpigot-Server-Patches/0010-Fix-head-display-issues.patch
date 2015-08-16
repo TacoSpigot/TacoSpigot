@@ -1,10 +1,9 @@
-From b6ced8dcb460c3bb9b8cacf8b6b70b3c34c91c64 Mon Sep 17 00:00:00 2001
+From 4f5ed747f3aa8282950c5535b2baa68158806851 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 7 Aug 2015 19:31:31 -0700
 Subject: [PATCH] Fix head display issues
 
 Log issues with head lookups.
-Only lookup players who aren't online.
 
 diff --git a/src/main/java/net/minecraft/server/TileEntitySkull.java b/src/main/java/net/minecraft/server/TileEntitySkull.java
 index 58014c5..7f53889 100644
@@ -49,33 +48,6 @@ index 58014c5..7f53889 100644
                      GameProfile profile = profiles[ 0 ];
                      if (profile == null) {
                          UUID uuid = EntityHuman.a(new GameProfile(null, key));
-diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
-index ce5425f..4561697 100644
---- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
-+++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
-@@ -13,6 +13,10 @@ import org.bukkit.inventory.meta.SkullMeta;
- 
- import com.google.common.collect.ImmutableMap.Builder;
- import com.mojang.authlib.GameProfile;
-+// TacoSpigot start
-+import net.minecraft.server.MinecraftServer;
-+import net.minecraft.server.EntityPlayer;
-+// TacoSpigot end
- 
- @DelegateDeserialization(SerializableMeta.class)
- class CraftMetaSkull extends CraftMetaItem implements SkullMeta {
-@@ -132,7 +136,10 @@ class CraftMetaSkull extends CraftMetaItem implements SkullMeta {
-         if (name == null) {
-             profile = null;
-         } else {
--            profile = new GameProfile(null, name);
-+            // TacoSpigot start - only trigger lookup for offline players
-+            EntityPlayer player = MinecraftServer.getServer().getPlayerList().getPlayer(name);
-+            this.profile = player != null ? player.getProfile() : new GameProfile(null, name);
-+            // TacoSpigot end
-         }
- 
-         return true;
 -- 
-2.4.6.windows.1
+2.4.6.windows.1.812.gd1b00d3
 
