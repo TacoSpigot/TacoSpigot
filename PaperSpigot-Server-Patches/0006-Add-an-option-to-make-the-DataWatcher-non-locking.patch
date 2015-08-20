@@ -1,4 +1,4 @@
-From 1e7bfca69b0e3112952308b2c3259aac42338139 Mon Sep 17 00:00:00 2001
+From 232aba23c0dfa3088ca20c7e8355e774a4bc21c6 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 27 Jul 2015 08:21:37 -0700
 Subject: [PATCH] Add an option to make the DataWatcher non-locking
@@ -1576,5 +1576,5 @@ index 84ed7d2..44ea98d 100644
 +    }
  }
 -- 
-2.4.6.windows.1
+2.4.6.windows.1.812.gd1b00d3
 

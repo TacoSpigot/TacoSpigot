@@ -1,4 +1,4 @@
-From 7d7a31179ec511d3ba6ec6625faf7b65409c35cc Mon Sep 17 00:00:00 2001
+From d4931a0d51794009b9ae3e08a746c1261f43baad Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 31 Jul 2015 10:33:42 -0700
 Subject: [PATCH] Allow plugins to replace spigot anti xray

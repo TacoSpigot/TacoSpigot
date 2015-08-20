@@ -1,11 +1,11 @@
-From 5f335b5fc30e82a0136f6df74689c8d34acf6638 Mon Sep 17 00:00:00 2001
+From 14d9a3b1e5c49cabe48ccf9d479e0da32aa04a16 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index 6dfb161..055a669 100644
+index 45cea14..a94398b 100644
 --- a/src/main/java/net/minecraft/server/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/DedicatedServer.java
 @@ -181,6 +181,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
@@ -17,7 +17,7 @@ index 6dfb161..055a669 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index ab0d9c7..5bb3291 100644
+index dff3424..9008c56 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -157,6 +157,8 @@ public abstract class World implements IBlockAccess {
@@ -260,5 +260,5 @@ index c936219..6c123bb 100644
          };
  
 -- 
-2.4.6.windows.1
+2.4.6.windows.1.812.gd1b00d3
 
