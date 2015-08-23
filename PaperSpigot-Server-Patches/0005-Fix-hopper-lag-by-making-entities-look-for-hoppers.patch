@@ -1,4 +1,4 @@
-From 331be15dd75c58e79de7b8cd2bf30cfc7d071705 Mon Sep 17 00:00:00 2001
+From 2d99c13b92921054a3e55a78ad6b5e5f132e7918 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -107,7 +107,7 @@ index c6487f2..8ca2d29 100644
          return this.items[i];
      }
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index 760a076..9546513 100644
+index 760a076..ef20612 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -11,6 +11,7 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
@@ -118,44 +118,31 @@ index 760a076..9546513 100644
  
  public class TileEntityHopper extends TileEntityContainer implements IHopper, IUpdatePlayerListBox {
  
-@@ -18,6 +19,25 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
-     private String f;
-     private int g = -1;
+@@ -195,12 +196,12 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
  
-+    // TacoSpigot start - Have items push themselves into the hopper instead of the hopper pulling them in
-+    public boolean acceptItem(EntityItem entityItem) {
-+        if (!isWantItem()) return false;
-+        boolean didAccept = a(this, entityItem);
-+        if (didAccept) onAccept();
-+        return didAccept;
-+    }
-+
-+    public boolean isWantItem() {
-+        return !n() && !this.q() && BlockHopper.f(this.u());
-+    }
-+
-+    private void onAccept() {
-+        this.d(world.spigotConfig.hopperTransfer);
-+        this.update();
-+    }
-+
-+    // TacoSpigot end
-+
-     // CraftBukkit start - add fields and methods
-     public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
-     private int maxStack = MAX_STACK;
-@@ -174,9 +194,8 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
-             --this.g;
-             if (!this.n()) {
-                 this.d(0);
--                this.m();
-+                this.m(); // m() handles everything
+                 if (flag) {
+                     this.d(world.spigotConfig.hopperTransfer); // Spigot
+-                    this.update();
++                    // this.update(); // TacoSpigot - updates are handled in the item accept code (for pulling)
+                     return true;
+                 }
              }
--
-         }
+             // PaperSpigot start
+-            if (world.paperSpigotConfig.useHopperCheck && !this.n()) {
++            if (world.paperSpigotConfig.useHopperCheck && !world.tacoSpigotConfig.isHopperPushBased && !this.n()) { // TacoSpigot - dont use hopper check in push mode
+                 this.d(world.spigotConfig.hopperCheck);
+             }
+             // PaperSpigot end
+@@ -225,7 +226,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+         return true;
      }
  
-@@ -241,7 +260,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+-    private boolean q() {
++    public boolean q() { // TacoSpigot - expose
+         ItemStack[] aitemstack = this.items;
+         int i = aitemstack.length;
+ 
+@@ -241,7 +242,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
      }
  
      private boolean r() {
@@ -170,7 +157,7 @@ index 760a076..9546513 100644
  
          if (iinventory == null) {
              return false;
-@@ -346,9 +371,24 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -346,9 +353,24 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
@@ -196,40 +183,38 @@ index 760a076..9546513 100644
          if (iinventory != null) {
              EnumDirection enumdirection = EnumDirection.DOWN;
  
-@@ -362,6 +402,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
- 
-                 for (int i = 0; i < aint.length; ++i) {
-                     if (a(ihopper, iinventory, aint[i], enumdirection)) {
-+                        if (ihopper instanceof TileEntityHopper) ((TileEntityHopper) ihopper).onAccept(); // TacoSpigot - notify of accept
-                         return true;
-                     }
-                 }
-@@ -370,11 +411,12 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
- 
-                 for (int k = 0; k < j; ++k) {
-                     if (a(ihopper, iinventory, k, enumdirection)) {
-+                        if (ihopper instanceof TileEntityHopper) ((TileEntityHopper) ihopper).onAccept(); // TacoSpigot - notify of accept
-                         return true;
+@@ -374,7 +396,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                      }
                  }
              }
 -        } else {
-+        } else if (!ihopper.getWorld().tacoSpigotConfig.isHopperPushBased) { // TacoSpigot - only search for entities in 'pull mode'
++        } else if (!ihopper.getWorld().tacoSpigotConfig.isHopperPushBased || !(ihopper instanceof TileEntityHopper)) { // TacoSpigot - only search for entities in 'pull mode'
              Iterator iterator = a(ihopper.getWorld(), ihopper.A(), ihopper.B() + 1.0D, ihopper.C()).iterator();
  
              while (iterator.hasNext()) {
+@@ -414,6 +436,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+ 
+                 if (ihopper instanceof TileEntityHopper) {
+                     ((TileEntityHopper) ihopper).d(ihopper.getWorld().spigotConfig.hopperTransfer); // Spigot
++                    ((TileEntityHopper)ihopper).update(); // TacoSpigot - update
+                 } else if (ihopper instanceof EntityMinecartHopper) {
+                     ((EntityMinecartHopper) ihopper).m(ihopper.getWorld().spigotConfig.hopperTransfer / 2); // Spigot
+                 }
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..0dacbe9
+index 0000000..9b5659c
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,93 @@
 +package net.techcable.tacospigot;
 +
 +import java.util.ArrayList;
 +import java.util.List;
 +
++import net.minecraft.server.Block;
++import net.minecraft.server.BlockHopper;
 +import net.minecraft.server.BlockPosition;
++import net.minecraft.server.Blocks;
 +import net.minecraft.server.Chunk;
 +import net.minecraft.server.ChunkSection;
 +import net.minecraft.server.Entity;
@@ -250,7 +235,7 @@ index 0000000..0dacbe9
 +        if (!entity.getWorld().tacoSpigotConfig.isHopperPushBased) return false;
 +        TileEntityHopper hopper = getHopper(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
 +        if (hopper == null) return false;
-+        if (!hopper.isWantItem()) return false;
++        if (!hopper.n() && !hopper.q() && BlockHopper.f(hopper.u())) return false;
 +        return TileEntityHopper.acceptItem(hopper, inventory);
 +    }
 +
@@ -259,20 +244,27 @@ index 0000000..0dacbe9
 +        if (!entity.isAlive()) return false;
 +        TileEntityHopper hopper = getHopper(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
 +        if (hopper == null) return false;
-+        return hopper.acceptItem(entity);
++        return TileEntityHopper.a(hopper, entity);
 +    }
 +
 +    // Finding the acceptors
 +
 +    private static TileEntityHopper getHopper(World world, double rawX, double rawY, double rawZ) {
-+        int x = MathHelper.floor(rawX);
-+        int y = MathHelper.floor(rawY) - 1; // Check below
-+        int z = MathHelper.floor(rawZ);
-+        if (!hasHopper(world, x, y, z)) return null;
-+        BlockPosition position = new BlockPosition(x, y, z);
-+        TileEntity tile = world.getTileEntity(position);
-+        if (tile == null || !(tile instanceof TileEntityHopper)) return null;
-+        return (TileEntityHopper) tile;
++        int startX = MathHelper.floor(rawX);
++        int startY = MathHelper.floor(rawY);
++        int startZ = MathHelper.floor(rawZ);
++        for (int y = startY - 1; y <= startY; y++) { // Check below and inside
++            for (int x = startX - 1; x <= startX + 1; x++) {
++                for (int z = startZ - 1; z < startZ + 1; z++) {
++                    if (!hasHopper(world, x, y, z)) continue;
++                    BlockPosition position = new BlockPosition(x, y, z);
++                    TileEntity tile = world.getTileEntity(position);
++                    if (tile == null || !(tile instanceof TileEntityHopper)) continue;
++                    return (TileEntityHopper) tile;
++                }
++            }
++        }
++        return null;
 +    }
 +
 +    private static boolean hasHopper(World world, int x, int y, int z) {
@@ -280,8 +272,12 @@ index 0000000..0dacbe9
 +        if (chunk == null) return false; // Not loaded
 +        int sectionId = y >> 4;
 +        if (sectionId < 0 || sectionId > 15) return false; // Not near blocks
-+        ChunkSection section1 = chunk.getSections()[sectionId];
-+        return section1 != null && section1.hopperCount > 0;
++        ChunkSection section = chunk.getSections()[sectionId];
++        if (section == null) return false;
++        if (section.hopperCount <= 0) return true;
++        // Yup, block lookup is cheaper than tile entity lookup :D
++        Block block = section.getType(x, y, z).getBlock();
++        return block == Blocks.HOPPER;
 +    }
 +
 +    // Performance Boost for chest lookup
