@@ -1,4 +1,4 @@
-From 2d99c13b92921054a3e55a78ad6b5e5f132e7918 Mon Sep 17 00:00:00 2001
+From e19b4d5ae36bc8e25315f83bdfd4fbfa59df4632 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -202,7 +202,7 @@ index 760a076..ef20612 100644
                  }
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..9b5659c
+index 0000000..acef9e1
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 @@ -0,0 +1,93 @@
@@ -276,7 +276,7 @@ index 0000000..9b5659c
 +        if (section == null) return false;
 +        if (section.hopperCount <= 0) return true;
 +        // Yup, block lookup is cheaper than tile entity lookup :D
-+        Block block = section.getType(x, y, z).getBlock();
++        Block block = section.getType(x & 0xF, y & 0xF, z & 0xF).getBlock();
 +        return block == Blocks.HOPPER;
 +    }
 +
