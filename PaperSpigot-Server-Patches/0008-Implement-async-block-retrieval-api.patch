@@ -1,4 +1,4 @@
-From 0c17d6ab2641ea11ada93658480af0c7e565f4f7 Mon Sep 17 00:00:00 2001
+From 5cea29ad2623918b3530e1f24829c2d76531232f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 30 Jul 2015 23:57:17 -0700
 Subject: [PATCH] Implement async block retrieval api
@@ -63,10 +63,10 @@ index 206e3aa..158646b 100644
                      }
                  }
 diff --git a/src/main/java/net/minecraft/server/ChunkSection.java b/src/main/java/net/minecraft/server/ChunkSection.java
-index 558282c..afca500 100644
+index 907c57b..78cf03e 100644
 --- a/src/main/java/net/minecraft/server/ChunkSection.java
 +++ b/src/main/java/net/minecraft/server/ChunkSection.java
-@@ -21,6 +21,21 @@ public class ChunkSection {
+@@ -20,6 +20,21 @@ public class ChunkSection {
  
      }
  

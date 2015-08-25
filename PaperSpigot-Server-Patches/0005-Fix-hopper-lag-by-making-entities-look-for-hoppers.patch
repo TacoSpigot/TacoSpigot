@@ -1,4 +1,4 @@
-From e19b4d5ae36bc8e25315f83bdfd4fbfa59df4632 Mon Sep 17 00:00:00 2001
+From dc0cfcefee076a9d789a17ba317155a277585e67 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -11,40 +11,6 @@ Hoppers are tile entities meaning you can do a simple tile entity lookup to find
 Pushing out of hoppers causes a bouding box lookup, which this patch replaces with a tile entity lookup.
 This patch may causes a slight decrease in the performance of dropped items, which is why it can be disabled in the configuration.
 
-diff --git a/src/main/java/net/minecraft/server/ChunkSection.java b/src/main/java/net/minecraft/server/ChunkSection.java
-index 907c57b..558282c 100644
---- a/src/main/java/net/minecraft/server/ChunkSection.java
-+++ b/src/main/java/net/minecraft/server/ChunkSection.java
-@@ -9,6 +9,7 @@ public class ChunkSection {
-     private NibbleArray emittedLight;
-     private NibbleArray skyLight;
-     boolean isDirty; // PaperSpigot
-+    public int hopperCount; // TacoSpigot
- 
-     public ChunkSection(int i, boolean flag) {
-         this.yPos = i;
-@@ -49,6 +50,13 @@ public class ChunkSection {
-                 --this.tickingBlockCount;
-             }
-         }
-+        // TacoSpigot start - count hoppers
-+        if (block == Blocks.HOPPER) { // If the old block is a hopper
-+            if (block1 != Blocks.HOPPER) hopperCount--; // If the new one isn't a hopper, we lost a hopper
-+        } else if (block1 == Blocks.HOPPER) { // If the new block is a hopper (and the old one isnt)
-+            hopperCount++; // We got a hopper
-+        }
-+        // TacoSpigot end
- 
-         if (block1 != Blocks.AIR) {
-             ++this.nonEmptyBlockCount;
-@@ -116,6 +124,7 @@ public class ChunkSection {
-                             ++this.tickingBlockCount;
-                         }
-                     }
-+                    if (block == Blocks.HOPPER) this.hopperCount++; // TacoSpigot - count hoppers
-                 }
-             }
-         }
 diff --git a/src/main/java/net/minecraft/server/EntityItem.java b/src/main/java/net/minecraft/server/EntityItem.java
 index 1f8b1c7..63cd4bd 100644
 --- a/src/main/java/net/minecraft/server/EntityItem.java
@@ -202,19 +168,14 @@ index 760a076..ef20612 100644
                  }
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..acef9e1
+index 0000000..58aa8c6
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,88 @@
 +package net.techcable.tacospigot;
 +
-+import java.util.ArrayList;
-+import java.util.List;
-+
-+import net.minecraft.server.Block;
 +import net.minecraft.server.BlockHopper;
 +import net.minecraft.server.BlockPosition;
-+import net.minecraft.server.Blocks;
 +import net.minecraft.server.Chunk;
 +import net.minecraft.server.ChunkSection;
 +import net.minecraft.server.Entity;
@@ -227,8 +188,7 @@ index 0000000..acef9e1
 +import net.minecraft.server.TileEntityHopper;
 +import net.minecraft.server.World;
 +
-+import com.google.common.base.Preconditions;
-+import com.google.common.collect.ImmutableList;
++import org.bukkit.Material;
 +
 +public class HopperHelper {
 +    public static boolean acceptItem(Entity entity, IInventory inventory) {
@@ -274,10 +234,11 @@ index 0000000..acef9e1
 +        if (sectionId < 0 || sectionId > 15) return false; // Not near blocks
 +        ChunkSection section = chunk.getSections()[sectionId];
 +        if (section == null) return false;
-+        if (section.hopperCount <= 0) return true;
 +        // Yup, block lookup is cheaper than tile entity lookup :D
-+        Block block = section.getType(x & 0xF, y & 0xF, z & 0xF).getBlock();
-+        return block == Blocks.HOPPER;
++        int combinedId = section.getIdArray()[(y & 0xF) << 8 | (z & 0xF) << 4 | (x & 0xF)];
++        int blockId = combinedId & 0xFFF;
++        Material block = Material.getMaterial(blockId);
++        return block == Material.HOPPER;
 +    }
 +
 +    // Performance Boost for chest lookup
