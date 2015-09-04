@@ -1,4 +1,4 @@
-From ea38a8b5b1be950ba48c2f37d03a5e1d4ffebd71 Mon Sep 17 00:00:00 2001
+From 864499617d81d5a6884f40be3563e2b2ef944ef2 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 2 Sep 2015 22:17:43 -0700
 Subject: [PATCH] Add a per-type tick limiter
@@ -13,10 +13,10 @@ Requires java 8.
 Avoids hash map lookups.
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 39462ea..a0f4aee 100644
+index d7b0dc6..e087464 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
-@@ -177,7 +177,14 @@ public abstract class Entity implements ICommandListener {
+@@ -178,7 +178,14 @@ public abstract class Entity implements ICommandListener {
          this.datawatcher.a(2, "");
          this.datawatcher.a(4, Byte.valueOf((byte) 0));
          this.h();
