@@ -1,11 +1,11 @@
-From d4931a0d51794009b9ae3e08a746c1261f43baad Mon Sep 17 00:00:00 2001
+From 0515b651801798eacf2f6b61d3479353ee0210a8 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 31 Jul 2015 10:33:42 -0700
 Subject: [PATCH] Allow plugins to replace spigot anti xray
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
-index 1a2484d..9a32581 100644
+index 0c49a25..3807466 100644
 --- a/src/main/java/net/minecraft/server/EntityPlayer.java
 +++ b/src/main/java/net/minecraft/server/EntityPlayer.java
 @@ -250,9 +250,9 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
