@@ -1,4 +1,4 @@
-From eda1babd78802076fc6842f0869cc7c9fc5cc0ca Mon Sep 17 00:00:00 2001
+From 31e9e08ed4097573648ca45b28553620cc999899 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -73,7 +73,7 @@ index c6487f2..8ca2d29 100644
          return this.items[i];
      }
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index 760a076..ef20612 100644
+index 760a076..05abdaf 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -11,6 +11,7 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
@@ -84,13 +84,31 @@ index 760a076..ef20612 100644
  
  public class TileEntityHopper extends TileEntityContainer implements IHopper, IUpdatePlayerListBox {
  
-@@ -195,12 +196,12 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -90,6 +91,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+     }
  
-                 if (flag) {
-                     this.d(world.spigotConfig.hopperTransfer); // Spigot
--                    this.update();
-+                    // this.update(); // TacoSpigot - updates are handled in the item accept code (for pulling)
-                     return true;
+     public void update() {
++        needsUpdate = false; // TacoSpigot
+         super.update();
+     }
+ 
+@@ -169,6 +171,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+         return true;
+     }
+ 
++    private boolean needsUpdate;
+     public void c() {
+         if (this.world != null && !this.world.isClientSide) {
+             --this.g;
+@@ -178,6 +181,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+             }
+ 
+         }
++        if (needsUpdate) update(); // TacoSpigot - update comparators at the end of the tick if needed
+     }
+ 
+     public boolean m() {
+@@ -200,7 +204,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                  }
              }
              // PaperSpigot start
@@ -99,7 +117,7 @@ index 760a076..ef20612 100644
                  this.d(world.spigotConfig.hopperCheck);
              }
              // PaperSpigot end
-@@ -225,7 +226,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -225,7 +229,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
@@ -108,7 +126,7 @@ index 760a076..ef20612 100644
          ItemStack[] aitemstack = this.items;
          int i = aitemstack.length;
  
-@@ -241,7 +242,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -241,7 +245,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
      }
  
      private boolean r() {
@@ -123,7 +141,7 @@ index 760a076..ef20612 100644
  
          if (iinventory == null) {
              return false;
-@@ -346,9 +353,24 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -346,9 +356,24 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
@@ -149,7 +167,7 @@ index 760a076..ef20612 100644
          if (iinventory != null) {
              EnumDirection enumdirection = EnumDirection.DOWN;
  
-@@ -374,7 +396,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -374,7 +399,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                      }
                  }
              }
@@ -158,28 +176,31 @@ index 760a076..ef20612 100644
              Iterator iterator = a(ihopper.getWorld(), ihopper.A(), ihopper.B() + 1.0D, ihopper.C()).iterator();
  
              while (iterator.hasNext()) {
-@@ -414,6 +436,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -421,6 +446,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+             }
+             int origCount = event.getItem().getAmount(); // Spigot
+             ItemStack itemstack2 = addItem(ihopper, CraftItemStack.asNMSCopy(event.getItem()), null);
++            if (ihopper instanceof TileEntityHopper) ((TileEntityHopper) ihopper).needsUpdate = true; // TacoSpigot - update the hopper needed
  
-                 if (ihopper instanceof TileEntityHopper) {
-                     ((TileEntityHopper) ihopper).d(ihopper.getWorld().spigotConfig.hopperTransfer); // Spigot
-+                    ((TileEntityHopper)ihopper).update(); // TacoSpigot - update
-                 } else if (ihopper instanceof EntityMinecartHopper) {
-                     ((EntityMinecartHopper) ihopper).m(ihopper.getWorld().spigotConfig.hopperTransfer / 2); // Spigot
-                 }
+             if (itemstack2 == null || itemstack2.count == 0) {
+                 if (event.getItem().equals(oitemstack)) {
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..58aa8c6
+index 0000000..4b5e956
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,155 @@
 +package net.techcable.tacospigot;
 +
++import net.minecraft.server.AxisAlignedBB;
 +import net.minecraft.server.BlockHopper;
 +import net.minecraft.server.BlockPosition;
++import net.minecraft.server.Blocks;
 +import net.minecraft.server.Chunk;
 +import net.minecraft.server.ChunkSection;
 +import net.minecraft.server.Entity;
 +import net.minecraft.server.EntityItem;
++import net.minecraft.server.IBlockData;
 +import net.minecraft.server.IInventory;
 +import net.minecraft.server.InventoryLargeChest;
 +import net.minecraft.server.MathHelper;
@@ -187,13 +208,21 @@ index 0000000..58aa8c6
 +import net.minecraft.server.TileEntityChest;
 +import net.minecraft.server.TileEntityHopper;
 +import net.minecraft.server.World;
-+
 +import org.bukkit.Material;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.function.Predicate;
 +
 +public class HopperHelper {
 +    public static boolean acceptItem(Entity entity, IInventory inventory) {
 +        if (!entity.getWorld().tacoSpigotConfig.isHopperPushBased) return false;
-+        TileEntityHopper hopper = getHopper(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
++        TileEntityHopper hopper;
++        if (entity.getWorld().tacoSpigotConfig.isEntityDoSlowHopperLookup) {
++            hopper = doSlowHopperLookup(entity);
++        } else {
++            hopper = getHopper(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
++        }
 +        if (hopper == null) return false;
 +        if (!hopper.n() && !hopper.q() && BlockHopper.f(hopper.u())) return false;
 +        return TileEntityHopper.acceptItem(hopper, inventory);
@@ -243,28 +272,84 @@ index 0000000..58aa8c6
 +
 +    // Performance Boost for chest lookup
 +    public static final String DOUBLE_CHEST_ID = "container.chestDouble";
++
 +    public static IInventory fastDoubleChestFind(TileEntityChest original) {
 +        BlockPosition pos = original.getPosition();
 +        World world = original.getWorld();
 +        // West and North have original on the right
 +        // East and South have original on the left
 +        TileEntity west = world.getTileEntity(new BlockPosition(pos.getX() - 1, pos.getY(), pos.getZ()));
-+        if (west != null && west instanceof TileEntityChest) return new InventoryLargeChest(DOUBLE_CHEST_ID, (TileEntityChest)west, original);
++        if (west != null && west instanceof TileEntityChest)
++            return new InventoryLargeChest(DOUBLE_CHEST_ID, (TileEntityChest) west, original);
 +        TileEntity east = world.getTileEntity(new BlockPosition(pos.getX() + 1, pos.getY(), pos.getZ()));
-+        if (east != null && east instanceof TileEntityChest) return new InventoryLargeChest(DOUBLE_CHEST_ID, original, (TileEntityChest)east);
++        if (east != null && east instanceof TileEntityChest)
++            return new InventoryLargeChest(DOUBLE_CHEST_ID, original, (TileEntityChest) east);
 +        TileEntity north = world.getTileEntity(new BlockPosition(pos.getX(), pos.getY(), pos.getZ() - 1));
-+        if (north != null && north instanceof TileEntityChest) return new InventoryLargeChest(DOUBLE_CHEST_ID, (TileEntityChest)north, original);
++        if (north != null && north instanceof TileEntityChest)
++            return new InventoryLargeChest(DOUBLE_CHEST_ID, (TileEntityChest) north, original);
 +        TileEntity south = world.getTileEntity(new BlockPosition(pos.getX(), pos.getY(), pos.getZ() + 1));
-+        if (south != null && south instanceof TileEntityChest) return new InventoryLargeChest(DOUBLE_CHEST_ID, original, (TileEntityChest)south);
++        if (south != null && south instanceof TileEntityChest)
++            return new InventoryLargeChest(DOUBLE_CHEST_ID, original, (TileEntityChest) south);
 +        return original;
++    }
++
++    // Add vanilla behavior for hoppers
++    private static TileEntityHopper doSlowHopperLookup(Entity e) {
++        AxisAlignedBB lookupBox = e.getBoundingBox().grow(0.5, 1.5, 0.5); // I grow the y value a block and a half because the hopper looks for entities within a 0.5 block radius under it
++        List<BlockPosition> hopperPositions = getBlocks(e.world, lookupBox, (d) -> d.getBlock() == Blocks.HOPPER);
++        for (BlockPosition hopperPosition : hopperPositions) {
++            TileEntity tile = e.world.getTileEntity(hopperPosition);
++            if (tile instanceof TileEntityHopper) return (TileEntityHopper) tile;
++        }
++        return null;
++    }
++
++    private static List<BlockPosition> getBlocks(World world, AxisAlignedBB box, Predicate<IBlockData> filter) {
++        List<BlockPosition> positions = new ArrayList<>(4);
++        int i = MathHelper.floor(box.a);
++        int j = MathHelper.floor(box.d + 1.0D);
++        int k = MathHelper.floor(box.b);
++        int l = MathHelper.floor(box.e + 1.0D);
++        int i1 = MathHelper.floor(box.c);
++        int j1 = MathHelper.floor(box.f + 1.0D);
++
++        int ystart = ((k - 1) < 0) ? 0 : (k - 1);
++        for (int chunkx = (i >> 4); chunkx <= ((j - 1) >> 4); chunkx++) {
++            int cx = chunkx << 4;
++            for (int chunkz = (i1 >> 4); chunkz <= ((j1 - 1) >> 4); chunkz++) {
++                Chunk chunk = world.getChunkIfLoaded(chunkx, chunkz);
++                if (chunk == null) continue;
++                int cz = chunkz << 4;
++                int xstart = (i < cx) ? cx : i;
++                int xend = (j < (cx + 16)) ? j : (cx + 16);
++                int zstart = (i1 < cz) ? cz : i1;
++                int zend = (j1 < (cz + 16)) ? j1 : (cz + 16);
++                for (int x = xstart; x < xend; x++) {
++                    for (int z = zstart; z < zend; z++) {
++                        for (int y = ystart; y < l; y++) {
++                            BlockPosition pos = new BlockPosition(x, y, z);
++
++                            IBlockData block = chunk.getBlockData(pos);
++                            if (block == null) continue;
++
++                            if (filter.test(block)) {
++                                positions.add(pos);
++                            }
++                        }
++                    }
++                }
++            }
++        }
++
++        return positions;
 +    }
 +
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index 456aee9..871535f 100644
+index 456aee9..44aaabf 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-@@ -63,4 +63,9 @@ public class TacoSpigotWorldConfig {
+@@ -63,4 +63,14 @@ public class TacoSpigotWorldConfig {
          config.addDefault("world-settings.default." + path, def);
          return config.getString("world-settings." + worldName + "." + path, config.getString("world-settings.default." + path));
      }
@@ -272,6 +357,11 @@ index 456aee9..871535f 100644
 +    public boolean isHopperPushBased;
 +    private void isHopperPushBased() {
 +        isHopperPushBased = getBoolean("hopper.push-based", true);
++    }
++
++    public boolean isEntityDoSlowHopperLookup;
++    private void isHopperDoSlowMinecartLookup() {
++        isEntityDoSlowHopperLookup = getBoolean("hopper.entities-do-slow-lookup", false);
 +    }
  }
 -- 

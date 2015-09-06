@@ -1,4 +1,4 @@
-From af7d97a8dde4f5f04305af027760aa49e14b1458 Mon Sep 17 00:00:00 2001
+From 77e88fc1288c4f03c92cc44eaccb8addfcd832ba Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 24 Aug 2015 22:37:36 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -11,10 +11,10 @@ This patch adds a per-world flag to disable InventoryMoveItemEvent for hoppers.
 When the event is disabled, the overhead of cloning, and TileEntity.getOwner()
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index ef20612..38e1c6e 100644
+index 05abdaf..bfdea4f 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
-@@ -262,9 +262,14 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -265,9 +265,14 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                      if (this.getItem(i) != null) {
                          ItemStack itemstack = this.getItem(i).cloneItemStack();
                          // ItemStack itemstack1 = addItem(iinventory, this.splitStack(i, 1), enumdirection);
@@ -31,7 +31,7 @@ index ef20612..38e1c6e 100644
  
                          Inventory destinationInventory;
                          // Have to special case large chests as they work oddly
-@@ -274,18 +279,21 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -277,18 +282,21 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                              destinationInventory = iinventory.getOwner().getInventory();
                          }
  
@@ -57,7 +57,7 @@ index ef20612..38e1c6e 100644
                                  iinventory.update();
                              } else {
                                  this.setItem(i, itemstack);
-@@ -417,8 +425,14 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -420,8 +428,14 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          if (itemstack != null && b(iinventory, itemstack, i, enumdirection)) {
              ItemStack itemstack1 = itemstack.cloneItemStack();
              // ItemStack itemstack2 = addItem(ihopper, iinventory.splitStack(i, 1), (EnumDirection) null);
@@ -73,7 +73,7 @@ index ef20612..38e1c6e 100644
  
              Inventory sourceInventory;
              // Have to special case large chests as they work oddly
-@@ -428,7 +442,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -431,7 +445,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                  sourceInventory = iinventory.getOwner().getInventory();
              }
  
@@ -82,12 +82,10 @@ index ef20612..38e1c6e 100644
  
              ihopper.getWorld().getServer().getPluginManager().callEvent(event);
              if (event.isCancelled()) {
-@@ -442,11 +456,14 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
-                 }
-                 return false;
-             }
--            int origCount = event.getItem().getAmount(); // Spigot
--            ItemStack itemstack2 = addItem(ihopper, CraftItemStack.asNMSCopy(event.getItem()), null);
+@@ -447,9 +461,14 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+             int origCount = event.getItem().getAmount(); // Spigot
+             ItemStack itemstack2 = addItem(ihopper, CraftItemStack.asNMSCopy(event.getItem()), null);
+             if (ihopper instanceof TileEntityHopper) ((TileEntityHopper) ihopper).needsUpdate = true; // TacoSpigot - update the hopper needed
 +            // TacoSpigot start - handle cases where the event is not fired
 +            }
 +            int origCount = event != null ? event.getItem().getAmount() : nmsOriginalItemStack.count; // Spigot
@@ -101,27 +99,27 @@ index ef20612..38e1c6e 100644
                  } else {
                      iinventory.setItem(i, itemstack1);
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-index 58aa8c6..6d55186 100644
+index 4b5e956..6098a3c 100644
 --- a/src/main/java/net/techcable/tacospigot/HopperHelper.java
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -6,6 +6,7 @@ import net.minecraft.server.Chunk;
- import net.minecraft.server.ChunkSection;
+@@ -9,6 +9,7 @@ import net.minecraft.server.ChunkSection;
  import net.minecraft.server.Entity;
  import net.minecraft.server.EntityItem;
+ import net.minecraft.server.IBlockData;
 +import net.minecraft.server.IHopper;
  import net.minecraft.server.IInventory;
  import net.minecraft.server.InventoryLargeChest;
  import net.minecraft.server.MathHelper;
-@@ -15,6 +16,7 @@ import net.minecraft.server.TileEntityHopper;
+@@ -17,6 +18,7 @@ import net.minecraft.server.TileEntityChest;
+ import net.minecraft.server.TileEntityHopper;
  import net.minecraft.server.World;
- 
  import org.bukkit.Material;
 +import org.bukkit.event.inventory.InventoryMoveItemEvent;
  
- public class HopperHelper {
-     public static boolean acceptItem(Entity entity, IInventory inventory) {
-@@ -85,4 +87,7 @@ public class HopperHelper {
-         return original;
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -152,4 +154,7 @@ public class HopperHelper {
+         return positions;
      }
  
 +    public static boolean isFireInventoryMoveItemEvent(IHopper hopper) {
@@ -129,11 +127,11 @@ index 58aa8c6..6d55186 100644
 +    }
  }
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index 469779f..58f335d 100644
+index 52c5096..2651602 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-@@ -69,6 +69,11 @@ public class TacoSpigotWorldConfig {
-         isHopperPushBased = getBoolean("hopper.push-based", true);
+@@ -74,6 +74,11 @@ public class TacoSpigotWorldConfig {
+         isEntityDoSlowHopperLookup = getBoolean("hopper.entities-do-slow-lookup", false);
      }
  
 +    public boolean isHopperFireIMIE;

@@ -1,4 +1,4 @@
-From 10cb4f6dd961b5694c19cbf7a476951fbaba4e55 Mon Sep 17 00:00:00 2001
+From 4d0dc58adabf4e6a98c71287174b24bc6a4b75da Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 2 Sep 2015 22:17:43 -0700
 Subject: [PATCH] Add a per-type tick limiter
@@ -273,7 +273,7 @@ index 9008c56..681ee18 100644
          timings.tileEntityPending.startTiming(); // Spigot
          this.M = false;
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index 58f335d..9ae3a70 100644
+index 2651602..a8bb31f 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 @@ -1,9 +1,21 @@
@@ -298,7 +298,7 @@ index 58f335d..9ae3a70 100644
  
  public class TacoSpigotWorldConfig {
  
-@@ -83,4 +95,114 @@ public class TacoSpigotWorldConfig {
+@@ -88,4 +100,114 @@ public class TacoSpigotWorldConfig {
      private void isArmorStandLookForMinecart() {
          isArmorStandLookForMinecart = getBoolean("armor-stand.look-for-minecart", true); // Most servers will have more minecarts than armor stands
      }
