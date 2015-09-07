@@ -1,4 +1,4 @@
-From 77775e7440ab594d2d4f5ee6217fab18c77afbbd Mon Sep 17 00:00:00 2001
+From 1981c07477f08f06cb410cba905a8131bc39d126 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 5 Sep 2015 18:38:09 -0700
 Subject: [PATCH] Optimize world.getType() and world.getChunkAt()
@@ -49,77 +49,44 @@ index e0bc8aa..5284187 100644
              } catch (Throwable throwable) {
                  CrashReport crashreport = CrashReport.a(throwable, "Getting block state");
 diff --git a/src/main/java/net/minecraft/server/ChunkProviderServer.java b/src/main/java/net/minecraft/server/ChunkProviderServer.java
-index 0e6a37f..689be45 100644
+index 0e6a37f..9cce946 100644
 --- a/src/main/java/net/minecraft/server/ChunkProviderServer.java
 +++ b/src/main/java/net/minecraft/server/ChunkProviderServer.java
-@@ -2,12 +2,15 @@ package net.minecraft.server;
- 
- import com.google.common.collect.Lists;
- import java.io.IOException;
-+import java.lang.ref.WeakReference;
- import java.util.ArrayList;
- import java.util.Collections;
- import java.util.Iterator;
- import java.util.List;
- import java.util.Set;
- import java.util.concurrent.ConcurrentHashMap;
-+
-+import gnu.trove.iterator.TLongIterator;
- import org.apache.logging.log4j.LogManager;
- import org.apache.logging.log4j.Logger;
- 
-@@ -22,11 +25,14 @@ import org.bukkit.craftbukkit.util.LongHashSet;
+@@ -22,11 +22,16 @@ import org.bukkit.craftbukkit.util.LongHashSet;
  import org.bukkit.craftbukkit.util.LongObjectHashMap;
  import org.bukkit.event.world.ChunkUnloadEvent;
  // CraftBukkit end
 +// TacoSpigot start
 +import gnu.trove.set.hash.TLongHashSet;
++import net.techcable.tacospigot.ILongHashSet;
++import net.techcable.tacospigot.TroveLongHashSet;
 +// TacoSpigot end
  
  public class ChunkProviderServer implements IChunkProvider {
  
      private static final Logger b = LogManager.getLogger();
 -    public LongHashSet unloadQueue = new LongHashSet(); // CraftBukkit - LongHashSet
-+    public TLongHashSet unloadQueue = new TLongHashSet(); // CraftBukkit - LongHashSet // TacoSpigot - use trove
++    public ILongHashSet unloadQueue = new TroveLongHashSet(new TLongHashSet()); // CraftBukkit - LongHashSet // TacoSpigot - use trove
      public Chunk emptyChunk;
      public IChunkProvider chunkProvider;
      private IChunkLoader chunkLoader;
-@@ -73,7 +79,7 @@ public class ChunkProviderServer implements IChunkProvider {
-         if (this.world.worldProvider.e()) {
-             if (!this.world.c(i, j)) {
-                 // CraftBukkit start
--                this.unloadQueue.add(i, j);
-+                this.unloadQueue.add(LongHash.toLong(i, j)); // TacoSpigot - trove
- 
-                 Chunk c = chunks.get(LongHash.toLong(i, j));
-                 if (c != null) {
-@@ -83,7 +89,7 @@ public class ChunkProviderServer implements IChunkProvider {
-             }
-         } else {
-             // CraftBukkit start
--            this.unloadQueue.add(i, j);
-+            this.unloadQueue.add(LongHash.toLong(i, j)); // TacoSpigot - trove
- 
-             Chunk c = chunks.get(LongHash.toLong(i, j));
-             if (c != null) {
-@@ -114,9 +120,15 @@ public class ChunkProviderServer implements IChunkProvider {
+@@ -114,9 +119,15 @@ public class ChunkProviderServer implements IChunkProvider {
          return getChunkAt(i, j, null);
      }
  
 +    // TacoSpigot start - cache the most recently returned chunk
 +    private Chunk lastChunk = null;
      public Chunk getChunkAt(int i, int j, Runnable runnable) {
--        unloadQueue.remove(i, j);
 +        if (lastChunk != null && lastChunk.locX == i && lastChunk.locZ == j) return lastChunk;
 +        // TacoSpigot end
-+        unloadQueue.remove(LongHash.toLong(i, j)); // TacoSpigot - trove
+         unloadQueue.remove(i, j);
          Chunk chunk = chunks.get(LongHash.toLong(i, j));
 +        if (chunk == null) { // TacoSpigot - optimize cases where the chunk is in the map
 +        if (!World.isValidChunk(i, j)) throw new IllegalArgumentException("Invalid chunk position " + i + " " + j); // TacoSpigot - throw IllegalArgumentException instead of loading a invalid chunk
          ChunkRegionLoader loader = null;
  
          if (this.chunkLoader instanceof ChunkRegionLoader) {
-@@ -124,26 +136,28 @@ public class ChunkProviderServer implements IChunkProvider {
+@@ -124,22 +135,24 @@ public class ChunkProviderServer implements IChunkProvider {
  
          }
          // We can only use the queue for already generated chunks
@@ -146,26 +113,6 @@ index 0e6a37f..689be45 100644
          return chunk;
      }
      public Chunk originalGetChunkAt(int i, int j) {
--        this.unloadQueue.remove(i, j);
-+        this.unloadQueue.remove(LongHash.toLong(i, j)); // TacoSpigot - trove
-         Chunk chunk = (Chunk) this.chunks.get(LongHash.toLong(i, j));
-         boolean newChunk = false;
-         // CraftBukkit end
-@@ -360,8 +374,12 @@ public class ChunkProviderServer implements IChunkProvider {
-         if (!this.world.savingDisabled) {
-             // CraftBukkit start
-             Server server = this.world.getServer();
--            for (int i = 0; i < 100 && !this.unloadQueue.isEmpty(); ++i) {
--                long chunkcoordinates = this.unloadQueue.popFirst();
-+            // TacoSpigot start - trove
-+            TLongIterator iterator = this.unloadQueue.iterator();
-+            for (int i = 0; i < 100 && iterator.hasNext(); i++) {
-+                long chunkcoordinates = iterator.next();
-+                iterator.remove();
-+                // TacoSpigot end
-                 Chunk chunk = this.chunks.get(chunkcoordinates);
-                 if (chunk == null) continue;
- 
 diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 index 158646b..171fa28 100644
 --- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
@@ -232,6 +179,226 @@ index 681ee18..35b8522 100644
          }
      }
  
+diff --git a/src/main/java/net/techcable/tacospigot/ILongHashSet.java b/src/main/java/net/techcable/tacospigot/ILongHashSet.java
+new file mode 100644
+index 0000000..fb9d364
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/ILongHashSet.java
+@@ -0,0 +1,71 @@
++package net.techcable.tacospigot;
++
++import gnu.trove.TDecorators;
++import gnu.trove.iterator.TIntIterator;
++import gnu.trove.iterator.TLongIterator;
++import org.bukkit.craftbukkit.util.LongHash;
++
++import java.util.Arrays;
++import java.util.ConcurrentModificationException;
++import java.util.Iterator;
++import java.util.NoSuchElementException;
++
++/**
++ * An interface to the methods in {@link org.bukkit.craftbukkit.util.LongHashSet}
++ */
++public interface ILongHashSet {
++
++    public TLongIterator primitiveIterator();
++
++    public default Iterator<Long> iterator() {
++        TLongIterator primitive = primitiveIterator();
++        return new Iterator<Long>() {
++            @Override
++            public boolean hasNext() {
++                return primitive.hasNext();
++            }
++
++            @Override
++            public Long next() {
++                return primitive.next();
++            }
++
++            @Override
++            public void remove() {
++                primitive.remove();
++            }
++        };
++    }
++
++    public int size();
++
++    public default boolean isEmpty() {
++        return size() == 0;
++    }
++
++    public default boolean contains(int msw, int lsw) {
++        return contains(LongHash.toLong(msw, lsw));
++    }
++
++    public boolean contains(long value);
++
++    public default boolean add(int msw, int lsw) {
++        return add(LongHash.toLong(msw, lsw));
++    }
++
++    public boolean add(long value);
++
++    public default void remove(int msw, int lsw) {
++        remove(msw, lsw);
++    }
++
++    public boolean remove(long value);
++
++    public void clear();
++
++    public long[] toArray();
++
++    public long popFirst();
++
++    public long[] popAll();
++}
+\ No newline at end of file
+diff --git a/src/main/java/net/techcable/tacospigot/TroveLongHashSet.java b/src/main/java/net/techcable/tacospigot/TroveLongHashSet.java
+new file mode 100644
+index 0000000..8fb6c6e
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/TroveLongHashSet.java
+@@ -0,0 +1,77 @@
++package net.techcable.tacospigot;
++
++import gnu.trove.iterator.TLongIterator;
++import gnu.trove.procedure.TLongProcedure;
++import gnu.trove.set.hash.TLongHashSet;
++
++import java.util.concurrent.CopyOnWriteArrayList;
++import java.util.concurrent.atomic.AtomicLong;
++import java.util.concurrent.atomic.AtomicLongArray;
++
++public class TroveLongHashSet implements ILongHashSet {
++    private final TLongHashSet delegate;
++    private final boolean concurrent;
++
++    public TroveLongHashSet(TLongHashSet delegate, boolean concurrent) {
++        this.delegate = delegate;
++        this.concurrent = concurrent;
++    }
++
++    public TroveLongHashSet(TLongHashSet delegate) {
++        this(delegate, false);
++    }
++
++    @Override
++    public TLongIterator primitiveIterator() {
++        return delegate.iterator();
++    }
++
++    @Override
++    public int size() {
++        return delegate.size();
++    }
++
++    @Override
++    public boolean contains(long value) {
++        return delegate.contains(value);
++    }
++
++    @Override
++    public boolean add(long value) {
++        return delegate.add(value);
++    }
++
++    @Override
++    public boolean remove(long value) {
++        return delegate.remove(value);
++    }
++
++    @Override
++    public void clear() {
++        delegate.clear();
++    }
++
++    @Override
++    public long[] toArray() {
++        return delegate.toArray();
++    }
++
++    @Override
++    public long popFirst() {
++        TLongIterator iterator = primitiveIterator();
++        if (iterator.hasNext()) {
++            long l = iterator.next();
++            boolean removed = remove(l);
++            if (!removed && concurrent) return popFirst(); // Someone else removed concurrently
++        }
++        return 0;
++    }
++
++    @Override
++    public long[] popAll() {
++        long[] longs = toArray();
++        if (concurrent) delegate.removeAll(longs);
++        else clear();
++        return longs;
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/LongHashSet.java b/src/main/java/org/bukkit/craftbukkit/util/LongHashSet.java
+index a213579..87413c3 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/LongHashSet.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/LongHashSet.java
+@@ -16,12 +16,14 @@
+ 
+ package org.bukkit.craftbukkit.util;
+ 
++import gnu.trove.iterator.TLongIterator;
++
+ import java.util.Arrays;
+ import java.util.Iterator;
+ import java.util.ConcurrentModificationException;
+ import java.util.NoSuchElementException;
+ 
+-public class LongHashSet {
++public class LongHashSet implements net.techcable.tacospigot.ILongHashSet { // TacoSpigot - implement our interface
+     private final static int INITIAL_SIZE = 3;
+     private final static double LOAD_FACTOR = 0.75;
+ 
+@@ -44,9 +46,13 @@ public class LongHashSet {
+         modCount = 0;
+     }
+ 
++    // TacoSpigot start - use default implementation
++    /*
+     public Iterator iterator() {
+         return new Itr();
+     }
++    */
++    // TacoSpigot end
+ 
+     public int size() {
+         return elements;
+@@ -243,7 +249,14 @@ public class LongHashSet {
+         freeEntries = values.length - elements;
+     }
+ 
+-    private class Itr implements Iterator {
++    // TacoSpigot start - iterate primitive ints
++    @Override
++    public TLongIterator primitiveIterator() {
++        return new Itr();
++    }
++
++    private class Itr implements gnu.trove.iterator.TLongIterator {
++        // TacoSpigot end
+         private int index;
+         private int lastReturned = -1;
+         private int expectedModCount;
+@@ -259,7 +272,7 @@ public class LongHashSet {
+             return index != values.length;
+         }
+ 
+-        public Long next() {
++        public long next() { // TacoSpigot - return primitive
+             if (modCount != expectedModCount) {
+                 throw new ConcurrentModificationException();
+             }
 -- 
 2.4.6.windows.1.812.gd1b00d3
 
