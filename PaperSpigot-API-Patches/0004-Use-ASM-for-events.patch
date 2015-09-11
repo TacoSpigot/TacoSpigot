@@ -1,4 +1,4 @@
-From 5f8887645f2931cbfb26976701e6259a107b90d4 Mon Sep 17 00:00:00 2001
+From e8159cc5e28f328647211c652793098a1fece9c9 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 1 Sep 2015 18:20:18 -0700
 Subject: [PATCH] Use ASM for events
@@ -6,10 +6,10 @@ Subject: [PATCH] Use ASM for events
 
 diff --git a/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java b/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java
 new file mode 100644
-index 0000000..3be01e9
+index 0000000..2d41f62
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java
-@@ -0,0 +1,189 @@
+@@ -0,0 +1,176 @@
 +package net.techcable.tacospigot;
 +
 +import com.google.common.base.Preconditions;
@@ -54,7 +54,7 @@ index 0000000..3be01e9
 +    private static final AtomicInteger nextId = new AtomicInteger();
 +
 +    @sun.reflect.CallerSensitive
-+    public static EventExecutor newASMEventExecutor(Method method) {
++    public static EventExecutor newASMEventExecutor(Method method, ClassLoader parent) {
 +        validate(method);
 +        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
 +        String name = GENERATED_EXECUTOR_PREFIX + nextId.incrementAndGet();
@@ -73,19 +73,6 @@ index 0000000..3be01e9
 +        generateExecute(methodWriter, method); // Generate the code
 +        methodWriter.visitMaxs(0, 0); // Auto-generated
 +        methodWriter.visitEnd();
-+        // Load using the class loader
-+        ClassLoader parent;
-+        try {
-+            parent = sun.reflect.Reflection.getCallerClass().getClassLoader();
-+        } catch (Throwable t) {
-+            Class<?>[] stack = new SecurityManager() {
-+                @Override
-+                public Class[] getClassContext() {
-+                    return super.getClassContext();
-+                }
-+            }.getClassContext();
-+            parent = stack[1].getClassLoader();
-+        }
 +
 +        GeneratedClassLoader loader = GeneratedClassLoader.getLoader(parent);
 +        Class<? extends EventExecutor> clazz = loader.define(writer, name).asSubclass(EventExecutor.class);
@@ -144,9 +131,9 @@ index 0000000..3be01e9
 +        Preconditions.checkArgument(Event.class.isAssignableFrom(method.getParameterTypes()[0]), "The first parameter (%s) is not an Event", method.getParameterTypes()[0].getName());
 +    }
 +
-+    public static EventExecutor newEventExecutor(Method method) {
++    public static EventExecutor newEventExecutor(Method method, ClassLoader parent) {
 +        boolean isPublic = Modifier.isPublic(method.getModifiers());
-+        return isUseAsmForEvents() && isPublic ? newASMEventExecutor(method) : newJREEventExecutor(method);
++        return isUseAsmForEvents() && isPublic ? newASMEventExecutor(method, parent) : newJREEventExecutor(method);
 +    }
 +
 +    private static class JREEventExecutor implements EventExecutor {
@@ -269,7 +256,7 @@ index 3b2c99e..0061f17 100644
      public void execute(Listener listener, Event event) throws EventException;
  }
 diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
-index 7bf2fa6..4430d84 100644
+index 7bf2fa6..948c365 100644
 --- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 +++ b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 @@ -17,6 +17,8 @@ import java.util.jar.JarFile;
@@ -285,7 +272,7 @@ index 7bf2fa6..4430d84 100644
                  }
              }
  
-+            EventExecutor asm = EventExecutorFactory.newEventExecutor(method); // TacoSpigot - generate ASM
++            EventExecutor asm = EventExecutorFactory.newEventExecutor(method, listener.getClass().getClassLoader()); // TacoSpigot - generate ASM
              final CustomTimingsHandler timings = new CustomTimingsHandler("Plugin: " + plugin.getDescription().getFullName() + " Event: " + listener.getClass().getName() + "::" + method.getName()+"("+eventClass.getSimpleName()+")", pluginParentTimer); // Spigot
              EventExecutor executor = new EventExecutor() {
                  public void execute(Listener listener, Event event) throws EventException {
@@ -340,7 +327,7 @@ index 2d84032..a5a2911 100644
                      }
                  );
 diff --git a/src/test/java/org/bukkit/event/SyntheticEventTest.java b/src/test/java/org/bukkit/event/SyntheticEventTest.java
-index df6cf00..0515c00 100644
+index df6cf00..7e8f59e 100644
 --- a/src/test/java/org/bukkit/event/SyntheticEventTest.java
 +++ b/src/test/java/org/bukkit/event/SyntheticEventTest.java
 @@ -1,17 +1,77 @@
@@ -369,7 +356,7 @@ index df6cf00..0515c00 100644
  public class SyntheticEventTest {
 -    @SuppressWarnings("deprecation")
 +    // TacoSpigot start - test both jre and asm reflection
-+    public static final boolean PROFILE = true;
++    public static final boolean PROFILE = false;
 +    @Before
 +    public void warmupASM() {
 +        if (!PROFILE) return;
@@ -384,7 +371,7 @@ index df6cf00..0515c00 100644
 +        EventExecutor[] executors = new EventExecutor[1000];
 +        for (int i = 0; i < 1000; i++) {
 +            Impl impl = new Impl();
-+            executors[i] = EventExecutorFactory.newEventExecutor(method);
++            executors[i] = EventExecutorFactory.newEventExecutor(method, impl.getClass().getClassLoader());
 +        }
 +        // Warmup the code execution
 +        test();
