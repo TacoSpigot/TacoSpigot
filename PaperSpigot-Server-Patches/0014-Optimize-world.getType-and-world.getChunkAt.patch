@@ -1,4 +1,4 @@
-From 1981c07477f08f06cb410cba905a8131bc39d126 Mon Sep 17 00:00:00 2001
+From 1c6186f153fd9709776948fa5929aa2b99ba122e Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 5 Sep 2015 18:38:09 -0700
 Subject: [PATCH] Optimize world.getType() and world.getChunkAt()
@@ -134,7 +134,7 @@ index 158646b..171fa28 100644
          ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(i, j);
          NBTTagCompound nbttagcompound = (NBTTagCompound) this.b.get(chunkcoordintpair);
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 681ee18..35b8522 100644
+index 9008c56..e2d1558 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -281,9 +281,23 @@ public abstract class World implements IBlockAccess {
@@ -181,7 +181,7 @@ index 681ee18..35b8522 100644
  
 diff --git a/src/main/java/net/techcable/tacospigot/ILongHashSet.java b/src/main/java/net/techcable/tacospigot/ILongHashSet.java
 new file mode 100644
-index 0000000..fb9d364
+index 0000000..ffe7134
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ILongHashSet.java
 @@ -0,0 +1,71 @@
@@ -243,7 +243,7 @@ index 0000000..fb9d364
 +    public boolean add(long value);
 +
 +    public default void remove(int msw, int lsw) {
-+        remove(msw, lsw);
++        remove(LongHash.toLong(msw, lsw));
 +    }
 +
 +    public boolean remove(long value);
@@ -399,6 +399,85 @@ index a213579..87413c3 100644
              if (modCount != expectedModCount) {
                  throw new ConcurrentModificationException();
              }
+diff --git a/src/test/java/net/techcable/tacospigot/LongHashSetTest.java b/src/test/java/net/techcable/tacospigot/LongHashSetTest.java
+new file mode 100644
+index 0000000..a154910
+--- /dev/null
++++ b/src/test/java/net/techcable/tacospigot/LongHashSetTest.java
+@@ -0,0 +1,73 @@
++package net.techcable.tacospigot;
++
++import gnu.trove.iterator.TLongIterator;
++import gnu.trove.list.TLongList;
++import gnu.trove.list.array.TLongArrayList;
++import gnu.trove.set.hash.TLongHashSet;
++import org.bukkit.craftbukkit.util.LongHashSet;
++import org.junit.Ignore;
++import org.junit.Test;
++
++import static org.junit.Assert.*;
++
++public class LongHashSetTest {
++    private ILongHashSet set;
++
++    // Test functions
++
++    @Test
++    public void testTrove() {
++        set = new TroveLongHashSet(new TLongHashSet());
++        testAdd();
++        testContains();
++        testIterator();
++        testRemove();
++    }
++
++
++    @Test
++    @Ignore // Who cares if bukkit is bugged ?
++    public void testBukkit() {
++        set = new LongHashSet();
++        testAdd();
++        testContains();
++        testIterator();
++        testRemove();
++    }
++
++
++    public static final int MAX_TEST = 10000;
++    private void testAdd() {
++        for (int i = 0; i < MAX_TEST; i++) {
++            assertTrue("Could not add " + i + " to " + set.getClass().getSimpleName(), set.add(i));
++        }
++    }
++
++    private void testContains() {
++        for (int i = 0; i < MAX_TEST; i++) {
++            assertTrue(set.getClass().getSimpleName() + " did not contain " + i, set.contains(i));
++        }
++    }
++
++    private void testRemove() {
++        for (int i = 0; i < MAX_TEST; i++) {
++            assertTrue("Could not remove " + i + " from " + set.getClass().getSimpleName(), set.remove(i));
++        }
++    }
++
++    private void testIterator() {
++        TLongList needed = new TLongArrayList(MAX_TEST); // We are lucky that the hash code is mostly in order
++        for (int i = 0; i < MAX_TEST; i++) needed.add(i);
++        TLongIterator iterator = set.primitiveIterator();
++        while (iterator.hasNext()) {
++            long l = iterator.next();
++            int indexOfNeeded = needed.lastIndexOf(l);
++            assertNotEquals("Could not find " + l + " in " + MAX_TEST, indexOfNeeded, -1);
++            needed.removeAt(indexOfNeeded);
++        }
++        if (!needed.isEmpty()) {
++            throw new AssertionError("Iterator could not find " + needed.get(0));
++        }
++    }
++
++}
 -- 
 2.4.6.windows.1.812.gd1b00d3
 
