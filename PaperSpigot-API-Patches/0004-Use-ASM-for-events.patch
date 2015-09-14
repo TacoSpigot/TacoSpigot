@@ -1,4 +1,4 @@
-From e8159cc5e28f328647211c652793098a1fece9c9 Mon Sep 17 00:00:00 2001
+From 83f0ab7f6263a88c2d58352e264a5d725e752034 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 1 Sep 2015 18:20:18 -0700
 Subject: [PATCH] Use ASM for events
@@ -6,7 +6,7 @@ Subject: [PATCH] Use ASM for events
 
 diff --git a/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java b/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java
 new file mode 100644
-index 0000000..2d41f62
+index 0000000..0a09aa2
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java
 @@ -0,0 +1,176 @@
@@ -132,7 +132,7 @@ index 0000000..2d41f62
 +    }
 +
 +    public static EventExecutor newEventExecutor(Method method, ClassLoader parent) {
-+        boolean isPublic = Modifier.isPublic(method.getModifiers());
++        boolean isPublic = Modifier.isPublic(method.getModifiers()) && Modifier.isPublic(method.getDeclaringClass().getModifiers());
 +        return isUseAsmForEvents() && isPublic ? newASMEventExecutor(method, parent) : newJREEventExecutor(method);
 +    }
 +
