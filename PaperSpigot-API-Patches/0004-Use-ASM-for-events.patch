@@ -132,7 +132,7 @@ index 0000000..0a09aa2
 +    }
 +
 +    public static EventExecutor newEventExecutor(Method method, ClassLoader parent) {
-+        boolean isPublic = Modifier.isPublic(method.getModifiers()) && Modifier.isPublic(method.getDeclaringClass().getModifiers());
++        boolean isPublic = Modifier.isPublic(method.getModifiers()) && !Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getDeclaringClass().getModifiers());
 +        return isUseAsmForEvents() && isPublic ? newASMEventExecutor(method, parent) : newJREEventExecutor(method);
 +    }
 +
