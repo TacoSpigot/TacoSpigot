@@ -1,4 +1,4 @@
-From dd4ee3bd4357db1c7cc3160c8a6bce37c5f933a7 Mon Sep 17 00:00:00 2001
+From d2e0aebe7b9eb5efaa96931d6f3d54e97d82a9f9 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 5 Sep 2015 18:38:09 -0700
 Subject: [PATCH] Optimize world.getType() and world.getChunkAt()
@@ -116,10 +116,10 @@ index 158646b..171fa28 100644
          ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(i, j);
          NBTTagCompound nbttagcompound = (NBTTagCompound) this.b.get(chunkcoordintpair);
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 9008c56..e2d1558 100644
+index 7b67e18..6d9d592 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -281,9 +281,23 @@ public abstract class World implements IBlockAccess {
+@@ -297,9 +297,23 @@ public abstract class World implements IBlockAccess {
          return this.getType(blockposition1).getBlock();
      }
  
@@ -145,7 +145,7 @@ index 9008c56..e2d1558 100644
  
      public boolean isEmpty(BlockPosition blockposition) {
          return this.getType(blockposition).getBlock().getMaterial() == Material.AIR;
-@@ -780,9 +794,15 @@ public abstract class World implements IBlockAccess {
+@@ -796,9 +810,15 @@ public abstract class World implements IBlockAccess {
          if (!this.isValidLocation(blockposition)) {
              return Blocks.AIR.getBlockData();
          } else {
