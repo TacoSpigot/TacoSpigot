@@ -1,11 +1,11 @@
-From a578f1945734a5b33d46badf9d22b31c74b15e97 Mon Sep 17 00:00:00 2001
+From a8dbaedb3e74eaf8ddd54634d5a7e141b53c481c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 25 Sep 2015 13:47:52 -0700
 Subject: [PATCH] long map ids
 
 
 diff --git a/src/main/java/net/minecraft/server/ItemMapEmpty.java b/src/main/java/net/minecraft/server/ItemMapEmpty.java
-index 6bf90c4..40fa267 100644
+index 6bf90c4..b607af8 100644
 --- a/src/main/java/net/minecraft/server/ItemMapEmpty.java
 +++ b/src/main/java/net/minecraft/server/ItemMapEmpty.java
 @@ -9,8 +9,17 @@ public class ItemMapEmpty extends ItemWorldMapBase {
@@ -18,7 +18,7 @@ index 6bf90c4..40fa267 100644
 +        String s;
 +        long id;
 +        if (itemstack.hasTag() && itemstack.getTag().hasKey("map_id")) {
-+            id = itemstack.getTag().getInt("map_id");
++            id = itemstack.getTag().getLong("map_id");
 +        } else {
 +            id = itemstack.getData();
 +        }
@@ -29,7 +29,7 @@ index 6bf90c4..40fa267 100644
          worldMain.a(s, (PersistentBase) worldmap); // CraftBukkit
          worldmap.scale = 0;
 diff --git a/src/main/java/net/minecraft/server/ItemWorldMap.java b/src/main/java/net/minecraft/server/ItemWorldMap.java
-index 6473ee5..6a41b15 100644
+index 6473ee5..b6f8694 100644
 --- a/src/main/java/net/minecraft/server/ItemWorldMap.java
 +++ b/src/main/java/net/minecraft/server/ItemWorldMap.java
 @@ -16,14 +16,25 @@ public class ItemWorldMap extends ItemWorldMapBase {
@@ -42,7 +42,7 @@ index 6473ee5..6a41b15 100644
 +        WorldServer worldMain = world.getServer().getServer().worlds.get(0); // CraftBukkit - store reference to primary world
 +        String s;
 +        if (itemstack.hasTag() && itemstack.getTag().hasKey("map_id")) {
-+            long id = itemstack.getTag().getInt("map_id");
++            long id = itemstack.getTag().getLong("map_id");
 +            s = "map_" + id;
 +        } else {
 +            s = "map_" + itemstack.getData();
@@ -85,7 +85,7 @@ index 6473ee5..6a41b15 100644
 -            world.a("map_" + itemstack.getData(), (PersistentBase) worldmap1);
 +            String stackId;
 +            if (itemstack.hasTag() && itemstack.getTag().hasKey("map_id")) {
-+                long stackIdLong = itemstack.getTag().getInt("map_id");
++                long stackIdLong = itemstack.getTag().getLong("map_id");
 +                stackId = "map_" + stackIdLong;
 +            } else {
 +                stackId = "map_" + itemstack.getData();
@@ -228,6 +228,71 @@ index dad0e33..1688ca5 100644
      @Override
      public CraftMapView createMap(World world) {
          Validate.notNull(world, "World cannot be null");
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaMap.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaMap.java
+index d8af390..724b955 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaMap.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaMap.java
+@@ -29,6 +29,7 @@ class CraftMetaMap extends CraftMetaItem implements MapMeta {
+ 
+         CraftMetaMap map = (CraftMetaMap) meta;
+         this.scaling = map.scaling;
++        this.id = map.id; // TacoSpigot
+     }
+ 
+     CraftMetaMap(NBTTagCompound tag) {
+@@ -37,6 +38,7 @@ class CraftMetaMap extends CraftMetaItem implements MapMeta {
+         if (tag.hasKey(MAP_SCALING.NBT)) {
+             this.scaling = tag.getBoolean(MAP_SCALING.NBT) ? SCALING_TRUE : SCALING_FALSE;
+         }
++        if (tag.hasKey("map_id")) this.id = tag.getLong("map_id"); // TacoSpigot
+     }
+ 
+     CraftMetaMap(Map<String, Object> map) {
+@@ -46,6 +48,10 @@ class CraftMetaMap extends CraftMetaItem implements MapMeta {
+         if (scaling != null) {
+             setScaling(scaling);
+         }
++        // TacoSpigot start
++        Long id = SerializableMeta.getObject(Long.class, map, "map-id", true);
++        if (id != null) setId(id);
++        // TacoSpigot end
+     }
+ 
+     @Override
+@@ -55,6 +61,7 @@ class CraftMetaMap extends CraftMetaItem implements MapMeta {
+         if (hasScaling()) {
+             tag.setBoolean(MAP_SCALING.NBT, isScaling());
+         }
++        if (id > 0) tag.setLong("map_id", id); // TacoSpigot
+     }
+ 
+     @Override
+@@ -114,6 +121,7 @@ class CraftMetaMap extends CraftMetaItem implements MapMeta {
+         if (hasScaling()) {
+             hash ^= 0x22222222 << (isScaling() ? 1 : -1);
+         }
++        if (id > 0) hash *= (id + 3); // TacoSpigot
+ 
+         return original != hash ? CraftMetaMap.class.hashCode() ^ hash : hash;
+     }
+@@ -129,7 +137,17 @@ class CraftMetaMap extends CraftMetaItem implements MapMeta {
+         if (hasScaling()) {
+             builder.put(MAP_SCALING.BUKKIT, isScaling());
+         }
++        if (id > 0) builder.put("map-id", id);// TacoSpigot
+ 
+         return builder;
+     }
++
++    // TacoSpigot start - allow plugins to set the id of the mapview to use
++    private long id = -1;
++    @Override
++    public void setId(long id) {
++        this.id = id;
++    }
++
++    // TacoSpigot end
+ }
 diff --git a/src/main/java/org/bukkit/craftbukkit/map/CraftMapView.java b/src/main/java/org/bukkit/craftbukkit/map/CraftMapView.java
 index 1a150d9..55c3b6b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/map/CraftMapView.java

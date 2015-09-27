@@ -1,4 +1,4 @@
-From 33070c2064f749d79c58818c0488273e42b8d069 Mon Sep 17 00:00:00 2001
+From e1694e1ca7f861d88b01bb4ed26c67fefae3a04f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 25 Sep 2015 13:48:23 -0700
 Subject: [PATCH] long map ids
@@ -40,6 +40,22 @@ index 26acdda..581086b 100644
       * Create a new map with an automatically assigned ID.
       *
       * @param world the world the map will belong to
+diff --git a/src/main/java/org/bukkit/inventory/meta/MapMeta.java b/src/main/java/org/bukkit/inventory/meta/MapMeta.java
+index fb5c297..1b023c7 100644
+--- a/src/main/java/org/bukkit/inventory/meta/MapMeta.java
++++ b/src/main/java/org/bukkit/inventory/meta/MapMeta.java
+@@ -20,4 +20,11 @@ public interface MapMeta extends ItemMeta {
+     void setScaling(boolean value);
+ 
+     MapMeta clone();
++
++    // TacoSpigot start - allow plugins to set the id to use
++    /**
++     * Set the id of the map view to use
++     */
++    public void setId(long id);
++    // TacoSpigot end
+ }
 diff --git a/src/main/java/org/bukkit/map/MapView.java b/src/main/java/org/bukkit/map/MapView.java
 index 65c4159..e4d3b83 100644
 --- a/src/main/java/org/bukkit/map/MapView.java
