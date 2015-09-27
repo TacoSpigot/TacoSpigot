@@ -1,0 +1,65 @@
+From 33070c2064f749d79c58818c0488273e42b8d069 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Fri, 25 Sep 2015 13:48:23 -0700
+Subject: [PATCH] long map ids
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 584fe11..3619014 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -518,6 +518,12 @@ public final class Bukkit {
+         return server.getMap(id);
+     }
+ 
++    // TacoSpigot start - api for long map ids
++    public static MapView getMap(long highId) {
++        return server.getMap(highId);
++    }
++    // TacoSpigot end
++
+     /**
+      * Create a new map with an automatically assigned ID.
+      *
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 26acdda..581086b 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -427,6 +427,14 @@ public interface Server extends PluginMessageRecipient {
+     public MapView getMap(short id);
+ 
+     /**
++     * Gets the map from the given high ID.
++     *
++     * @param highId the id of the map to get
++     * @return a map view if it exists, or null
++     */
++    public MapView getMap(long highId);
++
++    /**
+      * Create a new map with an automatically assigned ID.
+      *
+      * @param world the world the map will belong to
+diff --git a/src/main/java/org/bukkit/map/MapView.java b/src/main/java/org/bukkit/map/MapView.java
+index 65c4159..e4d3b83 100644
+--- a/src/main/java/org/bukkit/map/MapView.java
++++ b/src/main/java/org/bukkit/map/MapView.java
+@@ -65,6 +65,15 @@ public interface MapView {
+     @Deprecated
+     public short getId();
+ 
++    // TacoSpigot start - expose api for long map ids
++    /**
++     * Get the ID of this map item.
++     *
++     * @return the map id
++     */
++    public long getLongId();
++    // TacoSpigot end
++
+     /**
+      * Check whether this map is virtual. A map is virtual if its lowermost
+      * MapRenderer is plugin-provided.
+-- 
+2.5.2.windows.2
+
