@@ -1,0 +1,77 @@
+From 82c6e861b60150fe49641b1865a8f4654ba542c9 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Sat, 26 Sep 2015 01:57:45 -0700
+Subject: [PATCH] Implement AsyncChunkPreLoadEvent
+
+The only time its truly async is when craftbukkit's async chunk IO is used
+This is pretty much only chunk maps
+
+diff --git a/src/main/java/net/minecraft/server/ChunkProviderServer.java b/src/main/java/net/minecraft/server/ChunkProviderServer.java
+index e6df9d8..d967e90 100644
+--- a/src/main/java/net/minecraft/server/ChunkProviderServer.java
++++ b/src/main/java/net/minecraft/server/ChunkProviderServer.java
+@@ -22,6 +22,9 @@ import org.bukkit.craftbukkit.util.LongHashSet;
+ import org.bukkit.craftbukkit.util.LongObjectHashMap;
+ import org.bukkit.event.world.ChunkUnloadEvent;
+ // CraftBukkit end
++// TacoSpigot start
++import net.techcable.tacospigot.event.world.AsyncChunkPreLoadEvent;
++// TacoSpigot end
+ 
+ public class ChunkProviderServer implements IChunkProvider {
+ 
+@@ -29,7 +32,7 @@ public class ChunkProviderServer implements IChunkProvider {
+     public LongHashSet unloadQueue = new LongHashSet(); // CraftBukkit - LongHashSet
+     public Chunk emptyChunk;
+     public IChunkProvider chunkProvider;
+-    private IChunkLoader chunkLoader;
++    public IChunkLoader chunkLoader; // TacoSpigot - public
+     public boolean forceChunkLoad = false; // CraftBukkit - true -> false
+     public LongObjectHashMap<Chunk> chunks = new LongObjectHashMap<Chunk>();
+     public WorldServer world;
+@@ -185,6 +188,7 @@ public class ChunkProviderServer implements IChunkProvider {
+             // CraftBukkit start
+             Server server = world.getServer();
+             if (server != null) {
++                server.getPluginManager().callEvent(new AsyncChunkPreLoadEvent(chunk.bukkitChunk));// TacoSpigot
+                 /*
+                  * If it's a new world, the first few chunks are generated inside
+                  * the World constructor. We can't reliably alter that, so we have
+diff --git a/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java b/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java
+index 1178ad7..e7f181c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java
++++ b/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java
+@@ -14,6 +14,10 @@ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import net.minecraft.server.Entity;
+ import net.minecraft.server.EntitySlice;
++// TacoSpigot start
++import net.techcable.tacospigot.event.world.AsyncChunkPreLoadEvent;
++import org.bukkit.ChunkSnapshot;
++// TacoSpigot end
+ 
+ class ChunkIOProvider implements AsynchronousExecutor.CallBackProvider<QueuedChunk, Chunk, Runnable, RuntimeException> {
+     private final AtomicInteger threadNumber = new AtomicInteger(1);
+@@ -26,7 +30,18 @@ class ChunkIOProvider implements AsynchronousExecutor.CallBackProvider<QueuedChu
+             
+             if (data != null) {
+                 queuedChunk.compound = (NBTTagCompound) data[1];
+-                return (Chunk) data[0];
++                // TacoSpigot start
++                Chunk chunk = (Chunk) data[0];
++                if (chunk != null && AsyncChunkPreLoadEvent.getHandlerList().getRegisteredListeners().length > 0) {
++                    ChunkSnapshot snapshot = chunk.bukkitChunk.getChunkSnapshot();
++                    AsyncChunkPreLoadEvent preLoadEvent = new AsyncChunkPreLoadEvent(snapshot);
++                    Server server = queuedChunk.provider.world.getServer();
++                    if (server != null) {
++                        server.getPluginManager().callEvent(preLoadEvent);
++                    }
++                }
++                return chunk;
++                // TacoSpigot end
+             }
+ 
+             return null;
+-- 
+2.5.2.windows.2
+
