@@ -1,4 +1,4 @@
-From c3ca4bc4f2f01036708e05c46ae6519ad28fe304 Mon Sep 17 00:00:00 2001
+From 686d6dd2835783d2a03b10bbcf20d08e38d8e3a1 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 5 Oct 2015 22:43:57 -0700
 Subject: [PATCH] Optimize X-Ray
@@ -7,15 +7,16 @@ Checks for adjacent blocks should be way faster
 
 diff --git a/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
 new file mode 100644
-index 0000000..8098bfc
+index 0000000..290cc12
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,47 @@
 +package net.techcable.tacospigot.utils;
 +
 +import java.util.function.Consumer;
 +import java.util.function.Predicate;
 +
++import net.minecraft.server.Block;
 +import net.minecraft.server.BlockPosition;
 +
 +public class BlockHelper {
@@ -46,22 +47,41 @@ index 0000000..8098bfc
 +        }
 +        return true;
 +    }
++
++    private static Block[] blockById = new Block[256];
++    static {
++        for (int i = 0; i < blockById.length; i++) {
++            blockById[i] = Block.getById(i);
++        }
++    }
++    public static Block getBlock(int id) {
++        return id < 256 ? blockById[id] : Block.getById(id);
++    }
 +}
 diff --git a/src/main/java/org/spigotmc/AntiXray.java b/src/main/java/org/spigotmc/AntiXray.java
-index 5466a61..31b670e 100644
+index 5466a61..826c64b 100644
 --- a/src/main/java/org/spigotmc/AntiXray.java
 +++ b/src/main/java/org/spigotmc/AntiXray.java
-@@ -12,6 +12,9 @@ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+@@ -5,6 +5,7 @@ import gnu.trove.set.hash.TByteHashSet;
+ import net.minecraft.server.Block;
+ import net.minecraft.server.BlockPosition;
+ import net.minecraft.server.Blocks;
++import net.minecraft.server.ChunkSection;
+ import net.minecraft.server.World;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ 
+@@ -12,6 +13,10 @@ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
  import java.util.HashSet;
  import java.util.Set;
  // PaperSpigot end
 +// TacoSpigot start
++import net.minecraft.server.Chunk;
 +import net.techcable.tacospigot.utils.BlockHelper;
 +// TacoSpigot end
  
  public class AntiXray
  {
-@@ -160,7 +163,7 @@ public class AntiXray
+@@ -160,7 +165,7 @@ public class AntiXray
                                  }
                                  // Grab the block ID in the buffer.
                                  // TODO: extended IDs are not yet supported
@@ -70,7 +90,7 @@ index 5466a61..31b670e 100644
                                          | ((buffer[(index << 1) + 1] & 0xFF) << 8);
                                  blockId >>>= 4;
                                  // Check if the block should be obfuscated
-@@ -206,7 +209,15 @@ public class AntiXray
+@@ -206,21 +211,31 @@ public class AntiXray
          }
      }
  
@@ -87,8 +107,10 @@ index 5466a61..31b670e 100644
      {
          // If the block in question is loaded
          if ( world.isLoaded( position ) )
-@@ -215,12 +226,14 @@ public class AntiXray
-             Block block = world.getType(position).getBlock();
+         {
+             // Get block id
+-            Block block = world.getType(position).getBlock();
++            Block block = getType(world, position); // TacoSpigot - directly access the underlying data
  
              // See if it needs update
 -            if ( updateSelf && obfuscateBlocks[Block.getId( block )] )
@@ -103,7 +125,7 @@ index 5466a61..31b670e 100644
              // Check other blocks for updates
              if ( radius > 0 )
              {
-@@ -231,31 +244,24 @@ public class AntiXray
+@@ -231,31 +246,27 @@ public class AntiXray
                  updateNearbyBlocks( world, position.south(), radius - 1, true );
                  updateNearbyBlocks( world, position.north(), radius - 1, true );
              }
@@ -140,11 +162,38 @@ index 5466a61..31b670e 100644
 -                || hasTransparentBlockAdjacent( world, position.south(), radius - 1 )
 -                || hasTransparentBlockAdjacent( world, position.north(), radius - 1 ) ) );
 +        // !(solid blocks all around)
-+        return !BlockHelper.isAllAdjacentBlocksFillPredicate(startPos, radius, (position) -> isSolidBlock(world.getType(position, false).getBlock())); /* isSolidBlock */
++        return !BlockHelper.isAllAdjacentBlocksFillPredicate(startPos, radius, (position) -> {
++            Block block = getType(world, position);
++            return isSolidBlock(block);
++        }); /* isSolidBlock */
 +        // TacoSpigot end
      }
  
      private static boolean isSolidBlock(Block block) {
+@@ -266,4 +277,23 @@ public class AntiXray
+         // blocks around them.
+         return block.isOccluding() && block != Blocks.MOB_SPAWNER && block != Blocks.BARRIER;
+     }
++
++    // TacoSpigot start
++    public static Block getType(World world, BlockPosition pos) {
++        int x = pos.getX();
++        int y = pos.getY();
++        int z = pos.getZ();
++        Chunk chunk = world.getChunkIfLoaded(x >> 4, z >> 4);
++        if (chunk == null) return Blocks.AIR;
++        int sectionId = y >> 4;
++        if (sectionId < 0 || sectionId > 15) return Blocks.AIR;
++        ChunkSection section = chunk.getSections()[sectionId];
++        x &= 0xF;
++        y &= 0xF;
++        z &= 0xF;
++        int combinedId = section.getIdArray()[(y << 8) | (z << 4) | x];
++        int blockId = combinedId >> 4;
++        return BlockHelper.getBlock(blockId);
++    }
++    // TacoSpigot end
+ }
 -- 
-2.5.2.windows.2
+2.6.1.windows.1
 
