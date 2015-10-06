@@ -1,37 +1,9 @@
-From 1242f29ae8546770241a4e742b46463a27855e95 Mon Sep 17 00:00:00 2001
+From 142fa943cb06ee75d8f8531204d976419ed00ca6 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 30 Jul 2015 23:57:17 -0700
 Subject: [PATCH] Implement async block retrieval api
 
 
-diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index 7efacfa..e0bc8aa 100644
---- a/src/main/java/net/minecraft/server/Chunk.java
-+++ b/src/main/java/net/minecraft/server/Chunk.java
-@@ -33,6 +33,23 @@ public class Chunk {
-     public final int locZ;
-     private boolean k;
-     public final Map<BlockPosition, TileEntity> tileEntities;
-+    // TacoSpigot start - implement async block data retrieval api
-+    public Block getLastKnownType(int x, int y, int z) {
-+        return Block.getById(getLastKnownBlockId(x, y, z));
-+    }
-+
-+    public int getLastKnownBlockId(int x, int y, int z) {
-+        if (y >> 4 > 16) throw new IllegalArgumentException("section id is greater than 16: " + (y >> 4));
-+        ChunkSection section = getSections()[y >> 4];
-+        return section.getLastKnownBlockId(x, y, z);
-+    }
-+
-+    public int getLastKnownMeta(int x, int y, int z) {
-+        if (y >> 4 > 16) throw new IllegalArgumentException("section id is greater than 16: " + (y >> 4));
-+        ChunkSection section = getSections()[y >> 4];
-+        return section.getLastKnownMeta(x, y, z);
-+    }
-+    // TacoSpigot end
-     public final List<Entity>[] entitySlices; // Spigot
-     private boolean done;
-     private boolean lit;
 diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 index 206e3aa..158646b 100644
 --- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
@@ -62,32 +34,28 @@ index 206e3aa..158646b 100644
                          packed = ex << 12 | id << 4 | data;
                      }
                  }
-diff --git a/src/main/java/net/minecraft/server/ChunkSection.java b/src/main/java/net/minecraft/server/ChunkSection.java
-index 907c57b..78cf03e 100644
---- a/src/main/java/net/minecraft/server/ChunkSection.java
-+++ b/src/main/java/net/minecraft/server/ChunkSection.java
-@@ -20,6 +20,21 @@ public class ChunkSection {
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 7b67e18..8067742 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -3285,4 +3285,17 @@ public abstract class World implements IBlockAccess {
  
+         return k >= -short0 && k <= short0 && l >= -short0 && l <= short0 && this.keepSpawnInMemory; // CraftBukkit - Added 'this.keepSpawnInMemory'
      }
- 
-+    // TacoSpigot start - allow thread safe direct access to underlying data
-+    public int getLastKnownBlockId(int x, int y, int z) {
-+        int combinedId = getCombinedId(x, y, z);
-+        return combinedId >> 4;
-+    }
 +
-+    private int getCombinedId(int x, int y, int z) {
-+        return this.blockIds[(y & 0xF) << 8 | (z & 0xF) << 4 | (x & 0xF)];
-+    }
-+
-+    public int getLastKnownMeta(int x, int y, int z) {
-+        return getCombinedId(x, y, z) & 0xF;
++    // TacoSpigot start - fast getType
++    public org.bukkit.Material getTypeFast(BlockPosition pos) {
++        int x = pos.getX();
++        int y = pos.getY();
++        int z = pos.getZ();
++        int chunkX = x >> 4;
++        int chunkZ = z >> 4;
++        Chunk chunk = getChunkIfLoaded(chunkX, chunkZ);
++        if (chunk == null) chunk = getChunkAt(chunkX, chunkZ);
++        return chunk.bukkitChunk.getLastKnownMaterial(x, y, z);
 +    }
 +    // TacoSpigot end
-+
-     // CraftBukkit start
-     public ChunkSection(int y, boolean flag, char[] blockIds) {
-         this.yPos = y;
+ }
 diff --git a/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java b/src/main/java/net/techcable/tacospigot/AbstractIntCollection.java
 new file mode 100644
 index 0000000..5752183
@@ -3352,29 +3320,40 @@ index 0000000..b0c9baa
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftChunk.java b/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
-index 8a33e28..16d4bd6 100644
+index 8a33e28..7e49bcc 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftChunk.java
-@@ -308,4 +308,17 @@ public class CraftChunk implements Chunk {
+@@ -308,4 +308,28 @@ public class CraftChunk implements Chunk {
      static {
          Arrays.fill(emptySkyLight, (byte) 0xFF);
      }
 +
 +    // TacoSpigot start
++    private int getCombinedId(int x, int y, int z) {
++        int sectionId = y >> 4;
++        if (sectionId < 0 || sectionId > 15) throw new IllegalArgumentException("Illegal y: " + y);
++        ChunkSection section = getHandle().getSections()[sectionId];
++        return section.getIdArray()[y << 8 | z << 4 | x];
++    }
++
++    public int getLastKnownBlockId(int x, int y, int z) {
++        return getCombinedId(x, y, z) >> 4;
++    }
++
 +    @Override
 +    public org.bukkit.Material getLastKnownMaterial(int x, int y, int z) {
-+        int blockId = getHandle().getLastKnownBlockId(x, y, z);
++        int blockId = getLastKnownBlockId(x, y, z);
 +        return org.bukkit.Material.getMaterial(blockId);
 +    }
 +
 +    @Override
 +    public int getLastKnownMeta(int x, int y, int z) {
-+        return getHandle().getLastKnownMeta(x, y, z);
++        return getCombinedId(x, y, z) & 0xF;
 +    }
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index ce10832..dd82018 100644
+index 4402d57..b154707 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -13,6 +13,7 @@ import java.util.Set;
@@ -3390,7 +3369,6 @@ index ce10832..dd82018 100644
      }
      // Spigot end
 +    // TacoSpigot start - async block retrieval api
-+
 +    @Override
 +    public int getLastKnownMeta(Location loc) throws ChunkNotLoadedException {
 +        return getLastKnownMeta(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
@@ -3400,7 +3378,8 @@ index ce10832..dd82018 100644
 +    public int getLastKnownMeta(int x, int y, int z) throws ChunkNotLoadedException {
 +        net.minecraft.server.Chunk chunk = getHandle().getChunkIfLoaded(x, z);
 +        if (chunk == null) throw new ChunkNotLoadedException();
-+        return chunk.getLastKnownMeta(x & 0xF, y, z & 0xF);
++        Chunk wrapper = chunk.bukkitChunk;
++        return wrapper.getLastKnownMeta(x & 0xF, y, z & 0xF);
 +    }
 +
 +    @Override
@@ -3420,5 +3399,5 @@ index ce10832..dd82018 100644
 +    // TacoSpigot end
  }
 -- 
-2.4.6.windows.1.812.gd1b00d3
+2.6.1.windows.1
 
