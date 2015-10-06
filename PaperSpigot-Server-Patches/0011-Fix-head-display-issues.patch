@@ -1,4 +1,4 @@
-From 0608a7116bf84faea636bca001b39cf2ba8ad974 Mon Sep 17 00:00:00 2001
+From 0f5fdbcba6e8e677fb1c925150dbde9e524ed069 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 7 Aug 2015 19:31:31 -0700
 Subject: [PATCH] Fix head display issues
@@ -87,10 +87,10 @@ index 58014c5..62be623 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/HeadUpdateQueue.java b/src/main/java/net/techcable/tacospigot/HeadUpdateQueue.java
 new file mode 100644
-index 0000000..e4d1b07
+index 0000000..009e38c
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HeadUpdateQueue.java
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,98 @@
 +package net.techcable.tacospigot;
 +
 +import java.lang.ref.WeakReference;
@@ -108,9 +108,8 @@ index 0000000..e4d1b07
 +
 +    @Override
 +    public void run() {
-+        QueuedHead head;
 +        while (true) {
-+            head = headQueue.poll();
++            QueuedHead head = headQueue.poll();
 +            if (!head.canUpdate()) {
 +                if (!hasValidHeads()) { // Prevent busy waiting when there aren't valid heads
 +                    try {
@@ -226,5 +225,5 @@ index 44ea98d..31cdb10 100644
 +    }
  }
 -- 
-2.5.2.windows.2
+2.6.1.windows.1
 
