@@ -1,26 +1,35 @@
-From b87d2bd1a777a2fb28f386f706cd2790d6e72e50 Mon Sep 17 00:00:00 2001
+From 0608a7116bf84faea636bca001b39cf2ba8ad974 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 7 Aug 2015 19:31:31 -0700
 Subject: [PATCH] Fix head display issues
 
+Update head skins (disabled by default)
+Send a packet to the client when the head type changes
 Log issues with head lookups.
 
 diff --git a/src/main/java/net/minecraft/server/TileEntitySkull.java b/src/main/java/net/minecraft/server/TileEntitySkull.java
-index 58014c5..7f53889 100644
+index 58014c5..62be623 100644
 --- a/src/main/java/net/minecraft/server/TileEntitySkull.java
 +++ b/src/main/java/net/minecraft/server/TileEntitySkull.java
-@@ -18,6 +18,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
+@@ -18,18 +18,24 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
  import com.mojang.authlib.Agent;
  import com.mojang.authlib.ProfileLookupCallback;
  // Spigot end
-+// TacSpigot start
++// TacoSpigot start
 +import java.util.logging.Level;
 +import java.util.logging.Logger;
++import net.techcable.tacospigot.TacoSpigotConfig;
 +// TacoSpigot end
  
  public class TileEntitySkull extends TileEntity {
  
-@@ -30,6 +34,7 @@ public class TileEntitySkull extends TileEntity {
+     private int a;
+     private int rotation;
+-    private GameProfile g = null;
++    public GameProfile g = null; // TacoSpigot - make public
+     // Spigot start
+     public static final Executor executor = Executors.newFixedThreadPool(3,
+             new ThreadFactoryBuilder()
                      .setNameFormat("Head Conversion Thread - %1$d")
                      .build()
      );
@@ -28,7 +37,7 @@ index 58014c5..7f53889 100644
      public static final LoadingCache<String, GameProfile> skinCache = CacheBuilder.newBuilder()
              .maximumSize( 5000 )
              .expireAfterAccess( 60, TimeUnit.MINUTES )
-@@ -48,12 +53,18 @@ public class TileEntitySkull extends TileEntity {
+@@ -48,12 +54,18 @@ public class TileEntitySkull extends TileEntity {
  
                          @Override
                          public void onProfileLookupFailed(GameProfile gp, Exception excptn) {
@@ -48,6 +57,174 @@ index 58014c5..7f53889 100644
                      GameProfile profile = profiles[ 0 ];
                      if (profile == null) {
                          UUID uuid = EntityHuman.a(new GameProfile(null, key));
+@@ -100,6 +112,7 @@ public class TileEntitySkull extends TileEntity {
+         if (this.a == 3) {
+             if (nbttagcompound.hasKeyOfType("Owner", 10)) {
+                 this.g = GameProfileSerializer.deserialize(nbttagcompound.getCompound("Owner"));
++
+             } else if (nbttagcompound.hasKeyOfType("ExtraType", 8)) {
+                 String s = nbttagcompound.getString("ExtraType");
+ 
+@@ -138,6 +151,7 @@ public class TileEntitySkull extends TileEntity {
+         // Spigot start
+         GameProfile profile = this.g;
+         setSkullType( 0 ); // Work around client bug
++        update(); // TacoSpigot - update so that clients see the new skull type
+         b(profile, new Predicate<GameProfile>() {
+ 
+             @Override
+@@ -203,4 +217,11 @@ public class TileEntitySkull extends TileEntity {
+         return this.rotation;
+     }
+     // CraftBukkit end
++    // TacoSpigot start
++    @Override
++    public void D() { // setValid()
++        super.D();
++        if (TacoSpigotConfig.headUpdateQueue != null) TacoSpigotConfig.headUpdateQueue.queueUpdate(this);
++    }
++    // TacoSpigot
+ }
+diff --git a/src/main/java/net/techcable/tacospigot/HeadUpdateQueue.java b/src/main/java/net/techcable/tacospigot/HeadUpdateQueue.java
+new file mode 100644
+index 0000000..e4d1b07
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/HeadUpdateQueue.java
+@@ -0,0 +1,99 @@
++package net.techcable.tacospigot;
++
++import java.lang.ref.WeakReference;
++import java.util.concurrent.BlockingQueue;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.TimeUnit;
++
++import com.mojang.authlib.GameProfile;
++
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.TileEntitySkull;
++import net.minecraft.server.World;
++
++public class HeadUpdateQueue implements Runnable {
++
++    @Override
++    public void run() {
++        QueuedHead head;
++        while (true) {
++            head = headQueue.poll();
++            if (!head.canUpdate()) {
++                if (!hasValidHeads()) { // Prevent busy waiting when there aren't valid heads
++                    try {
++                        Thread.sleep(100);
++                    } catch (InterruptedException e) {}
++                }
++                queueLater(head);
++                continue;
++            }
++            GameProfile profile = MinecraftServer.getServer().aD().fillProfileProperties(head.getProfile(), true);
++            if (profile == null) {
++                queueLater(head);
++                continue;
++            }
++            MinecraftServer.getServer().processQueue.add(() -> {
++                TileEntitySkull tile = head.getTile();
++                if (tile == null) return; // Meh
++                World world = tile.getWorld();
++                tile.setSkullType(0);
++                tile.update(); // Update with skull type 0
++                tile.setSkullType(3);
++                tile.g = profile;
++                tile.update();
++                if (world != null) {
++                    world.notify(tile.getPosition());
++                }
++            });
++        }
++    }
++
++    private boolean hasValidHeads() {
++        if (headQueue.isEmpty()) return false;
++        for (QueuedHead head : headQueue) {
++            if (head.isValid()) return true;
++        }
++        return false;
++    }
++
++    private final BlockingQueue<QueuedHead> headQueue = new LinkedBlockingQueue<>();
++
++    public void queueUpdate(TileEntitySkull skull) {
++        queueUpdate(new QueuedHead(skull));
++    }
++
++    public void queueUpdate(QueuedHead head) {
++        if (!head.isValid()) return;
++        headQueue.add(head);
++    }
++
++    public void queueLater(QueuedHead head) {
++        head.updateTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(70); // Try again in just over a minute
++        queueUpdate(head);
++    }
++
++    private class QueuedHead {
++        private final WeakReference<TileEntitySkull> skullRef;
++        private long updateTime = -1;
++
++        public QueuedHead(TileEntitySkull skull) {
++            this.skullRef = new WeakReference<TileEntitySkull>(skull);
++        }
++
++        public TileEntitySkull getTile() {
++            return skullRef.get();
++        }
++
++        public GameProfile getProfile() {
++            return getTile() == null ? null : new GameProfile(getTile().getGameProfile().getId(), getTile().getGameProfile().getName());
++        }
++
++        public boolean isValid() {
++            return getTile() != null && getProfile() != null && getProfile().getId() != null;
++        }
++
++        public boolean canUpdate() {
++            return isValid() && updateTime <= System.currentTimeMillis();
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
+index 44ea98d..31cdb10 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
+@@ -5,15 +5,10 @@ import java.io.IOException;
+ import java.lang.reflect.InvocationTargetException;
+ import java.lang.reflect.Method;
+ import java.lang.reflect.Modifier;
+-import java.util.HashMap;
+ import java.util.List;
+-import java.util.Map;
+ import java.util.logging.Level;
+ 
+-import net.minecraft.server.MinecraftServer;
+-
+ import org.bukkit.Bukkit;
+-import org.bukkit.command.Command;
+ import org.bukkit.configuration.InvalidConfigurationException;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ 
+@@ -107,4 +102,14 @@ public class TacoSpigotConfig {
+     private static void dataWatcherWeaklyConsistent() {
+         dataWatcherWeaklyConsistent = getBoolean("data-watcher.weakly-consistent", true);
+     }
++
++    public static HeadUpdateQueue headUpdateQueue;
++    private static void headUpdateQueue() {
++        if (getBoolean("heads.update-heads", false)) {
++            headUpdateQueue = new HeadUpdateQueue();
++            Thread thread = new Thread(headUpdateQueue, "TacoSpigot Head Update Thread");
++            thread.setDaemon(true);
++            thread.start();
++        }
++    }
+ }
 -- 
-2.4.6.windows.1.812.gd1b00d3
+2.5.2.windows.2
 
