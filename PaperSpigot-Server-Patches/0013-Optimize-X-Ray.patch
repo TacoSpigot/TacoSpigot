@@ -1,63 +1,10 @@
-From 686d6dd2835783d2a03b10bbcf20d08e38d8e3a1 Mon Sep 17 00:00:00 2001
+From 8548e90ef1822e13344ea24cc682b2bef74b1b60 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 5 Oct 2015 22:43:57 -0700
 Subject: [PATCH] Optimize X-Ray
 
 Checks for adjacent blocks should be way faster
 
-diff --git a/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
-new file mode 100644
-index 0000000..290cc12
---- /dev/null
-+++ b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
-@@ -0,0 +1,47 @@
-+package net.techcable.tacospigot.utils;
-+
-+import java.util.function.Consumer;
-+import java.util.function.Predicate;
-+
-+import net.minecraft.server.Block;
-+import net.minecraft.server.BlockPosition;
-+
-+public class BlockHelper {
-+    private BlockHelper() {}
-+
-+    public static void forEachAdjacentBlock(BlockPosition position, int radius, Consumer<BlockPosition> action) {
-+        // Hax
-+        isAllAdjacentBlocksFillPredicate(position, radius, (pos) -> {
-+            action.accept(pos);
-+            return true;
-+        });
-+    }
-+
-+    public static boolean isAllAdjacentBlocksFillPredicate(BlockPosition position, int radius, Predicate<BlockPosition> predicate) {
-+        int startX = position.getX() - radius;
-+        int endX = position.getX() + radius;
-+        int startY = Math.max(0, position.getY() - radius);
-+        int endY = Math.min(255, position.getY() + radius);
-+        int startZ = position.getZ() - radius;
-+        int endZ = position.getZ() + radius;
-+        for (int x = startX; x <= endX; x++) {
-+            for (int y = startY; y <= endY; y++) {
-+                for (int z = startZ; z <= endZ; z++) {
-+                    BlockPosition adjacent = new BlockPosition(x, y, z);
-+                    if (!predicate.test(adjacent)) return false;
-+                }
-+            }
-+        }
-+        return true;
-+    }
-+
-+    private static Block[] blockById = new Block[256];
-+    static {
-+        for (int i = 0; i < blockById.length; i++) {
-+            blockById[i] = Block.getById(i);
-+        }
-+    }
-+    public static Block getBlock(int id) {
-+        return id < 256 ? blockById[id] : Block.getById(id);
-+    }
-+}
 diff --git a/src/main/java/org/spigotmc/AntiXray.java b/src/main/java/org/spigotmc/AntiXray.java
 index 5466a61..826c64b 100644
 --- a/src/main/java/org/spigotmc/AntiXray.java

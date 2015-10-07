@@ -1,4 +1,4 @@
-From 31e9e08ed4097573648ca45b28553620cc999899 Mon Sep 17 00:00:00 2001
+From 98866ed3a2a837156ce67743c0bb284b36ba27c5 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -73,7 +73,7 @@ index c6487f2..8ca2d29 100644
          return this.items[i];
      }
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index 760a076..05abdaf 100644
+index 760a076..25410f8 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -11,6 +11,7 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
@@ -84,15 +84,20 @@ index 760a076..05abdaf 100644
  
  public class TileEntityHopper extends TileEntityContainer implements IHopper, IUpdatePlayerListBox {
  
-@@ -90,6 +91,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -89,9 +90,11 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+ 
      }
  
++    // TacoSpigot start
      public void update() {
-+        needsUpdate = false; // TacoSpigot
-         super.update();
+-        super.update();
++        needsUpdate = true;
      }
++    // TacoSpigot end
  
-@@ -169,6 +171,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+     public int getSize() {
+         return this.items.length;
+@@ -169,6 +172,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
@@ -100,15 +105,20 @@ index 760a076..05abdaf 100644
      public void c() {
          if (this.world != null && !this.world.isClientSide) {
              --this.g;
-@@ -178,6 +181,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -178,6 +182,12 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
              }
  
          }
-+        if (needsUpdate) update(); // TacoSpigot - update comparators at the end of the tick if needed
++        // TacoSpigot start - delay updates till the end of the tick
++        if (needsUpdate) {
++            super.update();
++            needsUpdate = false;
++        }
++        // TacoSpigot end
      }
  
      public boolean m() {
-@@ -200,7 +204,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -200,7 +210,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                  }
              }
              // PaperSpigot start
@@ -117,7 +127,7 @@ index 760a076..05abdaf 100644
                  this.d(world.spigotConfig.hopperCheck);
              }
              // PaperSpigot end
-@@ -225,7 +229,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -225,7 +235,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
@@ -126,7 +136,7 @@ index 760a076..05abdaf 100644
          ItemStack[] aitemstack = this.items;
          int i = aitemstack.length;
  
-@@ -241,7 +245,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -241,7 +251,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
      }
  
      private boolean r() {
@@ -141,7 +151,7 @@ index 760a076..05abdaf 100644
  
          if (iinventory == null) {
              return false;
-@@ -346,9 +356,24 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -346,9 +362,24 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
@@ -167,7 +177,7 @@ index 760a076..05abdaf 100644
          if (iinventory != null) {
              EnumDirection enumdirection = EnumDirection.DOWN;
  
-@@ -374,7 +399,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -374,7 +405,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                      }
                  }
              }
@@ -176,20 +186,12 @@ index 760a076..05abdaf 100644
              Iterator iterator = a(ihopper.getWorld(), ihopper.A(), ihopper.B() + 1.0D, ihopper.C()).iterator();
  
              while (iterator.hasNext()) {
-@@ -421,6 +446,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
-             }
-             int origCount = event.getItem().getAmount(); // Spigot
-             ItemStack itemstack2 = addItem(ihopper, CraftItemStack.asNMSCopy(event.getItem()), null);
-+            if (ihopper instanceof TileEntityHopper) ((TileEntityHopper) ihopper).needsUpdate = true; // TacoSpigot - update the hopper needed
- 
-             if (itemstack2 == null || itemstack2.count == 0) {
-                 if (event.getItem().equals(oitemstack)) {
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..4b5e956
+index 0000000..43e8953
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,133 @@
 +package net.techcable.tacospigot;
 +
 +import net.minecraft.server.AxisAlignedBB;
@@ -208,21 +210,21 @@ index 0000000..4b5e956
 +import net.minecraft.server.TileEntityChest;
 +import net.minecraft.server.TileEntityHopper;
 +import net.minecraft.server.World;
++import net.techcable.tacospigot.utils.BlockHelper;
++
 +import org.bukkit.Material;
 +
 +import java.util.ArrayList;
 +import java.util.List;
++import java.util.concurrent.atomic.AtomicReference;
++import java.util.function.Consumer;
 +import java.util.function.Predicate;
 +
 +public class HopperHelper {
 +    public static boolean acceptItem(Entity entity, IInventory inventory) {
 +        if (!entity.getWorld().tacoSpigotConfig.isHopperPushBased) return false;
 +        TileEntityHopper hopper;
-+        if (entity.getWorld().tacoSpigotConfig.isEntityDoSlowHopperLookup) {
-+            hopper = doSlowHopperLookup(entity);
-+        } else {
-+            hopper = getHopper(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
-+        }
++        hopper = getHopper(entity.getWorld(), entity.locX, entity.locY, entity.locZ);
 +        if (hopper == null) return false;
 +        if (!hopper.n() && !hopper.q() && BlockHopper.f(hopper.u())) return false;
 +        return TileEntityHopper.acceptItem(hopper, inventory);
@@ -239,35 +241,12 @@ index 0000000..4b5e956
 +    // Finding the acceptors
 +
 +    private static TileEntityHopper getHopper(World world, double rawX, double rawY, double rawZ) {
-+        int startX = MathHelper.floor(rawX);
-+        int startY = MathHelper.floor(rawY);
-+        int startZ = MathHelper.floor(rawZ);
-+        for (int y = startY - 1; y <= startY; y++) { // Check below and inside
-+            for (int x = startX - 1; x <= startX + 1; x++) {
-+                for (int z = startZ - 1; z < startZ + 1; z++) {
-+                    if (!hasHopper(world, x, y, z)) continue;
-+                    BlockPosition position = new BlockPosition(x, y, z);
-+                    TileEntity tile = world.getTileEntity(position);
-+                    if (tile == null || !(tile instanceof TileEntityHopper)) continue;
-+                    return (TileEntityHopper) tile;
-+                }
-+            }
-+        }
-+        return null;
-+    }
-+
-+    private static boolean hasHopper(World world, int x, int y, int z) {
-+        Chunk chunk = world.getChunkIfLoaded(x >> 4, z >> 4);
-+        if (chunk == null) return false; // Not loaded
-+        int sectionId = y >> 4;
-+        if (sectionId < 0 || sectionId > 15) return false; // Not near blocks
-+        ChunkSection section = chunk.getSections()[sectionId];
-+        if (section == null) return false;
-+        // Yup, block lookup is cheaper than tile entity lookup :D
-+        int combinedId = section.getIdArray()[(y & 0xF) << 8 | (z & 0xF) << 4 | (x & 0xF)];
-+        int blockId = combinedId & 0xFFF;
-+        Material block = Material.getMaterial(blockId);
-+        return block == Material.HOPPER;
++        AtomicReference<TileEntityHopper> hopper = new AtomicReference<>();
++        BlockHelper.forEachAdjacentBlock(new BlockPosition(rawX, rawY, rawZ), 1, pos -> {
++            TileEntity tile = world.getTileEntity(pos);
++            if (tile != null && tile instanceof TileEntityHopper) hopper.set((TileEntityHopper) tile);
++        });
++        return hopper.get();
 +    }
 +
 +    // Performance Boost for chest lookup
@@ -293,6 +272,7 @@ index 0000000..4b5e956
 +        return original;
 +    }
 +
++<<<<<<< Updated upstream
 +    // Add vanilla behavior for hoppers
 +    private static TileEntityHopper doSlowHopperLookup(Entity e) {
 +        AxisAlignedBB lookupBox = e.getBoundingBox().grow(0.5, 1.5, 0.5); // I grow the y value a block and a half because the hopper looks for entities within a 0.5 block radius under it
@@ -346,10 +326,10 @@ index 0000000..4b5e956
 +
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index 456aee9..44aaabf 100644
+index 456aee9..4319a61 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-@@ -63,4 +63,14 @@ public class TacoSpigotWorldConfig {
+@@ -63,4 +63,10 @@ public class TacoSpigotWorldConfig {
          config.addDefault("world-settings.default." + path, def);
          return config.getString("world-settings." + worldName + "." + path, config.getString("world-settings.default." + path));
      }
@@ -359,11 +339,60 @@ index 456aee9..44aaabf 100644
 +        isHopperPushBased = getBoolean("hopper.push-based", true);
 +    }
 +
-+    public boolean isEntityDoSlowHopperLookup;
-+    private void isHopperDoSlowMinecartLookup() {
-+        isEntityDoSlowHopperLookup = getBoolean("hopper.entities-do-slow-lookup", false);
-+    }
  }
+diff --git a/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
+new file mode 100644
+index 0000000..290cc12
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
+@@ -0,0 +1,47 @@
++package net.techcable.tacospigot.utils;
++
++import java.util.function.Consumer;
++import java.util.function.Predicate;
++
++import net.minecraft.server.Block;
++import net.minecraft.server.BlockPosition;
++
++public class BlockHelper {
++    private BlockHelper() {}
++
++    public static void forEachAdjacentBlock(BlockPosition position, int radius, Consumer<BlockPosition> action) {
++        // Hax
++        isAllAdjacentBlocksFillPredicate(position, radius, (pos) -> {
++            action.accept(pos);
++            return true;
++        });
++    }
++
++    public static boolean isAllAdjacentBlocksFillPredicate(BlockPosition position, int radius, Predicate<BlockPosition> predicate) {
++        int startX = position.getX() - radius;
++        int endX = position.getX() + radius;
++        int startY = Math.max(0, position.getY() - radius);
++        int endY = Math.min(255, position.getY() + radius);
++        int startZ = position.getZ() - radius;
++        int endZ = position.getZ() + radius;
++        for (int x = startX; x <= endX; x++) {
++            for (int y = startY; y <= endY; y++) {
++                for (int z = startZ; z <= endZ; z++) {
++                    BlockPosition adjacent = new BlockPosition(x, y, z);
++                    if (!predicate.test(adjacent)) return false;
++                }
++            }
++        }
++        return true;
++    }
++
++    private static Block[] blockById = new Block[256];
++    static {
++        for (int i = 0; i < blockById.length; i++) {
++            blockById[i] = Block.getById(i);
++        }
++    }
++    public static Block getBlock(int id) {
++        return id < 256 ? blockById[id] : Block.getById(id);
++    }
++}
 -- 
-2.4.6.windows.1.812.gd1b00d3
+2.6.1.windows.1
 
