@@ -1,4 +1,4 @@
-From 2266b8170a75be5dc87a36ed68abe4119b87d3bd Mon Sep 17 00:00:00 2001
+From 0b3927416220680c9c19b393a4c8cf5c481dfb6e Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 16:42:02 -0700
 Subject: [PATCH] Infinite map ids
@@ -220,10 +220,10 @@ index 0000000..ee80972
 +    }
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index 31cdb10..19b10f4 100644
+index a72e890..fcb3a21 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-@@ -112,4 +112,9 @@ public class TacoSpigotConfig {
+@@ -107,4 +107,9 @@ public class TacoSpigotConfig {
              thread.start();
          }
      }

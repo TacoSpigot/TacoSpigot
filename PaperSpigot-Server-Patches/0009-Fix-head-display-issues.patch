@@ -1,4 +1,4 @@
-From 6d54d0be88218f1c4cc21309826f36ce46bd0abe Mon Sep 17 00:00:00 2001
+From 04d2f4ac4e59379c1aa25a5c908602ecb73a9c08 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 7 Aug 2015 19:31:31 -0700
 Subject: [PATCH] Fix head display issues
@@ -306,7 +306,7 @@ index 43e8953..4f42177 100644
 +    }
  }
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index 44ea98d..31cdb10 100644
+index 84ed7d2..a72e890 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -5,15 +5,10 @@ import java.io.IOException;
@@ -325,9 +325,9 @@ index 44ea98d..31cdb10 100644
  import org.bukkit.configuration.InvalidConfigurationException;
  import org.bukkit.configuration.file.YamlConfiguration;
  
-@@ -107,4 +102,14 @@ public class TacoSpigotConfig {
-     private static void dataWatcherWeaklyConsistent() {
-         dataWatcherWeaklyConsistent = getBoolean("data-watcher.weakly-consistent", true);
+@@ -102,4 +97,14 @@ public class TacoSpigotConfig {
+         config.addDefault(path, def);
+         return config.getString(path, config.getString(path));
      }
 +
 +    public static HeadUpdateQueue headUpdateQueue;
@@ -341,10 +341,10 @@ index 44ea98d..31cdb10 100644
 +    }
  }
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index 469779f..58f335d 100644
+index 4319a61..a79eec6 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-@@ -69,6 +69,11 @@ public class TacoSpigotWorldConfig {
+@@ -69,4 +69,8 @@ public class TacoSpigotWorldConfig {
          isHopperPushBased = getBoolean("hopper.push-based", true);
      }
  
@@ -352,10 +352,7 @@ index 469779f..58f335d 100644
 +    private void isHopperFireIMIE() {
 +        isHopperFireIMIE = getBoolean("hopper.fire-InventoryMoveItemEvent", true);
 +    }
-+
-     public boolean optimizeArmorStandMovement;
-     private void isArmorStandMoveWithoutGravity() {
-         optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
+ }
 -- 
 2.6.1.windows.1
 
