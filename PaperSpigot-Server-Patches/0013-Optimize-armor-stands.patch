@@ -1,0 +1,42 @@
+From 7eced7d6fcbdc682b2488fb0ae927cf225adf78b Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Tue, 6 Oct 2015 19:10:21 -0700
+Subject: [PATCH] Optimize armor stands
+
+Armor stands try and move() every tick, which can add up fast on creative servers with a lot of armor stands.
+This patch adds an option to prevent armor stands from moving.
+
+diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
+index cd57d69..f6ab196 100644
+--- a/src/main/java/net/minecraft/server/EntityArmorStand.java
++++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
+@@ -705,4 +705,12 @@ public class EntityArmorStand extends EntityLiving {
+     public boolean ad() {
+         return super.ad() && !this.s();
+     }
++
++    // TacoSpigot start - add an option to make armor stands not move
++    @Override
++    public void move(double motX, double motY, double motZ) {
++        if (getWorld().tacoSpigotConfig.optimizeArmorStandMovement) return;
++        super.move(motX, motY, motZ);
++    }
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+index a79eec6..c1f297c 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+@@ -73,4 +73,9 @@ public class TacoSpigotWorldConfig {
+     private void isHopperFireIMIE() {
+         isHopperFireIMIE = getBoolean("hopper.fire-InventoryMoveItemEvent", true);
+     }
++
++    public boolean optimizeArmorStandMovement;
++    private void isArmorStandMoveWithoutGravity() {
++        optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
++    }
+ }
+-- 
+2.6.1.windows.1
+
