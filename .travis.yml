@@ -1,0 +1,9 @@
+language: java
+jdk:
+  - openjdk8
+notifications:
+  email: false
+before_install:
+  - git config --global user.email "Techcable@outlook.com"
+  - git config --global user.name "Travis CI"
+  - ./applyPatches.sh
