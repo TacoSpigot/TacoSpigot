@@ -1,4 +1,4 @@
-From 462668380159a33ce4ad787d49d3c4c6a8b3b9c0 Mon Sep 17 00:00:00 2001
+From c35c66d74ad01adc5f50d5826643c167fe306458 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -73,7 +73,7 @@ index c6487f2..8ca2d29 100644
          return this.items[i];
      }
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index 760a076..25410f8 100644
+index 760a076..f423dfe 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -11,6 +11,7 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
@@ -136,22 +136,18 @@ index 760a076..25410f8 100644
          ItemStack[] aitemstack = this.items;
          int i = aitemstack.length;
  
-@@ -241,7 +251,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -241,7 +251,9 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
      }
  
      private boolean r() {
 -        IInventory iinventory = this.H();
 +        // TacoSpigot start - Don't use inefficient H() which does another bounding box search
-+        TileEntity tile = getWorld().getTileEntity(getPosition().shift(BlockHopper.b(this.u())));
-+        IInventory iinventory;
-+        if (tile instanceof TileEntityChest) iinventory = HopperHelper.fastDoubleChestFind((TileEntityChest)tile);
-+        else if (tile instanceof IInventory) iinventory = (IInventory) tile;
-+        else iinventory = null;
++        IInventory iinventory = HopperHelper.getInventory(getWorld(), getPosition().shift(BlockHopper.b(this.u())));
 +        // TacoSpigot end
  
          if (iinventory == null) {
              return false;
-@@ -346,9 +362,24 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -346,9 +358,21 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
          return true;
      }
  
@@ -161,11 +157,8 @@ index 760a076..25410f8 100644
 -        IInventory iinventory = b(ihopper);
 +        IInventory iinventory;
 +        if (ihopper.getWorld().tacoSpigotConfig.isHopperPushBased && ihopper instanceof TileEntityHopper) {
-+            TileEntityHopper tileHopper = (TileEntityHopper) ihopper;
-+            TileEntity above = ihopper.getWorld().getTileEntity(tileHopper.getPosition().up()); // Only pull from a above, because everything else comes to us
-+            if (above instanceof TileEntityChest) iinventory = HopperHelper.fastDoubleChestFind((TileEntityChest)above);
-+            else if (above instanceof IInventory) iinventory = (IInventory) above;
-+            else iinventory = null;
++            BlockPosition pos = ((TileEntityHopper) ihopper).getPosition().up(); // Only pull from a above, because everything else comes to us
++            iinventory = HopperHelper.getInventory(ihopper.getWorld(), pos);
 +        } else {
 +            iinventory = b(ihopper); // Use old behavior for BB entity searching
 +        }
@@ -177,7 +170,7 @@ index 760a076..25410f8 100644
          if (iinventory != null) {
              EnumDirection enumdirection = EnumDirection.DOWN;
  
-@@ -374,7 +405,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -374,7 +398,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                      }
                  }
              }
@@ -188,13 +181,15 @@ index 760a076..25410f8 100644
              while (iterator.hasNext()) {
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..fc84b5b
+index 0000000..6b39bb7
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,71 @@
 +package net.techcable.tacospigot;
 +
 +import net.minecraft.server.AxisAlignedBB;
++import net.minecraft.server.Block;
++import net.minecraft.server.BlockChest;
 +import net.minecraft.server.BlockHopper;
 +import net.minecraft.server.BlockPosition;
 +import net.minecraft.server.Blocks;
@@ -249,27 +244,16 @@ index 0000000..fc84b5b
 +        return hopper.get();
 +    }
 +
-+    // Performance Boost for chest lookup
-+    public static final String DOUBLE_CHEST_ID = "container.chestDouble";
-+
-+    public static IInventory fastDoubleChestFind(TileEntityChest original) {
-+        BlockPosition pos = original.getPosition();
-+        World world = original.getWorld();
-+        // West and North have original on the right
-+        // East and South have original on the left
-+        TileEntity west = world.getTileEntity(new BlockPosition(pos.getX() - 1, pos.getY(), pos.getZ()));
-+        if (west != null && west instanceof TileEntityChest)
-+            return new InventoryLargeChest(DOUBLE_CHEST_ID, (TileEntityChest) west, original);
-+        TileEntity east = world.getTileEntity(new BlockPosition(pos.getX() + 1, pos.getY(), pos.getZ()));
-+        if (east != null && east instanceof TileEntityChest)
-+            return new InventoryLargeChest(DOUBLE_CHEST_ID, original, (TileEntityChest) east);
-+        TileEntity north = world.getTileEntity(new BlockPosition(pos.getX(), pos.getY(), pos.getZ() - 1));
-+        if (north != null && north instanceof TileEntityChest)
-+            return new InventoryLargeChest(DOUBLE_CHEST_ID, (TileEntityChest) north, original);
-+        TileEntity south = world.getTileEntity(new BlockPosition(pos.getX(), pos.getY(), pos.getZ() + 1));
-+        if (south != null && south instanceof TileEntityChest)
-+            return new InventoryLargeChest(DOUBLE_CHEST_ID, original, (TileEntityChest) south);
-+        return original;
++    public static IInventory getInventory(World world, BlockPosition position) {
++        Block block = world.getType(position).getBlock();
++        if (block instanceof BlockChest) {
++            return ((BlockChest) block).f(world, position);
++        }
++        if (block.isTileEntity()) {
++            TileEntity tile = world.getTileEntity(position);
++            if (tile instanceof IInventory) return (IInventory) tile;
++        }
++        return null;
 +    }
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
