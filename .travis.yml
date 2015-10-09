@@ -8,8 +8,9 @@ notifications:
 before_install:
   - git config --global user.email "Techcable@outlook.com"
   - git config --global user.name "Travis CI"
-  - ./init.sh
-  - ./remap-nms.sh
-  - ./decompile-nms.sh
-  - ./apply-bukkit.sh
-  - ./applyPatches.sh
+  - ./prepare-build.sh
+sudo: false
+cache:
+  directories:
+    - '$HOME/.m2/repository'
+    - 'work/nms-src'
