@@ -1,9 +1,32 @@
-From 41a6870e7dabef51fa0a98ab970885489af3f509 Mon Sep 17 00:00:00 2001
+From aee1b7b048c6d90fb77f7a170764f39e38aea037 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 16:42:52 -0700
 Subject: [PATCH] Infinite map ids
 
 
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 584fe11..826d660 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -518,6 +518,18 @@ public final class Bukkit {
+         return server.getMap(id);
+     }
+ 
++    // TacoSpigot start
++    /**
++     * Gets the map from the given map id
++     *
++     * @param id the id of the map to get
++     * @return a map view with the given id if it exists, or null if it doesn't
++     */
++    public static MapView getMap(UUID id) {
++        return server.getMap(id);
++    }
++    // TacoSpigot end
++
+     /**
+      * Create a new map with an automatically assigned ID.
+      *
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
 index 26acdda..d03b28c 100644
 --- a/src/main/java/org/bukkit/Server.java

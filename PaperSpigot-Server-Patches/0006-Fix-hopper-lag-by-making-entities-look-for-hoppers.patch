@@ -1,4 +1,4 @@
-From 98866ed3a2a837156ce67743c0bb284b36ba27c5 Mon Sep 17 00:00:00 2001
+From 462668380159a33ce4ad787d49d3c4c6a8b3b9c0 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -188,10 +188,10 @@ index 760a076..25410f8 100644
              while (iterator.hasNext()) {
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..43e8953
+index 0000000..fc84b5b
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,80 @@
 +package net.techcable.tacospigot;
 +
 +import net.minecraft.server.AxisAlignedBB;
@@ -271,59 +271,6 @@ index 0000000..43e8953
 +            return new InventoryLargeChest(DOUBLE_CHEST_ID, original, (TileEntityChest) south);
 +        return original;
 +    }
-+
-+<<<<<<< Updated upstream
-+    // Add vanilla behavior for hoppers
-+    private static TileEntityHopper doSlowHopperLookup(Entity e) {
-+        AxisAlignedBB lookupBox = e.getBoundingBox().grow(0.5, 1.5, 0.5); // I grow the y value a block and a half because the hopper looks for entities within a 0.5 block radius under it
-+        List<BlockPosition> hopperPositions = getBlocks(e.world, lookupBox, (d) -> d.getBlock() == Blocks.HOPPER);
-+        for (BlockPosition hopperPosition : hopperPositions) {
-+            TileEntity tile = e.world.getTileEntity(hopperPosition);
-+            if (tile instanceof TileEntityHopper) return (TileEntityHopper) tile;
-+        }
-+        return null;
-+    }
-+
-+    private static List<BlockPosition> getBlocks(World world, AxisAlignedBB box, Predicate<IBlockData> filter) {
-+        List<BlockPosition> positions = new ArrayList<>(4);
-+        int i = MathHelper.floor(box.a);
-+        int j = MathHelper.floor(box.d + 1.0D);
-+        int k = MathHelper.floor(box.b);
-+        int l = MathHelper.floor(box.e + 1.0D);
-+        int i1 = MathHelper.floor(box.c);
-+        int j1 = MathHelper.floor(box.f + 1.0D);
-+
-+        int ystart = ((k - 1) < 0) ? 0 : (k - 1);
-+        for (int chunkx = (i >> 4); chunkx <= ((j - 1) >> 4); chunkx++) {
-+            int cx = chunkx << 4;
-+            for (int chunkz = (i1 >> 4); chunkz <= ((j1 - 1) >> 4); chunkz++) {
-+                Chunk chunk = world.getChunkIfLoaded(chunkx, chunkz);
-+                if (chunk == null) continue;
-+                int cz = chunkz << 4;
-+                int xstart = (i < cx) ? cx : i;
-+                int xend = (j < (cx + 16)) ? j : (cx + 16);
-+                int zstart = (i1 < cz) ? cz : i1;
-+                int zend = (j1 < (cz + 16)) ? j1 : (cz + 16);
-+                for (int x = xstart; x < xend; x++) {
-+                    for (int z = zstart; z < zend; z++) {
-+                        for (int y = ystart; y < l; y++) {
-+                            BlockPosition pos = new BlockPosition(x, y, z);
-+
-+                            IBlockData block = chunk.getBlockData(pos);
-+                            if (block == null) continue;
-+
-+                            if (filter.test(block)) {
-+                                positions.add(pos);
-+                            }
-+                        }
-+                    }
-+                }
-+            }
-+        }
-+
-+        return positions;
-+    }
-+
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 index 456aee9..4319a61 100644

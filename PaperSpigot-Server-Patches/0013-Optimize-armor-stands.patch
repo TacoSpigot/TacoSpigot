@@ -1,4 +1,4 @@
-From 7eced7d6fcbdc682b2488fb0ae927cf225adf78b Mon Sep 17 00:00:00 2001
+From b160d09c61da425f9badf70c60e69cf95b07a1e1 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 19:10:21 -0700
 Subject: [PATCH] Optimize armor stands
@@ -24,14 +24,13 @@ index cd57d69..f6ab196 100644
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index a79eec6..c1f297c 100644
+index 4319a61..c012c8d 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-@@ -73,4 +73,9 @@ public class TacoSpigotWorldConfig {
-     private void isHopperFireIMIE() {
-         isHopperFireIMIE = getBoolean("hopper.fire-InventoryMoveItemEvent", true);
+@@ -69,4 +69,8 @@ public class TacoSpigotWorldConfig {
+         isHopperPushBased = getBoolean("hopper.push-based", true);
      }
-+
+ 
 +    public boolean optimizeArmorStandMovement;
 +    private void isArmorStandMoveWithoutGravity() {
 +        optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
