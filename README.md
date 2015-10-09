@@ -1,4 +1,4 @@
-TacoSpigot
+TacoSpigot[![Build Status](https://travis-ci.org/TacoSpigot/TacoSpigot.svg?branch=master)](https://travis-ci.org/TacoSpigot/TacoSpigot)
 ===========
 
 A even-higher high performance Spigot fork that adds new features.
