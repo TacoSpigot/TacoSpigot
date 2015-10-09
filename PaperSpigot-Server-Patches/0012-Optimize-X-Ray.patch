@@ -1,12 +1,14 @@
-From c587187e29d727c36b9b3ff4ce0b6da9fab85e3e Mon Sep 17 00:00:00 2001
+From 66afe7a33d7830fc514b797a98a2804a3fd334e1 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 5 Oct 2015 22:43:57 -0700
 Subject: [PATCH] Optimize X-Ray
 
-Checks for adjacent blocks should be way faster
+Spigot uses a recursive version to check for adjacent blocks that is very
+slow and duplicates many checks.
+This is replaced with an iterative system that never duplicates checks
 
 diff --git a/src/main/java/org/spigotmc/AntiXray.java b/src/main/java/org/spigotmc/AntiXray.java
-index 5466a61..826c64b 100644
+index 5466a61..8571daa 100644
 --- a/src/main/java/org/spigotmc/AntiXray.java
 +++ b/src/main/java/org/spigotmc/AntiXray.java
 @@ -5,6 +5,7 @@ import gnu.trove.set.hash.TByteHashSet;
@@ -117,7 +119,7 @@ index 5466a61..826c64b 100644
      }
  
      private static boolean isSolidBlock(Block block) {
-@@ -266,4 +277,23 @@ public class AntiXray
+@@ -266,4 +277,24 @@ public class AntiXray
          // blocks around them.
          return block.isOccluding() && block != Blocks.MOB_SPAWNER && block != Blocks.BARRIER;
      }
@@ -132,6 +134,7 @@ index 5466a61..826c64b 100644
 +        int sectionId = y >> 4;
 +        if (sectionId < 0 || sectionId > 15) return Blocks.AIR;
 +        ChunkSection section = chunk.getSections()[sectionId];
++        if (section == null) return Blocks.AIR; // Handle empty chunks
 +        x &= 0xF;
 +        y &= 0xF;
 +        z &= 0xF;
