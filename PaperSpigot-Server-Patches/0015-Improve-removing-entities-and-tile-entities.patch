@@ -1,4 +1,4 @@
-From ea304ed79088ba7b44f50c7ae73c23482967244f Mon Sep 17 00:00:00 2001
+From 02b8cecbaf86322cd2a05dafe3cbcec1276ce62b Mon Sep 17 00:00:00 2001
 From: Aikar <aikar@aikar.co>
 Date: Fri, 9 Oct 2015 11:53:49 -0700
 Subject: [PATCH] Improve removing entities and tile entities
@@ -91,7 +91,7 @@ index 3fc6450..f82f0bb 100644
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index a4dbd42..a42c1cf 100644
+index 4db7453..4b00a8b 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -23,6 +23,9 @@ import java.util.concurrent.ExecutorService;
@@ -104,7 +104,7 @@ index a4dbd42..a42c1cf 100644
  
  // CraftBukkit start
  // CraftBukkit end
-@@ -1408,7 +1411,7 @@ public abstract class World implements IBlockAccess {
+@@ -1409,7 +1412,7 @@ public abstract class World implements IBlockAccess {
          }
  
          this.methodProfiler.c("remove");
@@ -113,7 +113,7 @@ index a4dbd42..a42c1cf 100644
  
          int j;
          int k;
-@@ -1504,7 +1507,7 @@ public abstract class World implements IBlockAccess {
+@@ -1505,7 +1508,7 @@ public abstract class World implements IBlockAccess {
          this.M = true;
          // CraftBukkit start - From below, clean up tile entities before ticking them
          if (!this.c.isEmpty()) {
@@ -176,5 +176,5 @@ index 0000000..1ee8656
 +    }
 +}
 -- 
-2.6.1.windows.1
+2.6.0
 

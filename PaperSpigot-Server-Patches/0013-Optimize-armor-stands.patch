@@ -1,10 +1,12 @@
-From b160d09c61da425f9badf70c60e69cf95b07a1e1 Mon Sep 17 00:00:00 2001
+From b85a3412e4e194eee32b527ef0d5789ba55868c0 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 19:10:21 -0700
 Subject: [PATCH] Optimize armor stands
 
 Armor stands try and move() every tick, which can add up fast on creative servers with a lot of armor stands.
 This patch adds an option to prevent armor stands from moving.
+This patch also avoids armor stands looking up entities, which provides
+most of the benefits of avoiding move() while keeping gravity.
 
 diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
 index cd57d69..f6ab196 100644
@@ -23,6 +25,18 @@ index cd57d69..f6ab196 100644
 +    }
 +    // TacoSpigot end
  }
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index a4dbd42..4db7453 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1241,6 +1241,7 @@ public abstract class World implements IBlockAccess {
+         // Spigot end
+ 
+         if (entity instanceof EntityItem) return arraylist; // PaperSpigot - Optimize item movement
++        if (entity instanceof EntityArmorStand) return arraylist; // TacoSpigot - Optimize armor stand movement
+ 
+         double d0 = 0.25D;
+         List list = this.getEntities(entity, axisalignedbb.grow(d0, d0, d0));
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 index 4319a61..c012c8d 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
@@ -37,5 +51,5 @@ index 4319a61..c012c8d 100644
 +    }
  }
 -- 
-2.6.1.windows.1
+2.6.0
 
