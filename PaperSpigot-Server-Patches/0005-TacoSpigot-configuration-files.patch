@@ -1,4 +1,4 @@
-From 8483420e9f4df0e7d2c3677ec84326037daa9204 Mon Sep 17 00:00:00 2001
+From 20c60f6c0150994d10b9b3ebe2c563e79772e244 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -17,10 +17,10 @@ index 45cea14..a94398b 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 816a2f6..7b67e18 100644
+index eb5fe7f..1be1fbc 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -171,6 +171,8 @@ public abstract class World implements IBlockAccess {
+@@ -159,6 +159,8 @@ public abstract class World implements IBlockAccess {
  
      public final org.github.paperspigot.PaperSpigotWorldConfig paperSpigotConfig; // PaperSpigot
  
@@ -29,7 +29,7 @@ index 816a2f6..7b67e18 100644
      public final SpigotTimings.WorldTimingsHandler timings; // Spigot
  
      public CraftWorld getWorld() {
-@@ -188,6 +190,7 @@ public abstract class World implements IBlockAccess {
+@@ -176,6 +178,7 @@ public abstract class World implements IBlockAccess {
      protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
          this.paperSpigotConfig = new org.github.paperspigot.PaperSpigotWorldConfig( worlddata.getName() ); // PaperSpigot
@@ -260,5 +260,5 @@ index c936219..6c123bb 100644
          };
  
 -- 
-2.5.2.windows.2
+2.6.1.windows.1
 

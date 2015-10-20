@@ -63,7 +63,7 @@ newcleandir() {
 	local DIR="$1"
 
 	if [ -d "${DIR}" ]; then
-		log_info "Cleaning up ${DIR}"
+		echo "Cleaning up ${DIR}"
 		rm -Rf "${DIR}"
 	fi
 	mkdir -p "${DIR}"
