@@ -3,8 +3,9 @@ jdk:
   - oraclejdk8
 notifications:
   email: false
-  webhooks:
-    - http://n.tkte.ch/h/4445/Z8BGaPYZ7r4PzYA_FTJ8L-sz
+  irc:
+    channels:
+      - "irc.spi.gt#techcable"
 before_install:
   - git config --global user.email "Techcable@outlook.com"
   - git config --global user.name "Travis CI"
