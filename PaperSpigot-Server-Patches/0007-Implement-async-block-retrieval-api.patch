@@ -1,4 +1,4 @@
-From 7cc8e90ec4823302a63a50763a0160ad89a70f70 Mon Sep 17 00:00:00 2001
+From c9809021ac4df11154d7a6b5382f318beaa78e6c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 30 Jul 2015 23:57:17 -0700
 Subject: [PATCH] Implement async block retrieval api
@@ -63,7 +63,7 @@ index 8a33e28..7e49bcc 100644
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 4402d57..b154707 100644
+index 72c0b17..3a3e579 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -13,6 +13,7 @@ import java.util.Set;
@@ -74,7 +74,7 @@ index 4402d57..b154707 100644
  
  import org.apache.commons.lang.Validate;
  import org.bukkit.BlockChangeDelegate;
-@@ -1500,4 +1501,33 @@ public class CraftWorld implements World {
+@@ -1505,4 +1506,33 @@ public class CraftWorld implements World {
          return spigot;
      }
      // Spigot end
@@ -109,5 +109,5 @@ index 4402d57..b154707 100644
 +    // TacoSpigot end
  }
 -- 
-2.6.1.windows.1
+2.6.2
 
