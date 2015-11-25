@@ -1,4 +1,4 @@
-From dc7e34f02df3a5c894393d7c3562c879eac98da7 Mon Sep 17 00:00:00 2001
+From 64eb031a9b522c31081db8d6cfa247dfbd5f16db Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -7,7 +7,7 @@ Use Java 8
 Use ASM
 
 diff --git a/pom.xml b/pom.xml
-index bc6964d..4ba7658 100644
+index bc6964d..981af2c 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,23 +4,24 @@
@@ -23,9 +23,10 @@ index bc6964d..4ba7658 100644
  
 -    <groupId>org.github.paperspigot</groupId>
 -    <artifactId>paperspigot-api</artifactId>
+-    <version>1.8.8-R0.1-SNAPSHOT</version>
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>api</artifactId>
-     <version>1.8.8-R0.1-SNAPSHOT</version>
++    <version>1.8.8-R0.1</version>
      <packaging>jar</packaging>
  
 -    <name>PaperSpigot-API</name>

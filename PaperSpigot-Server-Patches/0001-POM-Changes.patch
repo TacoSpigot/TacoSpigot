@@ -1,4 +1,4 @@
-From 1ef3e951ecc92ee71e37c43a3eae6e1ecd51f1bf Mon Sep 17 00:00:00 2001
+From 7f34f5a5c591805a956d01c361be2c8e8e835a05 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
@@ -6,7 +6,7 @@ Subject: [PATCH] POM Changes
 Use java 8
 
 diff --git a/pom.xml b/pom.xml
-index 4ec5bf6..3c0cb2d 100644
+index 4ec5bf6..28c4aea 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -18,9 +18,10 @@ index 4ec5bf6..3c0cb2d 100644
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>server</artifactId>
      <packaging>jar</packaging>
-     <version>1.8.8-R0.1-SNAPSHOT</version>
+-    <version>1.8.8-R0.1-SNAPSHOT</version>
 -    <name>PaperSpigot</name>
 -    <url>https://hub.spigotmc.org/stash/projects/PAPER/</url>
++    <version>1.8.8-R0.1</version>
 +    <name>TacoSpigot</name>
 +    <url>https://github.com/TacoSpigot</url>
  
@@ -132,5 +133,5 @@ index 3a4b142..6549e73 100644
  
          if (stream != null) {
 -- 
-2.4.6.windows.1.812.gd1b00d3
+2.6.2
 
