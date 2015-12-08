@@ -1,4 +1,4 @@
-From 7f34f5a5c591805a956d01c361be2c8e8e835a05 Mon Sep 17 00:00:00 2001
+From 8453c13ad27d2fb867d192a56788d077e2245cac Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
@@ -6,7 +6,7 @@ Subject: [PATCH] POM Changes
 Use java 8
 
 diff --git a/pom.xml b/pom.xml
-index 4ec5bf6..28c4aea 100644
+index 4ec5bf6..37b68b5 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -21,7 +21,7 @@ index 4ec5bf6..28c4aea 100644
 -    <version>1.8.8-R0.1-SNAPSHOT</version>
 -    <name>PaperSpigot</name>
 -    <url>https://hub.spigotmc.org/stash/projects/PAPER/</url>
-+    <version>1.8.8-R0.1</version>
++    <version>1.8.8-R0.2-SNAPSHOT</version>
 +    <name>TacoSpigot</name>
 +    <url>https://github.com/TacoSpigot</url>
  
