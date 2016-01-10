@@ -1,4 +1,4 @@
-From c4eeccdc934123d0abdb3e94a4baa0327152b6bb Mon Sep 17 00:00:00 2001
+From ea010c3c1f3de3cf48bfa135a5516fd5b4b26db2 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -7,10 +7,10 @@ Use Java 8
 Use ASM
 
 diff --git a/pom.xml b/pom.xml
-index bc6964d..6da7db9 100644
+index 7dd0adb..8a4f011 100644
 --- a/pom.xml
 +++ b/pom.xml
-@@ -4,23 +4,29 @@
+@@ -4,18 +4,18 @@
      <modelVersion>4.0.0</modelVersion>
  
      <parent>
@@ -36,20 +36,7 @@ index bc6964d..6da7db9 100644
      <description>An enhanced plugin API for Minecraft servers.</description>
  
      <properties>
--        <maven.compiler.source>1.6</maven.compiler.source>
--        <maven.compiler.target>1.6</maven.compiler.target>
-+        <!--
-+         Enable the new features of java 8
-+         We then proceed to use retrolambda to backport the jar to java 8
-+         This isn't for backwards compatiblity though, since we require a java 8 SDK!
-+         We do this to fix weird issues with commandhelper's outdated libraries, while still being java 8-powered! (mostly)
-+         -->
-+        <maven.compiler.source>1.8</maven.compiler.source>
-+        <maven.compiler.target>1.8</maven.compiler.target>
-         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-     </properties>
- 
-@@ -104,6 +110,13 @@
+@@ -112,6 +112,13 @@
              <version>1.3</version>
              <scope>test</scope>
          </dependency>
@@ -63,39 +50,6 @@ index bc6964d..6da7db9 100644
      </dependencies>
  
      <build>
-@@ -128,6 +141,7 @@
-                     </dependency>
-                 </dependencies>
-             </plugin>
-+            <!-- Fix weird issues with stuff
-             <plugin>
-                 <groupId>org.codehaus.mojo</groupId>
-                 <artifactId>animal-sniffer-maven-plugin</artifactId>
-@@ -148,6 +162,24 @@
-                     </signature>
-                 </configuration>
-             </plugin>
-+            -->
-+            <!-- Backport the jar to java 6 (see above note) -->
-+            <plugin>
-+                <groupId>net.orfjackal.retrolambda</groupId>
-+                <artifactId>retrolambda-maven-plugin</artifactId>
-+                <version>2.0.6</version>
-+                <executions>
-+                    <execution>
-+                        <goals>
-+                            <goal>process-main</goal>
-+                            <goal>process-test</goal>
-+                        </goals>
-+                    </execution>
-+                </executions>
-+                <configuration>
-+                    <target>1.6</target>
-+                </configuration>
-+            </plugin>
-             <plugin>
-                 <groupId>org.apache.maven.plugins</groupId>
-                 <artifactId>maven-shade-plugin</artifactId>
 -- 
-2.6.2
+2.7.0
 

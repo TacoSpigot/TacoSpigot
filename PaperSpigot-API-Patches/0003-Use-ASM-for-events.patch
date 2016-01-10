@@ -1,4 +1,4 @@
-From 83f0ab7f6263a88c2d58352e264a5d725e752034 Mon Sep 17 00:00:00 2001
+From 509f64d9c28707eb451b0c2dd5127bd3872cb5dc Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 1 Sep 2015 18:20:18 -0700
 Subject: [PATCH] Use ASM for events
@@ -6,7 +6,7 @@ Subject: [PATCH] Use ASM for events
 
 diff --git a/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java b/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java
 new file mode 100644
-index 0000000..0a09aa2
+index 0000000..f9a169a
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java
 @@ -0,0 +1,176 @@
@@ -256,7 +256,7 @@ index 3b2c99e..0061f17 100644
      public void execute(Listener listener, Event event) throws EventException;
  }
 diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
-index 7bf2fa6..948c365 100644
+index 4983ea8..72444e9 100644
 --- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 +++ b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 @@ -17,6 +17,8 @@ import java.util.jar.JarFile;
@@ -268,37 +268,38 @@ index 7bf2fa6..948c365 100644
  import org.apache.commons.lang.Validate;
  import org.bukkit.Server;
  import org.bukkit.Warning;
-@@ -293,24 +295,29 @@ public final class JavaPluginLoader implements PluginLoader {
+@@ -52,7 +54,7 @@ public final class JavaPluginLoader implements PluginLoader {
+ 
+     /**
+      * This class was not meant to be constructed explicitly
+-     * 
++     *
+      * @param instance the server instance
+      */
+     @Deprecated
+@@ -291,18 +293,14 @@ public final class JavaPluginLoader implements PluginLoader {
                  }
              }
  
-+            EventExecutor asm = EventExecutorFactory.newEventExecutor(method, listener.getClass().getClassLoader()); // TacoSpigot - generate ASM
-             final CustomTimingsHandler timings = new CustomTimingsHandler("Plugin: " + plugin.getDescription().getFullName() + " Event: " + listener.getClass().getName() + "::" + method.getName()+"("+eventClass.getSimpleName()+")", pluginParentTimer); // Spigot
-             EventExecutor executor = new EventExecutor() {
++            // TacoSpigot start - generate bytecode to invoke each event handler
++            EventExecutor bytecode = EventExecutorFactory.newEventExecutor(method, listener.getClass().getClassLoader());
+             EventExecutor executor = new co.aikar.timings.TimedEventExecutor(new EventExecutor() { // Spigot
                  public void execute(Listener listener, Event event) throws EventException {
 -                    try {
-+                    // try { // TacoSpigot - asm handles try catch
-                         if (!eventClass.isAssignableFrom(event.getClass())) {
-                             return;
-                         }
-                         // Spigot start
-                         boolean isAsync = event.isAsynchronous();
-                         if (!isAsync) timings.startTiming();
+-                        if (!eventClass.isAssignableFrom(event.getClass())) {
+-                            return;
+-                        }
 -                        method.invoke(listener, event);
-+                        asm.execute(listener, event); // TacoSpigot - use asm
-                         if (!isAsync) timings.stopTiming();
-                         // Spigot end
-+                    // TacoSpigot start - asm handles try catch
-+                    /*
-                     } catch (InvocationTargetException ex) {
-                         throw new EventException(ex.getCause());
-                     } catch (Throwable t) {
-                         throw new EventException(t);
+-                    } catch (InvocationTargetException ex) {
+-                        throw new EventException(ex.getCause());
+-                    } catch (Throwable t) {
+-                        throw new EventException(t);
++                    if (!eventClass.isAssignableFrom(event.getClass())) {
++                        return;
                      }
-+                    */
-+                    // TacoSpigot end
++                    bytecode.execute(listener, event);
                  }
-             };
+             }, plugin, method, eventClass); // Spigot
              if (false) { // Spigot - RL handles useTimings check now
 diff --git a/src/test/java/org/bukkit/TestServer.java b/src/test/java/org/bukkit/TestServer.java
 index 2d84032..a5a2911 100644
@@ -441,5 +442,5 @@ index df6cf00..7e8f59e 100644
          }
      }
 -- 
-2.4.6.windows.1.812.gd1b00d3
+2.7.0
 

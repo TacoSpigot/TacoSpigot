@@ -1,4 +1,4 @@
-From 66afe7a33d7830fc514b797a98a2804a3fd334e1 Mon Sep 17 00:00:00 2001
+From d6ca5cd71792a7c9d022ee38078f50d2c1a639e6 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 5 Oct 2015 22:43:57 -0700
 Subject: [PATCH] Optimize X-Ray
@@ -8,7 +8,7 @@ slow and duplicates many checks.
 This is replaced with an iterative system that never duplicates checks
 
 diff --git a/src/main/java/org/spigotmc/AntiXray.java b/src/main/java/org/spigotmc/AntiXray.java
-index 5466a61..8571daa 100644
+index c2ad90c..3a13d38 100644
 --- a/src/main/java/org/spigotmc/AntiXray.java
 +++ b/src/main/java/org/spigotmc/AntiXray.java
 @@ -5,6 +5,7 @@ import gnu.trove.set.hash.TByteHashSet;
@@ -18,8 +18,8 @@ index 5466a61..8571daa 100644
 +import net.minecraft.server.ChunkSection;
  import net.minecraft.server.World;
  import org.bukkit.craftbukkit.util.CraftMagicNumbers;
- 
-@@ -12,6 +13,10 @@ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ import co.aikar.timings.SpigotTimings;
+@@ -13,6 +14,10 @@ import co.aikar.timings.SpigotTimings;
  import java.util.HashSet;
  import java.util.Set;
  // PaperSpigot end
@@ -30,7 +30,7 @@ index 5466a61..8571daa 100644
  
  public class AntiXray
  {
-@@ -160,7 +165,7 @@ public class AntiXray
+@@ -158,7 +163,7 @@ public class AntiXray
                                  }
                                  // Grab the block ID in the buffer.
                                  // TODO: extended IDs are not yet supported
@@ -39,7 +39,7 @@ index 5466a61..8571daa 100644
                                          | ((buffer[(index << 1) + 1] & 0xFF) << 8);
                                  blockId >>>= 4;
                                  // Check if the block should be obfuscated
-@@ -206,21 +211,31 @@ public class AntiXray
+@@ -204,21 +209,31 @@ public class AntiXray
          }
      }
  
@@ -74,7 +74,7 @@ index 5466a61..8571daa 100644
              // Check other blocks for updates
              if ( radius > 0 )
              {
-@@ -231,31 +246,27 @@ public class AntiXray
+@@ -229,31 +244,27 @@ public class AntiXray
                  updateNearbyBlocks( world, position.south(), radius - 1, true );
                  updateNearbyBlocks( world, position.north(), radius - 1, true );
              }
@@ -119,7 +119,7 @@ index 5466a61..8571daa 100644
      }
  
      private static boolean isSolidBlock(Block block) {
-@@ -266,4 +277,24 @@ public class AntiXray
+@@ -264,4 +275,24 @@ public class AntiXray
          // blocks around them.
          return block.isOccluding() && block != Blocks.MOB_SPAWNER && block != Blocks.BARRIER;
      }
@@ -145,5 +145,5 @@ index 5466a61..8571daa 100644
 +    // TacoSpigot end
  }
 -- 
-2.6.1.windows.1
+2.7.0
 

@@ -1,4 +1,4 @@
-From a3fff475189a1edc286a2305139ff98d8e73eb0a Mon Sep 17 00:00:00 2001
+From 70501efcdaf3ca00782b429d7ec5d50aef96db37 Mon Sep 17 00:00:00 2001
 From: Byteflux <byte@byteflux.net>
 Date: Fri, 17 Apr 2015 02:26:14 -0700
 Subject: [PATCH] Add FallingBlock source location API
@@ -37,10 +37,10 @@ index 29f8554..1d952b8 100644
                      this.a(entityfallingblock);
                      world.addEntity(entityfallingblock);
 diff --git a/src/main/java/net/minecraft/server/EntityFallingBlock.java b/src/main/java/net/minecraft/server/EntityFallingBlock.java
-index 86556cd..aeade54 100644
+index 86556cd..b34e93c 100644
 --- a/src/main/java/net/minecraft/server/EntityFallingBlock.java
 +++ b/src/main/java/net/minecraft/server/EntityFallingBlock.java
-@@ -16,13 +16,22 @@ public class EntityFallingBlock extends Entity {
+@@ -16,13 +16,26 @@ public class EntityFallingBlock extends Entity {
      private int fallHurtMax = 40;
      private float fallHurtAmount = 2.0F;
      public NBTTagCompound tileEntityData;
@@ -56,7 +56,10 @@ index 86556cd..aeade54 100644
 +        sourceLoc = loc;
      }
  
--    public EntityFallingBlock(World world, double d0, double d1, double d2, IBlockData iblockdata) {
+     public EntityFallingBlock(World world, double d0, double d1, double d2, IBlockData iblockdata) {
++        this(null, world, d0, d1, d2, iblockdata);
++    }
++
 +    public EntityFallingBlock(org.bukkit.Location loc, World world, double d0, double d1, double d2, IBlockData iblockdata) {
          super(world);
 +        sourceLoc = loc;
@@ -64,7 +67,7 @@ index 86556cd..aeade54 100644
          this.block = iblockdata;
          this.k = true;
          this.setSize(0.98F, 0.98F);
-@@ -197,7 +206,13 @@ public class EntityFallingBlock extends Entity {
+@@ -197,7 +210,13 @@ public class EntityFallingBlock extends Entity {
          if (this.tileEntityData != null) {
              nbttagcompound.set("TileEntityData", this.tileEntityData);
          }
@@ -79,7 +82,7 @@ index 86556cd..aeade54 100644
      }
  
      protected void a(NBTTagCompound nbttagcompound) {
-@@ -233,7 +248,14 @@ public class EntityFallingBlock extends Entity {
+@@ -233,7 +252,14 @@ public class EntityFallingBlock extends Entity {
          if (block == null || block.getMaterial() == Material.AIR) {
              this.block = Blocks.SAND.getBlockData();
          }
@@ -96,7 +99,7 @@ index 86556cd..aeade54 100644
  
      public void a(boolean flag) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 05b88fd..4402d57 100644
+index d8417c9..c15a0ba 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -886,7 +886,10 @@ public class CraftWorld implements World {
@@ -141,5 +144,5 @@ index 75eed48..eedb66f 100644
 +    // PaperSpigot end
  }
 -- 
-2.5.2
+2.6.3
 
