@@ -32,30 +32,27 @@ Your commit will be converted into a patch that you can then PR into TacoSpigot
 ## Modifing Patches
 Modifiying previous patches is a bit more complex:
 
-1) Make sure `git status` is correct
+1. Make sure `git status` is correct
   - If it says something like `212 commits ahead, 207 commits behind`, then type `git fetch` to update spigot/paperspigot
-2) If you have changes you are working on type `git stash` to store them for later
+2. If you have changes you are working on type `git stash` to store them for later
   - Later you can type `git stash pop` to get them back
-3) Type `git rebase -i`
+3. Type `git rebase -i`
   - It should show something like [this](http://hastebin.com/toxohutocu.hs)
-4) Replace `pick` with `edit` for the commit/patch you want to modify, and "save" the changes
+4. Replace `pick` with `edit` for the commit/patch you want to modify, and "save" the changes
   - Only do this for one commit until you get more advanced and understand what `git rebase -i` does
-5) Make the changes you want to make to the patch
-6) Type `git add .` to add your changes
-7) Type `git commit --amend` to commit
+5. Make the changes you want to make to the patch
+6. Type `git add .` to add your changes
+7. Type `git commit --amend` to commit
   - **MAKE SURE TO ADD `--amend`** or else a new patch will be created
   - You can also modify the commit message here
-8) Type `git rebase --continue` to finish rebasing
-9) Type `./rebuildPatches.sh` in the main directory
+8. Type `git rebase --continue` to finish rebasing
+9. Type `./rebuildPatches.sh` in the main directory
   - This will modify the appropriate patches based on your commits
-10) PR your modifications to github
+10. PR your modifications to github
 
 ## PR Policy
-Our PR Policy is focused around letting contributers write code, and maintainers worry about formatting and style.
-
-- Normally changes to how the code operates are the only thing that will be discussed about a PR.
-- You can just dirrectly add the patch file, but we would prefer you follow our formatting and style
-- Following formatting is prefered, but we will fix formatting errors for you, because we belive code is more important than formatting
+I'll accept stuff that improves stability or performance.
+You shouldn't worry about formatting much, but you should stick to the following guide.
 
 ## Formatting
 All modifications to non-TacoSpigot files should be marked
