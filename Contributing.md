@@ -51,11 +51,12 @@ Modifiying previous patches is a bit more complex:
 10) PR your modifications to github
 
 ## PR Policy
-Our PR Policy is focused around letting contributers write code, and maintainers worry about formatting and style.
+We'll accept changes that make sense. You should be able to justify their existence, along with any maintenance costs that come with them. 
 
-- Normally changes to how the code operates are the only thing that will be discussed about a PR.
-- You can just dirrectly add the patch file, but we would prefer you follow our formatting and style
-- Following formatting is prefered, but we will fix formatting errors for you, because we belive code is more important than formatting
+Remember, these changes will affect everyone who runs TacoSpigot, not just you and your server.
+
+While we will fix minor formatting issues, you should stick to the guide below when making and submitting changes.
+
 
 ## Formatting
 All modifications to non-TacoSpigot files should be marked
