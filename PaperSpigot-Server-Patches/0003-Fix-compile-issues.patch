@@ -1,11 +1,85 @@
-From 5e60867613231cbce8825d17a8387946c6a6cc91 Mon Sep 17 00:00:00 2001
+From 2a6e07e9b76efcd1258f5c1c72c2e6f14e34affd Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 5 Sep 2015 11:08:15 -0700
 Subject: [PATCH] Fix compile issues
 
 
+diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
+index 7fb0960..c3c94cb 100644
+--- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
++++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
+@@ -23,7 +23,11 @@ public class BlockStateBoolean extends BlockState<Boolean> {
+         return obool.toString();
+     }
+ 
++    // TacoSpigot start - fix stupid generic thingies
++    /*
+     public String a(Comparable comparable) {
+         return this.a((Boolean) comparable);
+     }
++    */
++    // CraftBukkit end
+ }
+diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
+index 0b555df..d10d799 100644
+--- a/src/main/java/net/minecraft/server/BlockStateEnum.java
++++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
+@@ -18,10 +18,10 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+     protected BlockStateEnum(String s, Class<T> oclass, Collection<T> collection) {
+         super(s, oclass);
+         this.a = ImmutableSet.copyOf(collection);
+-        Iterator iterator = collection.iterator();
++        Iterator<T> iterator = collection.iterator(); // TacoSpigot - generic iterator
+ 
+         while (iterator.hasNext()) {
+-            Enum oenum = (Enum) iterator.next();
++            T oenum = iterator.next(); // TacoSpigot - generics
+             String s1 = ((INamable) oenum).getName();
+ 
+             if (this.b.containsKey(s1)) {
+@@ -57,7 +57,11 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+         return new BlockStateEnum(s, oclass, collection);
+     }
+ 
++    // TacoSpigot start - fix stupid generic thingies
++    /*
+     public String a(Comparable comparable) {
+         return this.a((Enum) comparable);
+     }
++    */
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
+index 4e7e489..a492201 100644
+--- a/src/main/java/net/minecraft/server/BlockStateInteger.java
++++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
+@@ -61,7 +61,11 @@ public class BlockStateInteger extends BlockState<Integer> {
+         return integer.toString();
+     }
+ 
++    // TacoSpigot start - fix stupid generic thingies
++    /*
+     public String a(Comparable comparable) {
+         return this.a((Integer) comparable);
+     }
++    */
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
+index 8a815a6..7e91392 100644
+--- a/src/main/java/net/minecraft/server/BlockStateList.java
++++ b/src/main/java/net/minecraft/server/BlockStateList.java
+@@ -123,7 +123,7 @@ public class BlockStateList {
+             if (!this.b.containsKey(iblockstate)) {
+                 throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.P());
+             } else {
+-                return (Comparable) iblockstate.b().cast(this.b.get(iblockstate));
++                return iblockstate.b().cast(this.b.get(iblockstate)); // TacoSpigot - remove illegal and unnecessary cast
+             }
+         }
+ 
 diff --git a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java b/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
-index c110e0c..315e984 100644
+index 5540dde..5cdc263 100644
 --- a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
 +++ b/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
 @@ -70,7 +70,7 @@ public class PathfinderGoalNearestAttackableTarget<T extends EntityLiving> exten
@@ -18,5 +92,5 @@ index c110e0c..315e984 100644
              Collections.sort(list, this.b);
              if (list.isEmpty()) {
 -- 
-2.4.6.windows.1.812.gd1b00d3
+2.7.0
 

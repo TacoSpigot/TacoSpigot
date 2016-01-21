@@ -1,4 +1,4 @@
-From 78cac752b811bdc86c5e099957006c307884e9a8 Mon Sep 17 00:00:00 2001
+From 3b66972a626dd6de28b42c92b0c36f29f9233cc2 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 16 Aug 2015 12:18:44 -0700
 Subject: [PATCH] NMS Imports
@@ -6,6 +6,428 @@ Subject: [PATCH] NMS Imports
 This must be updated every version
 Only use code decompiled with BuildTools
 
+diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
+new file mode 100644
+index 0000000..3cada5a
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/BlockState.java
+@@ -0,0 +1,42 @@
++package net.minecraft.server;
++
++import com.google.common.base.Objects;
++
++public abstract class BlockState<T extends Comparable<T>> implements IBlockState<T> {
++
++    private final Class<T> a;
++    private final String b;
++
++    protected BlockState(String s, Class<T> oclass) {
++        this.a = oclass;
++        this.b = s;
++    }
++
++    public String a() {
++        return this.b;
++    }
++
++    public Class<T> b() {
++        return this.a;
++    }
++
++    public String toString() {
++        return Objects.toStringHelper(this).add("name", this.b).add("clazz", this.a).add("values", this.c()).toString();
++    }
++
++    public boolean equals(Object object) {
++        if (this == object) {
++            return true;
++        } else if (object != null && this.getClass() == object.getClass()) {
++            BlockState blockstate = (BlockState) object;
++
++            return this.a.equals(blockstate.a) && this.b.equals(blockstate.b);
++        } else {
++            return false;
++        }
++    }
++
++    public int hashCode() {
++        return 31 * this.a.hashCode() + this.b.hashCode();
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
+new file mode 100644
+index 0000000..7fb0960
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
+@@ -0,0 +1,29 @@
++package net.minecraft.server;
++
++import com.google.common.collect.ImmutableSet;
++import java.util.Collection;
++
++public class BlockStateBoolean extends BlockState<Boolean> {
++
++    private final ImmutableSet<Boolean> a = ImmutableSet.of(Boolean.valueOf(true), Boolean.valueOf(false));
++
++    protected BlockStateBoolean(String s) {
++        super(s, Boolean.class);
++    }
++
++    public Collection<Boolean> c() {
++        return this.a;
++    }
++
++    public static BlockStateBoolean of(String s) {
++        return new BlockStateBoolean(s);
++    }
++
++    public String a(Boolean obool) {
++        return obool.toString();
++    }
++
++    public String a(Comparable comparable) {
++        return this.a((Boolean) comparable);
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
+new file mode 100644
+index 0000000..0b555df
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
+@@ -0,0 +1,63 @@
++package net.minecraft.server;
++
++import com.google.common.base.Predicate;
++import com.google.common.base.Predicates;
++import com.google.common.collect.Collections2;
++import com.google.common.collect.ImmutableSet;
++import com.google.common.collect.Lists;
++import com.google.common.collect.Maps;
++import java.util.Collection;
++import java.util.Iterator;
++import java.util.Map;
++
++public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T> {
++
++    private final ImmutableSet<T> a;
++    private final Map<String, T> b = Maps.newHashMap();
++
++    protected BlockStateEnum(String s, Class<T> oclass, Collection<T> collection) {
++        super(s, oclass);
++        this.a = ImmutableSet.copyOf(collection);
++        Iterator iterator = collection.iterator();
++
++        while (iterator.hasNext()) {
++            Enum oenum = (Enum) iterator.next();
++            String s1 = ((INamable) oenum).getName();
++
++            if (this.b.containsKey(s1)) {
++                throw new IllegalArgumentException("Multiple values have the same name \'" + s1 + "\'");
++            }
++
++            this.b.put(s1, oenum);
++        }
++
++    }
++
++    public Collection<T> c() {
++        return this.a;
++    }
++
++    public String a(T t0) {
++        return ((INamable) t0).getName();
++    }
++
++    public static <T extends Enum<T> & INamable> BlockStateEnum<T> of(String s, Class<T> oclass) {
++        return a(s, oclass, Predicates.alwaysTrue());
++    }
++
++    public static <T extends Enum<T> & INamable> BlockStateEnum<T> a(String s, Class<T> oclass, Predicate<T> predicate) {
++        return a(s, oclass, Collections2.filter(Lists.newArrayList(oclass.getEnumConstants()), predicate));
++    }
++
++    public static <T extends Enum<T> & INamable> BlockStateEnum<T> of(String s, Class<T> oclass, T... at) {
++        return a(s, oclass, (Collection) Lists.newArrayList(at));
++    }
++
++    public static <T extends Enum<T> & INamable> BlockStateEnum<T> a(String s, Class<T> oclass, Collection<T> collection) {
++        return new BlockStateEnum(s, oclass, collection);
++    }
++
++    public String a(Comparable comparable) {
++        return this.a((Enum) comparable);
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
+new file mode 100644
+index 0000000..4e7e489
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
+@@ -0,0 +1,67 @@
++package net.minecraft.server;
++
++import com.google.common.collect.ImmutableSet;
++import com.google.common.collect.Sets;
++import java.util.Collection;
++import java.util.HashSet;
++
++public class BlockStateInteger extends BlockState<Integer> {
++
++    private final ImmutableSet<Integer> a;
++
++    protected BlockStateInteger(String s, int i, int j) {
++        super(s, Integer.class);
++        if (i < 0) {
++            throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
++        } else if (j <= i) {
++            throw new IllegalArgumentException("Max value of " + s + " must be greater than min (" + i + ")");
++        } else {
++            HashSet hashset = Sets.newHashSet();
++
++            for (int k = i; k <= j; ++k) {
++                hashset.add(Integer.valueOf(k));
++            }
++
++            this.a = ImmutableSet.copyOf(hashset);
++        }
++    }
++
++    public Collection<Integer> c() {
++        return this.a;
++    }
++
++    public boolean equals(Object object) {
++        if (this == object) {
++            return true;
++        } else if (object != null && this.getClass() == object.getClass()) {
++            if (!super.equals(object)) {
++                return false;
++            } else {
++                BlockStateInteger blockstateinteger = (BlockStateInteger) object;
++
++                return this.a.equals(blockstateinteger.a);
++            }
++        } else {
++            return false;
++        }
++    }
++
++    public int hashCode() {
++        int i = super.hashCode();
++
++        i = 31 * i + this.a.hashCode();
++        return i;
++    }
++
++    public static BlockStateInteger of(String s, int i, int j) {
++        return new BlockStateInteger(s, i, j);
++    }
++
++    public String a(Integer integer) {
++        return integer.toString();
++    }
++
++    public String a(Comparable comparable) {
++        return this.a((Integer) comparable);
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
+new file mode 100644
+index 0000000..8a815a6
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/BlockStateList.java
+@@ -0,0 +1,191 @@
++package net.minecraft.server;
++
++import com.google.common.base.Function;
++import com.google.common.base.Joiner;
++import com.google.common.base.Objects;
++import com.google.common.collect.HashBasedTable;
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++import com.google.common.collect.ImmutableTable;
++import com.google.common.collect.Iterables;
++import com.google.common.collect.Lists;
++import com.google.common.collect.Maps;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.Comparator;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++
++public class BlockStateList {
++
++    private static final Joiner a = Joiner.on(", ");
++    private static final Function<IBlockState, String> b = new Function() {
++        public String a(IBlockState iblockstate) {
++            return iblockstate == null ? "<NULL>" : iblockstate.a();
++        }
++
++        public Object apply(Object object) {
++            return this.a((IBlockState) object);
++        }
++    };
++    private final Block c;
++    private final ImmutableList<IBlockState> d;
++    private final ImmutableList<IBlockData> e;
++
++    public BlockStateList(Block block, IBlockState... aiblockstate) {
++        this.c = block;
++        Arrays.sort(aiblockstate, new Comparator() {
++            public int a(IBlockState iblockstate, IBlockState iblockstate1) {
++                return iblockstate.a().compareTo(iblockstate1.a());
++            }
++
++            public int compare(Object object, Object object1) {
++                return this.a((IBlockState) object, (IBlockState) object1);
++            }
++        });
++        this.d = ImmutableList.copyOf(aiblockstate);
++        LinkedHashMap linkedhashmap = Maps.newLinkedHashMap();
++        ArrayList arraylist = Lists.newArrayList();
++        Iterable iterable = IteratorUtils.a(this.e());
++        Iterator iterator = iterable.iterator();
++
++        while (iterator.hasNext()) {
++            List list = (List) iterator.next();
++            Map map = MapGeneratorUtils.b(this.d, list);
++            BlockStateList.BlockData blockstatelist_blockdata = new BlockStateList.BlockData(block, ImmutableMap.copyOf(map), null);
++
++            linkedhashmap.put(map, blockstatelist_blockdata);
++            arraylist.add(blockstatelist_blockdata);
++        }
++
++        iterator = arraylist.iterator();
++
++        while (iterator.hasNext()) {
++            BlockStateList.BlockData blockstatelist_blockdata1 = (BlockStateList.BlockData) iterator.next();
++
++            blockstatelist_blockdata1.a((Map) linkedhashmap);
++        }
++
++        this.e = ImmutableList.copyOf(arraylist);
++    }
++
++    public ImmutableList<IBlockData> a() {
++        return this.e;
++    }
++
++    private List<Iterable<Comparable>> e() {
++        ArrayList arraylist = Lists.newArrayList();
++
++        for (int i = 0; i < this.d.size(); ++i) {
++            arraylist.add(((IBlockState) this.d.get(i)).c());
++        }
++
++        return arraylist;
++    }
++
++    public IBlockData getBlockData() {
++        return (IBlockData) this.e.get(0);
++    }
++
++    public Block getBlock() {
++        return this.c;
++    }
++
++    public Collection<IBlockState> d() {
++        return this.d;
++    }
++
++    public String toString() {
++        return Objects.toStringHelper(this).add("block", Block.REGISTRY.c(this.c)).add("properties", Iterables.transform(this.d, BlockStateList.b)).toString();
++    }
++
++    static class BlockData extends BlockDataAbstract {
++
++        private final Block a;
++        private final ImmutableMap<IBlockState, Comparable> b;
++        private ImmutableTable<IBlockState, Comparable, IBlockData> c;
++
++        private BlockData(Block block, ImmutableMap<IBlockState, Comparable> immutablemap) {
++            this.a = block;
++            this.b = immutablemap;
++        }
++
++        public Collection<IBlockState> a() {
++            return Collections.unmodifiableCollection(this.b.keySet());
++        }
++
++        public <T extends Comparable<T>> T get(IBlockState<T> iblockstate) {
++            if (!this.b.containsKey(iblockstate)) {
++                throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.P());
++            } else {
++                return (Comparable) iblockstate.b().cast(this.b.get(iblockstate));
++            }
++        }
++
++        public <T extends Comparable<T>, V extends T> IBlockData set(IBlockState<T> iblockstate, V v0) {
++            if (!this.b.containsKey(iblockstate)) {
++                throw new IllegalArgumentException("Cannot set property " + iblockstate + " as it does not exist in " + this.a.P());
++            } else if (!iblockstate.c().contains(v0)) {
++                throw new IllegalArgumentException("Cannot set property " + iblockstate + " to " + v0 + " on block " + Block.REGISTRY.c(this.a) + ", it is not an allowed value");
++            } else {
++                return (IBlockData) (this.b.get(iblockstate) == v0 ? this : (IBlockData) this.c.get(iblockstate, v0));
++            }
++        }
++
++        public ImmutableMap<IBlockState, Comparable> b() {
++            return this.b;
++        }
++
++        public Block getBlock() {
++            return this.a;
++        }
++
++        public boolean equals(Object object) {
++            return this == object;
++        }
++
++        public int hashCode() {
++            return this.b.hashCode();
++        }
++
++        public void a(Map<Map<IBlockState, Comparable>, BlockStateList.BlockData> map) {
++            if (this.c != null) {
++                throw new IllegalStateException();
++            } else {
++                HashBasedTable hashbasedtable = HashBasedTable.create();
++                Iterator iterator = this.b.keySet().iterator();
++
++                while (iterator.hasNext()) {
++                    IBlockState iblockstate = (IBlockState) iterator.next();
++                    Iterator iterator1 = iblockstate.c().iterator();
++
++                    while (iterator1.hasNext()) {
++                        Comparable comparable = (Comparable) iterator1.next();
++
++                        if (comparable != this.b.get(iblockstate)) {
++                            hashbasedtable.put(iblockstate, comparable, map.get(this.b(iblockstate, comparable)));
++                        }
++                    }
++                }
++
++                this.c = ImmutableTable.copyOf(hashbasedtable);
++            }
++        }
++
++        private Map<IBlockState, Comparable> b(IBlockState iblockstate, Comparable comparable) {
++            HashMap hashmap = Maps.newHashMap(this.b);
++
++            hashmap.put(iblockstate, comparable);
++            return hashmap;
++        }
++
++        BlockData(Block block, ImmutableMap immutablemap, Object object) {
++            this(block, immutablemap);
++        }
++    }
++}
 diff --git a/src/main/java/net/minecraft/server/EntityTypes.java b/src/main/java/net/minecraft/server/EntityTypes.java
 new file mode 100644
 index 0000000..064d0b2
@@ -257,5 +679,5 @@ index 0000000..064d0b2
 +    }
 +}
 -- 
-2.4.6.windows.1.812.gd1b00d3
+2.7.0
 
