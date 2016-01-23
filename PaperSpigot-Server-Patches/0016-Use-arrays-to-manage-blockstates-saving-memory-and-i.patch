@@ -1,0 +1,1024 @@
+From 031508453d55753828e81710d5573182e470e607 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Fri, 22 Jan 2016 15:08:10 -0700
+Subject: [PATCH] Use arrays to manage blockstates, saving memory and
+ increasing speed
+
+Mojang was using ImmutableMap (HashMaps) everywhere, which took up lots of memory, and caused it to take unessicary amounts of time.
+
+I assign 'ids' to the blockstates, which are very close together for the same block states.
+Usually, we can just use a array indexing operation on a table of values, which is lighting fast, compared to a hash map.
+The problem is that some values in the value table will need to be empty in order to keep the indexes valid.
+If the table would be to large (too many empty values), we resort to a binary search of all the values, which is about as fast as a hashmap, but takes less memory.
+
+This patch makes the block states themselves more efficent, by replacing their hashsets with EnumSets, and other very efficent type-specific sets.
+
+Also, remove some unneded logic from the code.
+
+diff --git a/src/main/java/net/minecraft/server/Block.java b/src/main/java/net/minecraft/server/Block.java
+index a784e04..374f710 100644
+--- a/src/main/java/net/minecraft/server/Block.java
++++ b/src/main/java/net/minecraft/server/Block.java
+@@ -4,11 +4,13 @@ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Random;
+ 
++import net.techcable.tacospigot.state.BlockDataRegistry;
++
+ public class Block {
+ 
+     private static final MinecraftKey a = new MinecraftKey("air");
+     public static final RegistryBlocks<MinecraftKey, Block> REGISTRY = new RegistryBlocks(Block.a);
+-    public static final RegistryID<IBlockData> d = new RegistryID();
++    public static final RegistryID<IBlockData> d = new BlockDataRegistry(); // TacoSpigot - use custom registry, needed because we modify the identity schematics of IBlockData
+     private CreativeModeTab creativeTab;
+     public static final Block.StepSound e = new Block.StepSound("stone", 1.0F, 1.0F);
+     public static final Block.StepSound f = new Block.StepSound("wood", 1.0F, 1.0F);
+diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
+index 3cada5a..8543be7 100644
+--- a/src/main/java/net/minecraft/server/BlockState.java
++++ b/src/main/java/net/minecraft/server/BlockState.java
+@@ -2,7 +2,24 @@ package net.minecraft.server;
+ 
+ import com.google.common.base.Objects;
+ 
+-public abstract class BlockState<T extends Comparable<T>> implements IBlockState<T> {
++import net.techcable.tacospigot.state.IndexedBlockState;
++
++// TacoSpigot start - give each state a unique integer id for efficent storage
++public abstract class BlockState<T extends Comparable<T>> implements IBlockState<T>, IndexedBlockState<BlockState<T>, T> {
++
++    private int id = -1;
++    private static int nextId = 0;
++
++    public void init() {
++        if (id >= 0) throw new IllegalStateException(b + " is already initialized");
++        this.id = nextId++;
++    }
++
++    public int getIndex() {
++        if (id < 0) throw new IllegalStateException(b + " is not initialized");
++        return id;
++    }
++    // TacoSpigot end
+ 
+     private final Class<T> a;
+     private final String b;
+diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
+index c3c94cb..14e08d6 100644
+--- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
++++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
+@@ -1,11 +1,36 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.ImmutableSet;
++import com.google.common.collect.Iterators;
++
++import java.util.AbstractSet;
+ import java.util.Collection;
++import java.util.Iterator;
++import java.util.NoSuchElementException;
++import java.util.Set;
+ 
+ public class BlockStateBoolean extends BlockState<Boolean> {
+ 
+-    private final ImmutableSet<Boolean> a = ImmutableSet.of(Boolean.valueOf(true), Boolean.valueOf(false));
++    // TacoSpigot start - use a static set of booleans
++    private static final Boolean[] BOOLEANS = new Boolean[] {Boolean.TRUE, Boolean.FALSE};
++
++    private static final Set<Boolean> a = new AbstractSet<Boolean>() {
++        @Override
++        public Iterator<Boolean> iterator() {
++            return Iterators.forArray(BOOLEANS);
++        }
++
++        @Override
++        public boolean contains(Object o) {
++            return o instanceof Boolean; // also checks for non null
++        }
++
++        @Override
++        public int size() {
++            return BOOLEANS.length;
++        }
++    };
++    // TacoSpigot end
+ 
+     protected BlockStateBoolean(String s) {
+         super(s, Boolean.class);
+diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
+index d10d799..83d53e9 100644
+--- a/src/main/java/net/minecraft/server/BlockStateEnum.java
++++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
+@@ -3,21 +3,28 @@ package net.minecraft.server;
+ import com.google.common.base.Predicate;
+ import com.google.common.base.Predicates;
+ import com.google.common.collect.Collections2;
+-import com.google.common.collect.ImmutableSet;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import java.util.Collection;
++import java.util.Collections;
++import java.util.EnumSet;
+ import java.util.Iterator;
+ import java.util.Map;
++import java.util.Set;
+ 
+ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T> {
+ 
+-    private final ImmutableSet<T> a;
+-    private final Map<String, T> b = Maps.newHashMap();
++    private final Set<T> a; // TacoSpigot
++    private Map<String, T> b = Maps.newHashMap(); // TacoSpigot - remove final
+ 
+     protected BlockStateEnum(String s, Class<T> oclass, Collection<T> collection) {
+         super(s, oclass);
+-        this.a = ImmutableSet.copyOf(collection);
++        /*
++         * Use EnumSet to save memory.
++         * ImmutableSet<> has an array of elements and a hashtable, while EnumSet uses a 64 bit bitset.
++         * We should take about 10-20 times less memory, depending on the number of values in the set.
++         */
++        this.a = Collections.unmodifiableSet(EnumSet.copyOf(collection)); // TacoSpigot - EnumSet
+         Iterator<T> iterator = collection.iterator(); // TacoSpigot - generic iterator
+ 
+         while (iterator.hasNext()) {
+@@ -30,7 +37,7 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+ 
+             this.b.put(s1, oenum);
+         }
+-
++        this.b = null; // TacoSpigot - the map is only needed in the construcotr
+     }
+ 
+     public Collection<T> c() {
+diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
+index a492201..62cbe11 100644
+--- a/src/main/java/net/minecraft/server/BlockStateInteger.java
++++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
+@@ -1,21 +1,31 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.collect.ImmutableSet;
+-import com.google.common.collect.Sets;
++import java.util.AbstractSet;
+ import java.util.Collection;
+-import java.util.HashSet;
++import java.util.Iterator;
++import java.util.NoSuchElementException;
+ 
+ public class BlockStateInteger extends BlockState<Integer> {
+ 
+-    private final ImmutableSet<Integer> a;
++    // TacoSpigot start
++    /*
++     * Instead of storing every single possible integer in the range of integers, use a specialized set to store the mimumum and maximum integers.
++     * This takes 64 bits vs (pointer + 32 bits) * values in range
++     * Should take around 10-20 times less memory, assuming there are 8-16 integers on average.
++     */
++    //private final ImmutableSet<Integer> a;
++    private final int min, max;
+ 
+     protected BlockStateInteger(String s, int i, int j) {
+         super(s, Integer.class);
++        this.min = i;
++        this.max = j;
+         if (i < 0) {
+             throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
+         } else if (j <= i) {
+             throw new IllegalArgumentException("Max value of " + s + " must be greater than min (" + i + ")");
+         } else {
++            /*
+             HashSet hashset = Sets.newHashSet();
+ 
+             for (int k = i; k <= j; ++k) {
+@@ -23,11 +33,44 @@ public class BlockStateInteger extends BlockState<Integer> {
+             }
+ 
+             this.a = ImmutableSet.copyOf(hashset);
++            */
+         }
+     }
+ 
+     public Collection<Integer> c() {
+-        return this.a;
++        return new AbstractSet<Integer>() {
++            @Override
++            public Iterator<Integer> iterator() {
++                return new Iterator<Integer>() {
++
++                    int i = min;
++
++                    @Override
++                    public boolean hasNext() {
++                        return i <= max;
++                    }
++
++                    @Override
++                    public Integer next() {
++                        if (!hasNext()) throw new NoSuchElementException();
++                        return i++;
++                    }
++                };
++            }
++
++            @Override
++            public int size() {
++                return max - min + 1; // max is inclusive, not exclusive, and we need to re
++            }
++
++            @Override
++            public boolean contains(Object o) {
++                if (!(o instanceof Integer)) return false;
++                int i = (Integer) o;
++                return i >= min && i <= max;
++            }
++        };
++        // TacoSpigot end
+     }
+ 
+     public boolean equals(Object object) {
+@@ -39,7 +82,7 @@ public class BlockStateInteger extends BlockState<Integer> {
+             } else {
+                 BlockStateInteger blockstateinteger = (BlockStateInteger) object;
+ 
+-                return this.a.equals(blockstateinteger.a);
++                return this.min == blockstateinteger.min && this.max == blockstateinteger.max; // TacoSpigot
+             }
+         } else {
+             return false;
+@@ -49,7 +92,7 @@ public class BlockStateInteger extends BlockState<Integer> {
+     public int hashCode() {
+         int i = super.hashCode();
+ 
+-        i = 31 * i + this.a.hashCode();
++        i = 31 * i + (max - min); // TacoSpigot
+         return i;
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
+index 7e91392..a9b8805 100644
+--- a/src/main/java/net/minecraft/server/BlockStateList.java
++++ b/src/main/java/net/minecraft/server/BlockStateList.java
+@@ -20,6 +20,7 @@ import java.util.Iterator;
+ import java.util.LinkedHashMap;
+ import java.util.List;
+ import java.util.Map;
++import net.techcable.tacospigot.state.StateMap;
+ 
+ public class BlockStateList {
+ 
+@@ -38,6 +39,13 @@ public class BlockStateList {
+     private final ImmutableList<IBlockData> e;
+ 
+     public BlockStateList(Block block, IBlockState... aiblockstate) {
++        // TacoSpigot start - try init
++        for (IBlockState state : aiblockstate) {
++            try {
++                ((BlockState) state).init();
++            } catch (IllegalStateException ignored) {}
++        }
++        // TacoSpigot end
+         this.c = block;
+         Arrays.sort(aiblockstate, new Comparator() {
+             public int a(IBlockState iblockstate, IBlockState iblockstate1) {
+@@ -107,12 +115,17 @@ public class BlockStateList {
+     static class BlockData extends BlockDataAbstract {
+ 
+         private final Block a;
+-        private final ImmutableMap<IBlockState, Comparable> b;
+-        private ImmutableTable<IBlockState, Comparable, IBlockData> c;
+-
+-        private BlockData(Block block, ImmutableMap<IBlockState, Comparable> immutablemap) {
++        // TacoSpigot start - use array-based collections, to save memory
++        private final StateMap<IBlockState, Comparable> b;
++        // Mojang kept all possible values is memory, but we just create temporary objects as needed
++        //private ImmutableTable<IBlockState, Comparable, IBlockData> c;
++        // TacoSpigot end
++
++        // TacoSpigot start - use our custom, efficent collections
++        private BlockData(Block block, Map<IBlockState, Comparable> immutablemap) {
+             this.a = block;
+-            this.b = immutablemap;
++            this.b = StateMap.copyOf(immutablemap);
++            // TacoSpigot end
+         }
+ 
+         public Collection<IBlockState> a() {
+@@ -120,25 +133,34 @@ public class BlockStateList {
+         }
+ 
+         public <T extends Comparable<T>> T get(IBlockState<T> iblockstate) {
+-            if (!this.b.containsKey(iblockstate)) {
++            // TacoSpigot start
++            Comparable value = b.get(iblockstate);
++            if (value == null) {
+                 throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.P());
+             } else {
+-                return iblockstate.b().cast(this.b.get(iblockstate)); // TacoSpigot - remove illegal and unnecessary cast
++                return (T) value;
+             }
++            // TacoSpigot end
+         }
+ 
+         public <T extends Comparable<T>, V extends T> IBlockData set(IBlockState<T> iblockstate, V v0) {
+-            if (!this.b.containsKey(iblockstate)) {
++            // TacoSpigot start - switch to array
++            Comparable value = b.get(iblockstate);
++            if (value == null) {
+                 throw new IllegalArgumentException("Cannot set property " + iblockstate + " as it does not exist in " + this.a.P());
+             } else if (!iblockstate.c().contains(v0)) {
+                 throw new IllegalArgumentException("Cannot set property " + iblockstate + " to " + v0 + " on block " + Block.REGISTRY.c(this.a) + ", it is not an allowed value");
+             } else {
+-                return (IBlockData) (this.b.get(iblockstate) == v0 ? this : (IBlockData) this.c.get(iblockstate, v0));
++                // TacoSpigot start - create a new object instead of storing all possible objects
++                Map<IBlockState, Comparable> data = b.asMutableMap();
++                data.put(iblockstate, v0);
++                return new BlockData(this.getBlock(), data);
++                // TacoSpigot end
+             }
+         }
+ 
+         public ImmutableMap<IBlockState, Comparable> b() {
+-            return this.b;
++            return ImmutableMap.copyOf(this.b); // TacoSpigot start - copy
+         }
+ 
+         public Block getBlock() {
+@@ -146,7 +168,15 @@ public class BlockStateList {
+         }
+ 
+         public boolean equals(Object object) {
+-            return this == object;
++            // TacoSpigot start - check value equality, not identity equality
++            if (object == this) return true;
++            if (object == null) return false;
++            if (object instanceof BlockData) {
++                BlockData other = (BlockData) object;
++                return other.getBlock().equals(this.getBlock()) && other.b.equals(this.b);
++            }
++            return false;
++            // TacoSpigot end
+         }
+ 
+         public int hashCode() {
+@@ -154,6 +184,8 @@ public class BlockStateList {
+         }
+ 
+         public void a(Map<Map<IBlockState, Comparable>, BlockStateList.BlockData> map) {
++            // TacoSpigot start - create data objects as needed instead of precomputing them
++            /*
+             if (this.c != null) {
+                 throw new IllegalStateException();
+             } else {
+@@ -175,6 +207,8 @@ public class BlockStateList {
+ 
+                 this.c = ImmutableTable.copyOf(hashbasedtable);
+             }
++            */
++            // TacoSpigot end
+         }
+ 
+         private Map<IBlockState, Comparable> b(IBlockState iblockstate, Comparable comparable) {
+diff --git a/src/main/java/net/techcable/tacospigot/state/BlockDataRegistry.java b/src/main/java/net/techcable/tacospigot/state/BlockDataRegistry.java
+new file mode 100644
+index 0000000..f637e1a
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/state/BlockDataRegistry.java
+@@ -0,0 +1,73 @@
++package net.techcable.tacospigot.state;
++
++import java.lang.reflect.Field;
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++
++import com.google.common.base.Preconditions;
++
++import net.minecraft.server.IBlockData;
++import net.minecraft.server.RegistryID;
++
++public class BlockDataRegistry extends RegistryID<IBlockData> {
++    private final Map<IBlockData, Integer> map = new HashMap<>(512);
++
++    public static final int EMPTY_ID = -1;
++
++    private static Field mapField;
++    private static Field listField;
++
++    static {
++        Field mapField = null, listField = null;
++        try {
++            for (Field field : RegistryID.class.getDeclaredFields()) {
++                field.setAccessible(true);
++                if (Map.class.isAssignableFrom(field.getType())) {
++                    if (mapField != null) throw new IllegalArgumentException("Two map fields for RegistryID: " + field.getName() + " and " + mapField.getName());
++                    mapField = field;
++                } else if (List.class.isAssignableFrom(field.getType())) {
++                    if (listField != null) throw new IllegalArgumentException("Two list fields for RegistryID: " + field.getName() + " and " + mapField.getName());
++                    listField = field;
++                }
++            }
++            Preconditions.checkState(mapField != null, "Map field not found for RegistryID");
++            Preconditions.checkState(listField != null, "List field not found for RegistryID");
++        } finally {
++            BlockDataRegistry.mapField = mapField;
++            BlockDataRegistry.listField = listField;
++        }
++    }
++
++    public BlockDataRegistry() {
++        // Null out superclass map
++        try {
++            mapField.set(this, null);
++        } catch (IllegalAccessException e){
++            throw new AssertionError("Can't set fields");
++        }
++    }
++
++    @Override
++    public void a(IBlockData data, int id) {
++        map.put(data, id);
++        while (getList().size() <= id) getList().add(null);
++        getList().set(id, data);
++    }
++
++    private List<IBlockData> getList() {
++        try {
++            return (List) listField.get(this);
++        } catch (IllegalAccessException e) {
++            throw new AssertionError("Can't access list", e);
++        }
++    }
++
++    @Override
++    public int b(IBlockData data) {
++        Integer id = map.get(data);
++        return id == null ? EMPTY_ID : id;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/state/HashStateMap.java b/src/main/java/net/techcable/tacospigot/state/HashStateMap.java
+new file mode 100644
+index 0000000..1425fce
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/state/HashStateMap.java
+@@ -0,0 +1,56 @@
++package net.techcable.tacospigot.state;
++
++import java.util.AbstractSet;
++import java.util.Arrays;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.NoSuchElementException;
++import java.util.Set;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.IBlockState;
++import net.techcable.tacospigot.utils.Maps2;
++
++import org.apache.commons.lang3.tuple.Pair;
++
++public class HashStateMap<K extends IBlockState<V>, V extends Comparable<V>> implements StateMap<K, V> {
++    private final ImmutableMap<K, V> backing;
++    private final int hashCode;
++
++    public HashStateMap(Map<K, V> map) {
++        this.backing = ImmutableMap.copyOf(map);
++        this.hashCode = backing.hashCode();
++    }
++
++    @Override
++    public int size() {
++        return backing.size();
++    }
++
++    @Override
++    public boolean containsKey(Object key) {
++        return backing.containsKey(key);
++    }
++
++    @Override
++    public V get(Object key) {
++        return backing.get(key);
++    }
++
++
++    @Override
++    public boolean equals(Object obj) {
++        return obj instanceof HashStateMap && backing.equals(obj);
++    }
++
++    public int hashCode() {
++        return hashCode;
++    }
++
++    @Override
++    public Set<Entry<K, V>> entrySet() {
++        return backing.entrySet();
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/net/techcable/tacospigot/state/IndexedBlockState.java b/src/main/java/net/techcable/tacospigot/state/IndexedBlockState.java
+new file mode 100644
+index 0000000..a750f72
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/state/IndexedBlockState.java
+@@ -0,0 +1,31 @@
++package net.techcable.tacospigot.state;
++
++import net.minecraft.server.IBlockState;
++
++/**
++ * A block state that has an associated index
++ */
++public interface IndexedBlockState<T extends IndexedBlockState<T, U>, U extends Comparable<U>> extends IBlockState<U>, Comparable<T> {
++    /**
++     * Get the index
++     *
++     * @throws IllegalStateException if not initialized
++     */
++    public int getIndex();
++
++    /**
++     * Initialize the index
++     * @throws IllegalStateException if already initalized
++     */
++    public void init();
++
++    @Override
++    public default int compareTo(T other) {
++        return compare(this, other);
++    }
++
++    public static int compare(IndexedBlockState first, IndexedBlockState second) {
++        return Integer.compare(first.getIndex(), second.getIndex());
++    }
++
++}
+diff --git a/src/main/java/net/techcable/tacospigot/state/LookupStateMap.java b/src/main/java/net/techcable/tacospigot/state/LookupStateMap.java
+new file mode 100644
+index 0000000..a7c5bc2
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/state/LookupStateMap.java
+@@ -0,0 +1,108 @@
++package net.techcable.tacospigot.state;
++
++import java.util.AbstractSet;
++import java.util.Arrays;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.NoSuchElementException;
++import java.util.Set;
++
++import com.google.common.base.Preconditions;
++
++import net.minecraft.server.IBlockState;
++import net.techcable.tacospigot.state.IndexedBlockState;
++import net.techcable.tacospigot.state.StateMap;
++import net.techcable.tacospigot.utils.Maps2;
++
++import org.apache.commons.lang3.tuple.Pair;
++
++/**
++ * A state-map that uses a binary search to search through the values
++ * <p/>
++ * The amount of memory it takes is proportional to the number of used values, not the range of values.
++ * Lookups are O(log n), which is pretty fast, even compared to a hashmap.
++ * <p/>
++ * If the range of values is closer to the size of the values, then you should use {@link TableStateMap}
++ * Lookups are faster with them, so if you can spare a few unused entries, do that.
++ *
++ * @param <K>
++ * @param <V>
++ */
++public class LookupStateMap<K extends IBlockState<V> & IndexedBlockState<K, V>, V extends Comparable<V>> implements StateMap<K, V> {
++    private final IndexedBlockState[] states;
++    private final Comparable[] values;
++    private final int hashCode;
++
++    public LookupStateMap(Map<K, V> map) {
++        this.states = map.keySet().toArray(new IndexedBlockState[map.size()]);
++        Arrays.sort(states, IndexedBlockState::compare);
++        this.values = new Comparable[states.length];
++        for (int i = 0; i < states.length; i++) values[i] = map.get(states[i]);
++        // We now have a sorted array with no empty slots
++        this.hashCode = Maps2.hashCode(this); // Cache hashcode
++    }
++
++    @Override
++    public int size() {
++        return states.length;
++    }
++
++    @Override
++    public boolean containsKey(Object key) {
++        return indexOf(key) > 0;
++    }
++
++    @Override
++    public V get(Object key) {
++        int index = indexOf(key);
++        if (index < 0) return null;
++        return (V) values[index];
++    }
++
++
++    @Override
++    public Set<Entry<K, V>> entrySet() {
++        return new AbstractSet<Entry<K, V>>() {
++            @Override
++            public Iterator<Entry<K, V>> iterator() {
++                return new Iterator<Entry<K, V>>() {
++                    private int index = 0;
++
++                    @Override
++                    public boolean hasNext() {
++                        return index < states.length;
++                    }
++
++                    @Override
++                    @SuppressWarnings("unchecked") // I'll finish this once java has generic arrays
++                    public Entry<K, V> next() {
++                        if (!hasNext()) throw new NoSuchElementException();
++                        int index = this.index++;
++                        K key = (K) states[index];
++                        Preconditions.checkNotNull(key, "Null state");
++                        return Pair.of(key, (V) values[index]); // Its safe to return, as we are non-null and in bounds
++                    }
++                };
++            }
++
++            @Override
++            public int size() {
++                return states.length;
++            }
++        };
++    }
++
++    @Override
++    public boolean equals(Object obj) {
++        return Maps2.equals(this, obj);
++    }
++
++    public int hashCode() {
++        return hashCode;
++    }
++
++    private int indexOf(Object key) {
++        // NOTE: Its perfectly acceptable to throw a class cast exception
++        return Arrays.binarySearch(states, (IndexedBlockState) key, IndexedBlockState::compare);
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/net/techcable/tacospigot/state/StateMap.java b/src/main/java/net/techcable/tacospigot/state/StateMap.java
+new file mode 100644
+index 0000000..4037198
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/state/StateMap.java
+@@ -0,0 +1,132 @@
++package net.techcable.tacospigot.state;
++
++import java.util.AbstractSet;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.Set;
++import java.util.logging.Level;
++
++import com.google.common.collect.Iterables;
++import com.google.common.collect.Iterators;
++
++import net.minecraft.server.IBlockState;
++import net.techcable.tacospigot.utils.Maps2;
++
++import org.apache.commons.lang3.builder.HashCodeBuilder;
++import org.bukkit.Bukkit;
++
++public interface StateMap<K extends IBlockState, V extends Comparable> extends Map<K, V> {
++
++    @Override
++    public default boolean isEmpty() {
++        return size() == 0;
++    }
++
++    @Override
++    public default boolean containsValue(Object value) {
++        for (Entry<K, V> entry : entrySet()) {
++            if (entry.getValue().equals(value)) return true;
++        }
++        return false;
++    }
++
++    @Override
++    public default Set<K> keySet() {
++        return new AbstractSet<K>() {
++
++            @Override
++            public Iterator<K> iterator() {
++                return Iterators.transform(StateMap.this.entrySet().iterator(), Entry::getKey);
++            }
++
++            @Override
++            public boolean contains(Object o) {
++                return StateMap.this.containsKey(o);
++            }
++
++            @Override
++            public int size() {
++                return StateMap.this.size();
++            }
++        };
++    }
++
++
++    @Override
++    public default Set<V> values() {
++        return new AbstractSet<V>() {
++
++            @Override
++            public Iterator<V> iterator() {
++                return Iterators.transform(StateMap.this.entrySet().iterator(), Entry::getValue);
++            }
++
++            @Override
++            public boolean contains(Object o) {
++                return StateMap.this.containsValue(o);
++            }
++
++            @Override
++            public int size() {
++                return StateMap.this.size();
++            }
++        };
++    }
++
++    public default Map<K, V> asMutableMap() {
++        return new HashMap<>(this);
++    }
++
++    // Builders
++
++    /**
++     * The number of empty values in a table state map before we use a table state map
++     */
++    public static final int TABLE_THRESHOLD = Integer.parseInt(System.getProperty("tacospigot.tableThreshold", "30"));
++
++    @SuppressWarnings("unchecked")
++    public static <K extends IBlockState<V>, V extends Comparable<V>> StateMap<K, V> copyOf(Map<K, V> map) {
++        if (Maps2.isKeyInstance(map, IndexedBlockState.class)) {
++            Map<IndexedBlockState, V> indexedMap = (Map) map;
++            int[] range = TableStateMap.calculateRange(indexedMap);
++            int empty = (range[1] - range[0]) - indexedMap.size(); // Calculate the number of emtpy values (range - size)
++            if (TABLE_THRESHOLD > 0 && empty <= TABLE_THRESHOLD) {
++                // The number of empty slots in the table is acceptable for the improved performance
++                return (StateMap<K, V>) new TableStateMap<>(indexedMap);
++            } else {
++                return (StateMap<K, V>) new LookupStateMap<>(indexedMap);
++            }
++        }
++        return new HashStateMap<>(map);
++    }
++
++    // Were immutable
++
++
++    @Override
++    public default void putAll(Map<? extends K, ? extends V> m) {
++        throw new IllegalStateException("Immutable");
++    }
++
++    @Override
++    public default V put(K key, V value) {
++        throw new IllegalStateException("Immutable");
++    }
++
++
++    @Override
++    public default boolean remove(Object key, Object value) {
++        throw new IllegalStateException("Immutable");
++    }
++
++    @Override
++    public default V remove(Object key) {
++        throw new IllegalStateException("Immutable");
++    }
++
++    @Override
++    public default void clear() {
++        throw new IllegalStateException("Immutable");
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/net/techcable/tacospigot/state/TableStateMap.java b/src/main/java/net/techcable/tacospigot/state/TableStateMap.java
+new file mode 100644
+index 0000000..af2101d
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/state/TableStateMap.java
+@@ -0,0 +1,124 @@
++package net.techcable.tacospigot.state;
++
++import java.util.AbstractSet;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.NoSuchElementException;
++import java.util.Set;
++
++import net.minecraft.server.IBlockState;
++import net.techcable.tacospigot.utils.Maps2;
++
++import org.apache.commons.lang3.tuple.Pair;
++
++/**
++ * Table switch uses an indexing operation on an array to lookup values
++ * <p/>
++ * This is a lightning fast O(1) operation.
++ * The disadvantage is that memory is based on the range of indexes, instead of the number of values.
++ * It fills unused indexes within the range of values with null.
++ * If you have too many unused values within the range of indexes, you should use {@link LookupStateMap}
++ *
++ * @param <K>
++ * @param <V>
++ */
++public class TableStateMap<K extends IBlockState<V> & IndexedBlockState<K, V>, V extends Comparable<V>> implements StateMap<K, V> {
++    private final int offset;
++    private final IBlockState[] states;
++    private final Comparable[] values;
++    private final int size;
++    private final int hashCode;
++
++    public TableStateMap(Map<K, V> map) {
++        int[] range = calculateRange(map);
++        this.offset = range[0];
++        int length = map.isEmpty() ? 0 : range[1] - offset + 1;
++        this.states = new IBlockState[length];
++        this.values = new Comparable[length];
++        int size = 0;
++        // Fill the state array
++        for (Entry<K, V> entry : map.entrySet()) {
++            K key = entry.getKey();
++            V value = entry.getValue();
++            int index = indexOf(key);
++            states[index] = key;
++            values[index] = value;
++            size++;
++        }
++        this.size = size;
++        this.hashCode = Maps2.hashCode(this); // Cache
++    }
++
++    public static <K extends IBlockState<V> & IndexedBlockState<K, V>, V extends Comparable<V>> int[] calculateRange(Map<K, V> map) {
++        int min = 0, max = 0;
++        for (Entry<K, V> entry : map.entrySet()) {
++            min = min == 0 ? entry.getKey().getIndex() : Math.min(min, entry.getKey().getIndex());
++            max = Math.max(max, entry.getKey().getIndex());
++        }
++        return new int[]{min, max};
++    }
++
++    @Override
++    public int size() {
++        return size;
++    }
++
++    @Override
++    public boolean containsKey(Object key) {
++        int index = indexOf(key);
++        return index > 0 && index < size() && states[index] != null;
++    }
++
++    @Override
++    public V get(Object key) {
++        int index = indexOf(key);
++        if (index < 0 || index >= size()) return null;
++        return (V) values[index];
++    }
++
++
++    @Override
++    public Set<Entry<K, V>> entrySet() {
++        return new AbstractSet<Entry<K, V>>() {
++            @Override
++            public Iterator<Entry<K, V>> iterator() {
++                return new Iterator<Entry<K, V>>() {
++                    private int index = 0;
++
++                    @Override
++                    public boolean hasNext() {
++                        while (index < states.length && states[index] == null) ++index;
++                        return index < states.length;
++                    }
++
++                    @Override
++                    @SuppressWarnings("unchecked") // I'll finish this once java has generic arrays
++                    public Entry<K, V> next() {
++                        if (!hasNext()) throw new NoSuchElementException();
++                        int index = this.index++;
++                        return Pair.of((K) states[index], (V) values[index]); // Its safe to return, as we are non-null and in bounds
++                    }
++                };
++            }
++
++            @Override
++            public int size() {
++                return size;
++            }
++        };
++    }
++
++    @Override
++    public boolean equals(Object obj) {
++        return Maps2.equals(this, obj);
++    }
++
++    public int hashCode() {
++        return hashCode;
++    }
++
++    private int indexOf(Object key) {
++        // NOTE: Its perfectly acceptable to throw a class cast exception
++        return ((IndexedBlockState) key).getIndex() - offset;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/utils/Maps2.java b/src/main/java/net/techcable/tacospigot/utils/Maps2.java
+new file mode 100644
+index 0000000..c2d3b03
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/utils/Maps2.java
+@@ -0,0 +1,46 @@
++package net.techcable.tacospigot.utils;
++
++import java.util.Map;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.Iterables;
++
++import org.apache.commons.lang3.builder.HashCodeBuilder;
++
++public class Maps2 {
++
++    @SuppressWarnings("unchecked") // We check
++    public static <K, V, T extends V> Map<T, V> castKey(Map<K, V> map, Class<T> type) {
++        return (Map<T, V>) map;
++    }
++
++    public static boolean isKeyInstance(Map<?, ?> map, Class<?> type) {
++        return Sets2.isInstance(map.keySet(), type);
++    }
++
++
++    public static boolean equals(Map<?, ?> first, Object otherObj) {
++        Preconditions.checkNotNull(first, "First map can't be null");
++        if (first == otherObj) return true;
++        if (otherObj == null) return false;
++        if (otherObj instanceof Map) {
++            Map other = (Map) otherObj;
++            if (first.size() != other.size()) return false;
++            if (!Iterables.elementsEqual(first.keySet(), other.keySet())) return false;
++            if (!Iterables.elementsEqual(first.values(), other.values())) return false;
++            return true;
++        }
++        return false;
++    }
++
++    public static int hashCode(Map<?, ?> map) {
++        HashCodeBuilder builder = new HashCodeBuilder();
++        for (Map.Entry<?, ?> entry : map.entrySet()) {
++            builder.append(entry.getKey());
++            builder.append(entry.getValue());
++        }
++        return builder.build();
++    }
++
++
++}
+diff --git a/src/main/java/net/techcable/tacospigot/utils/Sets2.java b/src/main/java/net/techcable/tacospigot/utils/Sets2.java
+new file mode 100644
+index 0000000..bf48ac6
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/utils/Sets2.java
+@@ -0,0 +1,18 @@
++package net.techcable.tacospigot.utils;
++
++import java.util.Set;
++
++public class Sets2 {
++    @SuppressWarnings("unchecked") // It actually is checked
++    public static <T, U extends T> Set<U> cast(Set<T> set, Class<U> type) {
++        set.forEach(type::cast);
++        return (Set<U>) set;
++    }
++
++    public static boolean isInstance(Set<?> set, Class<?> type) {
++        for (Object obj : set) {
++            if (!type.isInstance(obj)) return false;
++        }
++        return true;
++    }
++}
+-- 
+2.7.0
+
