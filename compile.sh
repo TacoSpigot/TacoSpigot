@@ -1,7 +1,6 @@
 echo "Compiling"
 
-#mvn clean install
-mvn install -DskipTests
+mvn clean install
 
 PATCHED_JAR=$(pwd)/TacoSpigot-Server/target/server*.jar
 
@@ -17,7 +16,6 @@ if [ ! -d work/Paperclip/.git ]; then
 fi
 
 pushd work/Paperclip 
-echo "Current dir $(pwd)"
 bash ../../generateJar.sh $PATCHED_JAR 1.8.8 TacoSpigot
 popd
 
