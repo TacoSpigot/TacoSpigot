@@ -6,11 +6,17 @@ pushd "$(dirname "$0")"
 
 echo "Cloning Repos"
 
-git clone https://github.com/TacoSpigot/CraftBukkit.git CraftBukkit
-git clone https://github.com/TacoSpigot/Bukkit.git Bukkit
+if [ ! -d CraftBukkit/.git ]; then
+    git clone https://github.com/TacoSpigot/CraftBukkit.git CraftBukkit
+fi;
+if [ ! -d Bukkit/.git ]; then
+    git clone https://github.com/TacoSpigot/Bukkit.git Bukkit
+fi;
 
 mkdir work
-git clone https://github.com/TacoSpigot/BuildData.git work/builddata
+if [ ! -d work/builddata/.git ]; then
+    git clone https://github.com/TacoSpigot/BuildData.git work/builddata
+fi;
 
 echo "Resetting to Upstream"
 pushd Bukkit
