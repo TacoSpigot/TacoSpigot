@@ -1,13 +1,11 @@
-From ea010c3c1f3de3cf48bfa135a5516fd5b4b26db2 Mon Sep 17 00:00:00 2001
+From 12fb2ee2e23caa82b0b84659d4d49a5a3846892f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
 
-Use Java 8
-Use ASM
 
 diff --git a/pom.xml b/pom.xml
-index 7dd0adb..8a4f011 100644
+index 7dd0adb..7233a9f 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,18 +4,18 @@
@@ -36,20 +34,6 @@ index 7dd0adb..8a4f011 100644
      <description>An enhanced plugin API for Minecraft servers.</description>
  
      <properties>
-@@ -112,6 +112,13 @@
-             <version>1.3</version>
-             <scope>test</scope>
-         </dependency>
-+        <!-- TacoSpigot start - ASM -->
-+        <dependency>
-+            <groupId>org.ow2.asm</groupId>
-+            <artifactId>asm-all</artifactId>
-+            <version>5.0</version>
-+        </dependency>
-+        <!-- TacoSpigot end -->
-     </dependencies>
- 
-     <build>
 -- 
 2.7.0
 
