@@ -1,4 +1,4 @@
-TacoSpigot[![Build Status](https://travis-ci.org/TacoSpigot/TacoSpigot.svg?branch=master)](https://travis-ci.org/TacoSpigot/TacoSpigot)
+PaperSpigot [![CI Status](http://ci.destroystokyo.com/buildStatus/icon?job=PaperSpigot)](http://ci.destroystokyo.com/job/PaperSpigot/)
 ===========
 
 A even-higher high performance Spigot fork that adds new features.
@@ -8,42 +8,25 @@ A even-higher high performance Spigot fork that adds new features.
 [Contribution Guidelines](Contributing.md)
 
 
-How To
----------------------------------
+How To (Server Admins)
+------
+Download a copy of Paperclip.jar from our buildserver here:
+https://ci.destroystokyo.com/job/PaperSpigot/
 
-Apply Patches : `./applyPatches.sh`
+Run the PaperClip jar directly from your server. Just like old times
 
-### Create patch for server ###
-
-`cd PaperSpigot-Server`
-
-Add your file for commit : `git add <file>`
-
-Commit : `git commit -m <msg>`
-
-`cd ..`
-
-Create Patch `./rebuildPatches.sh`
-
-### Create patch for API ###
-
-`cd Paperspigot-API`
-
-Add your file for commit : `git add <file>`
-
-Commit : `git commit -m <msg>`
-
-`cd ..`
-
-Create Patch `./rebuildPatches.sh`
+PaperSpigot requires **JRE 8** or above.
 
 
+How To (Compiling From Source)
+------
+To compile PaperSpigot, you need JDK8, maven, and an internet connection.
 
+Clone this repo, run ./build.sh from *bash*, get files.
 
-Compilation
------------
+Special Thanks To:
+-------------
 
-We use maven to handle our dependencies.
+![YourKit-Logo](https://www.yourkit.com/images/yklogo.png)
 
-* Install [Maven 3](http://maven.apache.org/download.html)
-* Clone this repo and: `mvn clean install`
+[YourKit](http://www.yourkit.com/), makers of the outstanding java profiler, support open source projects of all kinds with their full featured [Java](https://www.yourkit.com/java/profiler/index.jsp) and [.NET](https://www.yourkit.com/.net/profiler/index.jsp) application profilers. We thank them for granting PaperSpigot an OSS license so that we can make our software the best it can be.

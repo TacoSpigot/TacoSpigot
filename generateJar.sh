@@ -3,47 +3,31 @@
 # Generates a patched jar for paperclip
 
 if [[ $# < 3 ]]; then
-    echo "Usage ./generateJar.sh {input jar} {minecraft_version} {name}"
+    echo "Usage ./generateJar.sh {input jar} {mojang_jar} {name}"
     exit 1;
 fi;
 
-PAPERCLIP_JAR=paperclip.jar
+mkdir -p work/Paperclip
+PAPERCLIP_JAR=work/Paperclip/paperclip.jar
 
 if [ ! -f $PAPERCLIP_JAR ]; then
-    if [[ -d ".git" ]]; then
-        REPO=$(pwd)
-        pushd .
-    else
-        if [ ! -d Paperclip ]; then
-            git clone "https://github.com/TacoSpigot/Paperclip.git";
-        fi
-        REPO=$(pwd)/Paperclip
-        pushd Paperclip
-    fi;   
+    if [ ! -d Paperclip ]; then
+        echo "Paperclip not found"
+        exit 1;
+    fi
+    pushd Paperclip
     mvn -P '!generate' clean install
-    popd
-    if [ ! -f $REPO/target/paperclip*.jar ]; then
+    if [ ! -f target/paperclip*.jar ]; then
         echo "Couldn't generate paperclip jar"
         exit;
     fi;
-    cp $REPO/target/paperclip*.jar $PAPERCLIP_JAR
+    popd
+    cp Paperclip/target/paperclip*.jar $PAPERCLIP_JAR
 fi;
 
 INPUT_JAR=$1
-MINECRAFT_VERSION=$2
+VANILLA_JAR=$2
 NAME=$3
-
-VANILLA_URL="https://s3.amazonaws.com/Minecraft.Download/versions/$MINECRAFT_VERSION/minecraft_server.$MINECRAFT_VERSION.jar"
-VANILLA_JAR=vanilla-1.8.8.jar
-
-if [ ! -f $VANILLA_JAR ]; then
-    echo "Downloading Vanilla Jar"
-    wget -O "$VANILLA_JAR" $VANILLA_URL 2>&1 >/dev/null
-    if [[ $? != 0 ]]; then
-        echo "Error downloading vanilla jar"
-        exit 1;
-    fi;
-fi;
 
 which bsdiff4 2>&1 >/dev/null
 if [ $? != 0 ]; then
@@ -51,8 +35,8 @@ if [ $? != 0 ]; then
     exit 1;
 fi;
 
-OUTPUT_JAR=$NAME.jar
-PATCH_FILE=$NAME.patch
+OUTPUT_JAR=work/Paperclip/$NAME.jar
+PATCH_FILE=work/Paperclip/$NAME.patch
 
 hash() {
     echo $(sha256sum $1 | sed -E "s/(\S+).*/\1/")
@@ -79,6 +63,8 @@ echo "Generating Final Jar"
 
 cp $PAPERCLIP_JAR $OUTPUT_JAR
 
-genJson $PATCH_FILE $VANILLA_URL $(hash $VANILLA_JAR) $(hash $INPUT_JAR) > patch.json
+PATCH_JSON="work/Paperclip/patch.json"
 
-jar uf $OUTPUT_JAR $PATCH_FILE patch.json
+genJson $PATCH_FILE $VANILLA_URL $(hash $VANILLA_JAR) $(hash $INPUT_JAR) > $PATCH_JSON
+
+jar uf $OUTPUT_JAR $PATCH_FILE $PATCH_JSON

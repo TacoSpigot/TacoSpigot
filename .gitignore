@@ -45,7 +45,7 @@ PaperSpigot-API
 Bukkit
 CraftBukkit
 
-# Magic Build Scripts
+#Build System
+Paperclip
 work
-cache
 build

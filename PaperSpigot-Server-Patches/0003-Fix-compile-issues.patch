@@ -1,22 +1,9 @@
-From 87ca400df92247bd9f2857c0531f1b9e36d268fd Mon Sep 17 00:00:00 2001
+From c55f1b3b517f039c7aadf9e6835a578af6125050 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 5 Sep 2015 11:08:15 -0700
 Subject: [PATCH] Fix compile issues
 
 
-diff --git a/src/main/java/net/minecraft/server/BaseBlockPosition.java b/src/main/java/net/minecraft/server/BaseBlockPosition.java
-index 0b2277c..8e16155 100644
---- a/src/main/java/net/minecraft/server/BaseBlockPosition.java
-+++ b/src/main/java/net/minecraft/server/BaseBlockPosition.java
-@@ -79,7 +79,7 @@ public class BaseBlockPosition implements Comparable<BaseBlockPosition> {
-         return Objects.toStringHelper(this).add("x", this.getX()).add("y", this.getY()).add("z", this.getZ()).toString();
-     }
- 
--    public int compareTo(Object object) {
-+    public int compareTo(BaseBlockPosition object) { // TacoSpigot - fix erasure
-         return this.g((BaseBlockPosition) object);
-     }
- }
 diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
 index 7fb0960..c3c94cb 100644
 --- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
