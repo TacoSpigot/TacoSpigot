@@ -2,15 +2,17 @@
 
 # Generates a patched jar for paperclip
 
-if [[ $# < 3 ]]; then
-    echo "Usage ./generateJar.sh {input jar} {mojang_jar} {name}"
+if [[ $# < 4 ]]; then
+    echo "Usage ./generateJar.sh {input jar} {mojang_jar} {source_url} {name}"
     exit 1;
 fi;
 
-mkdir -p work/Paperclip
-PAPERCLIP_JAR=work/Paperclip/paperclip.jar
+workdir=work/Paperclip
 
-if [ ! -f $PAPERCLIP_JAR ]; then
+mkdir -p $workdir
+PAPERCLIP_JAR=paperclip.jar
+
+if [ ! -f $workdir/$PAPERCLIP_JAR ]; then
     if [ ! -d Paperclip ]; then
         echo "Paperclip not found"
         exit 1;
@@ -22,12 +24,14 @@ if [ ! -f $PAPERCLIP_JAR ]; then
         exit;
     fi;
     popd
-    cp Paperclip/target/paperclip*.jar $PAPERCLIP_JAR
+    cp Paperclip/target/paperclip*.jar $workdir/$PAPERCLIP_JAR
 fi;
+
 
 INPUT_JAR=$1
 VANILLA_JAR=$2
-NAME=$3
+VANILLA_URL=$3
+NAME=$4
 
 which bsdiff 2>&1 >/dev/null
 if [ $? != 0 ]; then
@@ -35,8 +39,8 @@ if [ $? != 0 ]; then
     exit 1;
 fi;
 
-OUTPUT_JAR=work/Paperclip/$NAME.jar
-PATCH_FILE=work/Paperclip/$NAME.patch
+OUTPUT_JAR=$NAME.jar
+PATCH_FILE=$NAME.patch
 
 hash() {
     echo $(sha256sum $1 | sed -E "s/(\S+).*/\1/")
@@ -44,7 +48,7 @@ hash() {
 
 echo "Computing Patch"
 
-bsdiff $VANILLA_JAR $INPUT_JAR $PATCH_FILE
+bsdiff $VANILLA_JAR $INPUT_JAR $workdir/$PATCH_FILE
 
 genJson() {
     PATCH=$1
@@ -59,12 +63,17 @@ genJson() {
     echo "}"
 }
 
+
 echo "Generating Final Jar"
 
-cp $PAPERCLIP_JAR $OUTPUT_JAR
+cp $workdir/$PAPERCLIP_JAR $workdir/$OUTPUT_JAR
 
-PATCH_JSON="work/Paperclip/patch.json"
+PATCH_JSON=patch.json
 
-genJson $PATCH_FILE $VANILLA_URL $(hash $VANILLA_JAR) $(hash $INPUT_JAR) > $PATCH_JSON
+genJson $PATCH_FILE $VANILLA_URL $(hash $VANILLA_JAR) $(hash $INPUT_JAR) > $workdir/$PATCH_JSON
+
+pushd $workdir
 
 jar uf $OUTPUT_JAR $PATCH_FILE $PATCH_JSON
+
+popd
