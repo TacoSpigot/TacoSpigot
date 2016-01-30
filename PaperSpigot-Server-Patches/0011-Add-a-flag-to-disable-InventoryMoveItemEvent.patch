@@ -1,4 +1,4 @@
-From ec93faf228f22afc46c1c9c71762fd4de0943f92 Mon Sep 17 00:00:00 2001
+From 41c78eb937b3d19191edc8fcd26500b1cb38b552 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 24 Aug 2015 22:37:36 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -144,5 +144,5 @@ index c012c8d..c1f297c 100644
      private void isArmorStandMoveWithoutGravity() {
          optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
 -- 
-2.6.4
+2.7.0
 

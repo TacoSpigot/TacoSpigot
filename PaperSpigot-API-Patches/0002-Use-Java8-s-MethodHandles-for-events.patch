@@ -1,4 +1,4 @@
-From 21e1ce9e3bfd9c41e93e3078da33be56879c9bb1 Mon Sep 17 00:00:00 2001
+From 53226efb9d0bab1b749d479d139a350fbb48d082 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 1 Sep 2015 18:20:18 -0700
 Subject: [PATCH] Use Java8's MethodHandles for events

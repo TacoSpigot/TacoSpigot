@@ -1,4 +1,4 @@
-From 8d9c9fd4a1db7fb35d2bd01f5e7be9210eb06c91 Mon Sep 17 00:00:00 2001
+From 3400b1d636ba2c7ac13a3e89560775dab6c7c566 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 23 Sep 2015 12:28:42 -0700
 Subject: [PATCH] Add ArrowCollideEvent
@@ -71,5 +71,5 @@ index 0000000..04c6f6f
 +    }
 +}
 -- 
-2.5.2.windows.2
+2.7.0
 

@@ -1,4 +1,4 @@
-From f7d032c9beeb2c918c06f5093de36709667e18a8 Mon Sep 17 00:00:00 2001
+From e3cd615212eca5e54aa9015330b1ce15b90de1e5 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 4 Aug 2015 20:45:22 -0700
 Subject: [PATCH] Metrics
@@ -18,5 +18,5 @@ index 558989c..f653050 100644
          String pluginVersion = (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown";
          String serverVersion = Bukkit.getVersion();
 -- 
-2.6.1.windows.1
+2.7.0
 

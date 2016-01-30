@@ -1,4 +1,4 @@
-From 30829230f34083a0ce3a85f3b4ca6646bd802b44 Mon Sep 17 00:00:00 2001
+From b81d28276adf94d718a70a54ac552b906a9b7ae1 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 19:10:21 -0700
 Subject: [PATCH] Optimize armor stands
@@ -9,7 +9,7 @@ This patch also avoids armor stands looking up entities, which provides
 most of the benefits of avoiding move() while keeping gravity.
 
 diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
-index cd57d69..f6ab196 100644
+index 2ea4a5f..7be0351 100644
 --- a/src/main/java/net/minecraft/server/EntityArmorStand.java
 +++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
 @@ -705,4 +705,12 @@ public class EntityArmorStand extends EntityLiving {
@@ -26,7 +26,7 @@ index cd57d69..f6ab196 100644
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 1be1fbc..cfe845b 100644
+index a95be1d..37adb1a 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -1229,6 +1229,7 @@ public abstract class World implements IBlockAccess {
@@ -51,5 +51,5 @@ index 4319a61..c012c8d 100644
 +    }
  }
 -- 
-2.6.1.windows.1
+2.7.0
 

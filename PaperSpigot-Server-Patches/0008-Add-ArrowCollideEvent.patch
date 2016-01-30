@@ -1,4 +1,4 @@
-From 09eef31842844a15d9933b606abed941d2478ce8 Mon Sep 17 00:00:00 2001
+From b3a18c3f3be653ef2728654683111b79ec23573d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 23 Sep 2015 12:29:13 -0700
 Subject: [PATCH] Add ArrowCollideEvent
@@ -36,5 +36,5 @@ index eac0363..ff70a35 100644
                  org.bukkit.craftbukkit.event.CraftEventFactory.callProjectileHitEvent(this); // CraftBukkit - Call event
                  if (movingobjectposition.entity != null) {
 -- 
-2.6.1.windows.1
+2.7.0
 
