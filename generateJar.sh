@@ -29,9 +29,9 @@ INPUT_JAR=$1
 VANILLA_JAR=$2
 NAME=$3
 
-which bsdiff4 2>&1 >/dev/null
+which bsdiff 2>&1 >/dev/null
 if [ $? != 0 ]; then
-    echo "Bsdiff4 not found"
+    echo "Bsdiff not found"
     exit 1;
 fi;
 
@@ -44,7 +44,7 @@ hash() {
 
 echo "Computing Patch"
 
-bsdiff4 $VANILLA_JAR $INPUT_JAR $PATCH_FILE
+bsdiff $VANILLA_JAR $INPUT_JAR $PATCH_FILE
 
 genJson() {
     PATCH=$1
