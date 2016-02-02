@@ -1,4 +1,4 @@
-From 53226efb9d0bab1b749d479d139a350fbb48d082 Mon Sep 17 00:00:00 2001
+From faa3fbbbe14a6ee6959889ab951662864b769bb0 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 1 Sep 2015 18:20:18 -0700
 Subject: [PATCH] Use Java8's MethodHandles for events
@@ -8,10 +8,10 @@ In addition, no 'new Object[] {event}' is created for the virtual method calls
 
 diff --git a/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java b/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java
 new file mode 100644
-index 0000000..8c3fbd0
+index 0000000..99b33c9
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/EventExecutorFactory.java
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,105 @@
 +package net.techcable.tacospigot;
 +
 +import com.google.common.base.Preconditions;
@@ -70,6 +70,7 @@ index 0000000..8c3fbd0
 +        @Override
 +        public final void execute(Listener listener, Event event) throws EventException {
 +            listener = listenerClass.cast(listener); // Check cast
++            if (!eventClass.isInstance(event)) return;
 +            event = eventClass.cast(event); // Check cast
 +            try {
 +                method.invoke(listener, event);
@@ -85,13 +86,16 @@ index 0000000..8c3fbd0
 +
 +    private static class MethodHandleEventExecutor implements EventExecutor {
 +        private final MethodHandle handle;
++        private final Class<? extends Event> eventClass;
 +
 +        private MethodHandleEventExecutor(MethodHandle handle) {
 +            this.handle = handle;
++            this.eventClass = handle.type().parameterType(0).asSubclass(Event.class);
 +        }
 +
 +        @Override
 +        public final void execute(Listener listener, Event event) throws EventException {
++            if (!eventClass.isInstance(event)) return;
 +            try {
 +                handle.invoke(listener, event);
 +            } catch (Throwable throwable) {
