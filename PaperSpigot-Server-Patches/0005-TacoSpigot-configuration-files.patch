@@ -1,4 +1,4 @@
-From b2159d0acc3c39bf1b73bf73ea334efa7c7d41a6 Mon Sep 17 00:00:00 2001
+From 7e332476c2c19bf32a2f87b65f1e398939008d5b Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -262,10 +262,10 @@ index 0000000..456aee9
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index a54b3e8..2a9c08b 100644
+index 642880e..8f48a5a 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -713,6 +713,7 @@ public final class CraftServer implements Server {
+@@ -714,6 +714,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          org.github.paperspigot.PaperSpigotConfig.init((File) console.options.valueOf("paper-settings")); // PaperSpigot
@@ -273,7 +273,7 @@ index a54b3e8..2a9c08b 100644
          for (WorldServer world : console.worlds) {
              world.worldData.setDifficulty(difficulty);
              world.setSpawnFlags(monsters, animals);
-@@ -729,6 +730,7 @@ public final class CraftServer implements Server {
+@@ -730,6 +731,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperSpigotConfig.init(); // PaperSpigot
