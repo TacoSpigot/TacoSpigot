@@ -1,4 +1,4 @@
-From b96979029cfa9b407a3d5412edd13a65ba503714 Mon Sep 17 00:00:00 2001
+From 6013d8f1d049d3be8108142cdf62aaa6908c9408 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 3 Feb 2016 11:27:34 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -11,7 +11,7 @@ This patch adds a per-world flag to disable InventoryMoveItemEvent for hoppers.
 When the event is disabled, the overhead of cloning items, and various other things are avoided
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index a2cea34..d0b448f 100644
+index 3fdc15d..767fa6c 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -265,8 +265,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
@@ -99,28 +99,25 @@ index a2cea34..d0b448f 100644
                  } else {
                      iinventory.setItem(i, itemstack1);
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-index 65136a7..25459c4 100644
+index e3d952e..5163f48 100644
 --- a/src/main/java/net/techcable/tacospigot/HopperHelper.java
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -8,6 +8,7 @@ import net.minecraft.server.BlockPosition;
- import net.minecraft.server.Blocks;
- import net.minecraft.server.Entity;
- import net.minecraft.server.EntityItem;
-+import net.minecraft.server.IBlockData;
- import net.minecraft.server.IHopper;
+@@ -3,11 +3,14 @@ package net.techcable.tacospigot;
+ import net.minecraft.server.Block;
+ import net.minecraft.server.BlockChest;
+ import net.minecraft.server.BlockPosition;
++import net.minecraft.server.IHopper;
  import net.minecraft.server.IInventory;
  import net.minecraft.server.TileEntity;
-@@ -17,6 +18,9 @@ import net.minecraft.server.World;
- import net.techcable.tacospigot.utils.BlockHelper;
- import net.techcable.tacospigot.utils.BlockHelper.AdjacentBlockSet;
+ import net.minecraft.server.TileEntityHopper;
+ import net.minecraft.server.World;
  
-+import org.bukkit.Material;
 +import org.bukkit.event.inventory.InventoryMoveItemEvent;
 +
  public class HopperHelper {
-     public static boolean acceptItem(Entity entity, IInventory inventory) {
-         if (!entity.getWorld().tacoSpigotConfig.isHopperPushBased) return false;
-@@ -84,4 +88,7 @@ public class HopperHelper {
+ 
+     public static TileEntityHopper getHopper(World world, BlockPosition pos) {
+@@ -30,4 +33,7 @@ public class HopperHelper {
          return null;
      }
  
