@@ -1,4 +1,4 @@
-From 7507311d61e20542ab06b5fee0238fa58bc78418 Mon Sep 17 00:00:00 2001
+From 22c3980575292da4da4ff7c66387323a43008401 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
@@ -6,7 +6,7 @@ Subject: [PATCH] POM Changes
 Use java 8
 
 diff --git a/pom.xml b/pom.xml
-index b4ead1d..399a245 100644
+index 6aaba50..286b9c8 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -61,39 +61,15 @@ index b4ead1d..399a245 100644
              <groupId>org.hamcrest</groupId>
              <artifactId>hamcrest-library</artifactId>
              <version>1.3</version>
-@@ -109,11 +114,11 @@
-                 <version>0.2</version>
-                 <executions>
-                     <execution>
--                        <id>ex-paperspigot</id>
-+                        <id>ex-tacospigot</id>
-                         <configuration>
--                            <format>git-PaperSpigot-%s</format>
-+                            <format>git-TacoSpigot-%s</format>
-                             <scmDirectory>../</scmDirectory>
--                            <descriptionProperty>paperspigot.desc</descriptionProperty>
-+                            <descriptionProperty>tacospigot.desc</descriptionProperty>
-                         </configuration>
-                         <phase>initialize</phase>
-                         <goals>
-@@ -133,7 +138,7 @@
-                         </goals>
-                     </execution>
-                 </executions>
--            </plugin>  
-+            </plugin>
-             <plugin>
-                 <groupId>org.apache.maven.plugins</groupId>
-                 <artifactId>maven-jar-plugin</artifactId>
-@@ -144,7 +149,7 @@
-                         <manifestEntries>
-                             <Main-Class>org.bukkit.craftbukkit.Main</Main-Class>
-                             <Implementation-Title>CraftBukkit</Implementation-Title>
--                            <Implementation-Version>${paperspigot.desc}${craftbukkit.desc}</Implementation-Version>
-+                            <Implementation-Version>${tacospigot.desc}${craftbukkit.desc}</Implementation-Version>
-                             <Implementation-Vendor>Bukkit Team</Implementation-Vendor>
-                             <Specification-Title>Bukkit</Specification-Title>
-                             <Specification-Version>${api.version}</Specification-Version>
+@@ -113,7 +118,7 @@
+             <artifactId>gitdescribe-maven-plugin</artifactId>
+             <version>1.3</version>
+             <configuration>
+-                <outputPrefix>git-PaperSpigot-</outputPrefix>
++                <outputPrefix>git-TacoSpigot-</outputPrefix>
+                 <scmDirectory>..</scmDirectory>
+             </configuration>
+             <executions>
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
 index c936219..5def35a 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
@@ -136,5 +112,5 @@ index 3a4b142..6549e73 100644
  
          if (stream != null) {
 -- 
-2.7.0
+2.7.1
 

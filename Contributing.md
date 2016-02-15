@@ -2,7 +2,7 @@ Contributing to TacoSpigot
 ==========================
 TacoSpigot has a very lenient policy towards PRs, but would prefer that you try and adhere to the following guidelines.
 
-## Understaing Patches
+## Understanding Patches
 Patches to TacoSpigot are very simple, but centes around the directories 'TacoSpigot-API' and 'TacoSpigot-Server'
 
 Assuming you already have forked the repository:
@@ -29,8 +29,8 @@ Adding patches to TacoSpigot is very simple:
 
 Your commit will be converted into a patch that you can then PR into TacoSpigot
 
-## Modifing Patches
-Modifiying previous patches is a bit more complex:
+## Modifying Patches
+Modifying previous patches is a bit more complex:
 
 1) Make sure `git status` is correct
   - If it says something like `212 commits ahead, 207 commits behind`, then type `git fetch` to update spigot/paperspigot
@@ -77,6 +77,6 @@ Location spawnLocation = ((CraftWorld)entity.getWorld()).getSpawnLocation();
 entity.getWorld().explode(new BlockPosition(spawnLocation.getX(), spawnLocation.getY(), spawnLocation.getZ()));
 // TacoSpigot end
 ````
-- We generally follow usual java style, or what is programed into most IDEs and formatters by default
+- We generally follow usual java style, or what is programmed into most IDEs and formatters by default
   - This is also known as oracle style
   - It is fine to go over 80 lines as long as it doesn't hurt readability
