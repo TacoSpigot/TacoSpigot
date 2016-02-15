@@ -5,7 +5,14 @@ VANILLA_JAR=work/$MINECRAFT_VERSION/$MINECRAFT_VERSION.jar
 
 VANILLA_URL="https://s3.amazonaws.com/Minecraft.Download/versions/$MINECRAFT_VERSION/minecraft_server.$MINECRAFT_VERSION.jar"
 
-./generateJar.sh TacoSpigot-Server/target/server*.jar $VANILLA_JAR $VANILLA_URL TacoSpigot
+SERVER_JAR=TacoSpigot-Server/target/$(ls TacoSpigot-Server/target | grep -P "^server-[\d\.]+-[\w\.]+(-SNAPSHOT)?.jar")
+
+if [ ! -f "$SERVER_JAR" ]; then
+    echo "Server Jar: $SERVER_JAR not found"
+    exit 1;
+fi;
+
+./generateJar.sh "$SERVER_JAR" "$VANILLA_JAR" "$VANILLA_URL" "TacoSpigot"
 
 if [ $? != 0 ]; then
     echo "Failed to generate jar"
