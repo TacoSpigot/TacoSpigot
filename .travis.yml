@@ -26,5 +26,4 @@ addons:
 
 # Clear build results from the cache
 before_cache:
-  - 'rm -rf work/Paperclip'
   - 'rm -rf $HOME/.m2/repository/net/techcable/tacospigot'

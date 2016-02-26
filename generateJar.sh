@@ -17,6 +17,7 @@ if [ ! -f $workdir/$PAPERCLIP_JAR ]; then
         echo "Paperclip not found"
         exit 1;
     fi
+    echo "Generating Paperclip Jar"
     pushd Paperclip
     mvn -P '!generate' clean install
     if [ ! -f target/paperclip*.jar ]; then
