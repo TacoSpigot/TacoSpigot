@@ -1,4 +1,4 @@
-From 7e332476c2c19bf32a2f87b65f1e398939008d5b Mon Sep 17 00:00:00 2001
+From 0c1ecd63868851b908c0bcd5335b367b4bb12029 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -17,10 +17,10 @@ index 088beb2..cb8cbff 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 56cddeb..a95be1d 100644
+index f0cd810..26ca52a 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -161,6 +161,7 @@ public abstract class World implements IBlockAccess {
+@@ -162,6 +162,7 @@ public abstract class World implements IBlockAccess {
      public final org.github.paperspigot.PaperSpigotWorldConfig paperSpigotConfig; // PaperSpigot
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Spigot
@@ -28,7 +28,7 @@ index 56cddeb..a95be1d 100644
  
      public CraftWorld getWorld() {
          return this.world;
-@@ -177,6 +178,7 @@ public abstract class World implements IBlockAccess {
+@@ -178,6 +179,7 @@ public abstract class World implements IBlockAccess {
      protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
          this.paperSpigotConfig = new org.github.paperspigot.PaperSpigotWorldConfig( worlddata.getName() ); // PaperSpigot
@@ -36,7 +36,7 @@ index 56cddeb..a95be1d 100644
          this.generator = gen;
          this.world = new CraftWorld((WorldServer) this, gen, env);
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
-@@ -224,8 +226,8 @@ public abstract class World implements IBlockAccess {
+@@ -225,8 +227,8 @@ public abstract class World implements IBlockAccess {
              public void b(WorldBorder worldborder, double d0) {}
  
              public void c(WorldBorder worldborder, double d0) {}
@@ -47,7 +47,7 @@ index 56cddeb..a95be1d 100644
          // CraftBukkit end
          this.keepSpawnInMemory = this.paperSpigotConfig.keepSpawnInMemory; // PaperSpigot
          timings = new co.aikar.timings.WorldTimingsHandler(this); // Spigot - code below can generate new world and access timings
-@@ -765,7 +767,7 @@ public abstract class World implements IBlockAccess {
+@@ -766,7 +768,7 @@ public abstract class World implements IBlockAccess {
      {
          return getType( blockposition, true );
      }
@@ -56,7 +56,7 @@ index 56cddeb..a95be1d 100644
      public IBlockData getType(BlockPosition blockposition, boolean useCaptured) {
          // CraftBukkit start - tree generation
          if (captureTreeGeneration && useCaptured) {
-@@ -1200,10 +1202,10 @@ public abstract class World implements IBlockAccess {
+@@ -1201,10 +1203,10 @@ public abstract class World implements IBlockAccess {
                                  entity.h(true);
                              }
  
@@ -69,7 +69,7 @@ index 56cddeb..a95be1d 100644
                              {
                                  block = chunk.getBlockData( blockposition );
                              }
-@@ -2715,7 +2717,7 @@ public abstract class World implements IBlockAccess {
+@@ -2717,7 +2719,7 @@ public abstract class World implements IBlockAccess {
                      continue;
                  }
              }
@@ -262,7 +262,7 @@ index 0000000..456aee9
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 642880e..8f48a5a 100644
+index 69485fa..a2fb039 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -714,6 +714,7 @@ public final class CraftServer implements Server {
@@ -301,5 +301,5 @@ index 5def35a..d2b4509 100644
          };
  
 -- 
-2.7.0
+2.7.1
 

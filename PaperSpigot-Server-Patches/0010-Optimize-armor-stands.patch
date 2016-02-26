@@ -1,4 +1,4 @@
-From b81d28276adf94d718a70a54ac552b906a9b7ae1 Mon Sep 17 00:00:00 2001
+From 109d3ff9ede1fd1cef0809f5e1aa2efd2c1491f2 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 19:10:21 -0700
 Subject: [PATCH] Optimize armor stands
@@ -26,10 +26,10 @@ index 2ea4a5f..7be0351 100644
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index a95be1d..37adb1a 100644
+index 26ca52a..1bb15b6 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -1229,6 +1229,7 @@ public abstract class World implements IBlockAccess {
+@@ -1230,6 +1230,7 @@ public abstract class World implements IBlockAccess {
          // Spigot end
  
          if (entity instanceof EntityItem) return arraylist; // PaperSpigot - Optimize item movement
@@ -51,5 +51,5 @@ index 4319a61..c012c8d 100644
 +    }
  }
 -- 
-2.7.0
+2.7.1
 

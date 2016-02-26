@@ -1,4 +1,4 @@
-From 4b137c6b41c6fb9c38e2cd48b09f6bdab46ddfe7 Mon Sep 17 00:00:00 2001
+From e9f93a9efde92cdfd70b6d404621281f3761c519 Mon Sep 17 00:00:00 2001
 From: Zach Brown <zach.brown@destroystokyo.com>
 Date: Mon, 25 May 2015 15:37:00 -0500
 Subject: [PATCH] mc-dev imports
@@ -3013,6 +3013,157 @@ index 0000000..2f01bbf
 +        return this.getOrCreateChunk(blockposition.getX() >> 4, blockposition.getZ() >> 4);
 +    }
 +}
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartFurnace.java b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
+new file mode 100644
+index 0000000..55f04b4
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityMinecartFurnace.java
+@@ -0,0 +1,145 @@
++package net.minecraft.server;
++
++public class EntityMinecartFurnace extends EntityMinecartAbstract {
++
++    private int c;
++    public double a;
++    public double b;
++
++    public EntityMinecartFurnace(World world) {
++        super(world);
++    }
++
++    public EntityMinecartFurnace(World world, double d0, double d1, double d2) {
++        super(world, d0, d1, d2);
++    }
++
++    public EnumMinecartType s() {
++        return EnumMinecartType.FURNACE;
++    }
++
++    protected void h() {
++        super.h();
++        this.datawatcher.a(16, new Byte((byte) 0));
++    }
++
++    public void t_() {
++        super.t_();
++        if (this.c > 0) {
++            --this.c;
++        }
++
++        if (this.c <= 0) {
++            this.a = this.b = 0.0D;
++        }
++
++        this.i(this.c > 0);
++        if (this.j() && this.random.nextInt(4) == 0) {
++            this.world.addParticle(EnumParticle.SMOKE_LARGE, this.locX, this.locY + 0.8D, this.locZ, 0.0D, 0.0D, 0.0D, new int[0]);
++        }
++
++    }
++
++    protected double m() {
++        return 0.2D;
++    }
++
++    public void a(DamageSource damagesource) {
++        super.a(damagesource);
++        if (!damagesource.isExplosion() && this.world.getGameRules().getBoolean("doEntityDrops")) {
++            this.a(new ItemStack(Blocks.FURNACE, 1), 0.0F);
++        }
++
++    }
++
++    protected void a(BlockPosition blockposition, IBlockData iblockdata) {
++        super.a(blockposition, iblockdata);
++        double d0 = this.a * this.a + this.b * this.b;
++
++        if (d0 > 1.0E-4D && this.motX * this.motX + this.motZ * this.motZ > 0.001D) {
++            d0 = (double) MathHelper.sqrt(d0);
++            this.a /= d0;
++            this.b /= d0;
++            if (this.a * this.motX + this.b * this.motZ < 0.0D) {
++                this.a = 0.0D;
++                this.b = 0.0D;
++            } else {
++                double d1 = d0 / this.m();
++
++                this.a *= d1;
++                this.b *= d1;
++            }
++        }
++
++    }
++
++    protected void o() {
++        double d0 = this.a * this.a + this.b * this.b;
++
++        if (d0 > 1.0E-4D) {
++            d0 = (double) MathHelper.sqrt(d0);
++            this.a /= d0;
++            this.b /= d0;
++            double d1 = 1.0D;
++
++            this.motX *= 0.800000011920929D;
++            this.motY *= 0.0D;
++            this.motZ *= 0.800000011920929D;
++            this.motX += this.a * d1;
++            this.motZ += this.b * d1;
++        } else {
++            this.motX *= 0.9800000190734863D;
++            this.motY *= 0.0D;
++            this.motZ *= 0.9800000190734863D;
++        }
++
++        super.o();
++    }
++
++    public boolean e(EntityHuman entityhuman) {
++        ItemStack itemstack = entityhuman.inventory.getItemInHand();
++
++        if (itemstack != null && itemstack.getItem() == Items.COAL) {
++            if (!entityhuman.abilities.canInstantlyBuild && --itemstack.count == 0) {
++                entityhuman.inventory.setItem(entityhuman.inventory.itemInHandIndex, (ItemStack) null);
++            }
++
++            this.c += 3600;
++        }
++
++        this.a = this.locX - entityhuman.locX;
++        this.b = this.locZ - entityhuman.locZ;
++        return true;
++    }
++
++    protected void b(NBTTagCompound nbttagcompound) {
++        super.b(nbttagcompound);
++        nbttagcompound.setDouble("PushX", this.a);
++        nbttagcompound.setDouble("PushZ", this.b);
++        nbttagcompound.setShort("Fuel", (short) this.c);
++    }
++
++    protected void a(NBTTagCompound nbttagcompound) {
++        super.a(nbttagcompound);
++        this.a = nbttagcompound.getDouble("PushX");
++        this.b = nbttagcompound.getDouble("PushZ");
++        this.c = nbttagcompound.getShort("Fuel");
++    }
++
++    protected boolean j() {
++        return (this.datawatcher.getByte(16) & 1) != 0;
++    }
++
++    protected void i(boolean flag) {
++        if (flag) {
++            this.datawatcher.watch(16, Byte.valueOf((byte) (this.datawatcher.getByte(16) | 1)));
++        } else {
++            this.datawatcher.watch(16, Byte.valueOf((byte) (this.datawatcher.getByte(16) & -2)));
++        }
++
++    }
++
++    public IBlockData u() {
++        return (this.j() ? Blocks.LIT_FURNACE : Blocks.FURNACE).getBlockData().set(BlockFurnace.FACING, EnumDirection.NORTH);
++    }
++}
 diff --git a/src/main/java/net/minecraft/server/ItemBlock.java b/src/main/java/net/minecraft/server/ItemBlock.java
 new file mode 100644
 index 0000000..57b3d9d
@@ -3405,6 +3556,154 @@ index 0000000..d5eaa24
 +    protected void d() {}
 +
 +    protected abstract boolean a(Vec3D vec3d, Vec3D vec3d1, int i, int j, int k);
++}
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java b/src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java
+new file mode 100644
+index 0000000..1606d6d
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/PacketPlayOutPlayerListHeaderFooter.java
+@@ -0,0 +1,33 @@
++package net.minecraft.server;
++
++import java.io.IOException;
++
++public class PacketPlayOutPlayerListHeaderFooter implements Packet<PacketListenerPlayOut> {
++
++    private IChatBaseComponent a;
++    private IChatBaseComponent b;
++
++    public PacketPlayOutPlayerListHeaderFooter() {}
++
++    public PacketPlayOutPlayerListHeaderFooter(IChatBaseComponent ichatbasecomponent) {
++        this.a = ichatbasecomponent;
++    }
++
++    public void a(PacketDataSerializer packetdataserializer) throws IOException {
++        this.a = packetdataserializer.d();
++        this.b = packetdataserializer.d();
++    }
++
++    public void b(PacketDataSerializer packetdataserializer) throws IOException {
++        packetdataserializer.a(this.a);
++        packetdataserializer.a(this.b);
++    }
++
++    public void a(PacketListenerPlayOut packetlistenerplayout) {
++        packetlistenerplayout.a(this);
++    }
++
++    public void a(PacketListener packetlistener) {
++        this.a((PacketListenerPlayOut) packetlistener);
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutTitle.java b/src/main/java/net/minecraft/server/PacketPlayOutTitle.java
+new file mode 100644
+index 0000000..2711298
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/PacketPlayOutTitle.java
+@@ -0,0 +1,103 @@
++package net.minecraft.server;
++
++import java.io.IOException;
++
++public class PacketPlayOutTitle implements Packet<PacketListenerPlayOut> {
++
++    private EnumTitleAction a;
++    private IChatBaseComponent b;
++    private int c;
++    private int d;
++    private int e;
++
++    public PacketPlayOutTitle() {}
++
++    public PacketPlayOutTitle(EnumTitleAction packetplayouttitle_enumtitleaction, IChatBaseComponent ichatbasecomponent) {
++        this(packetplayouttitle_enumtitleaction, ichatbasecomponent, -1, -1, -1);
++    }
++
++    public PacketPlayOutTitle(int i, int j, int k) {
++        this(EnumTitleAction.TIMES, (IChatBaseComponent) null, i, j, k);
++    }
++
++    public PacketPlayOutTitle(EnumTitleAction packetplayouttitle_enumtitleaction, IChatBaseComponent ichatbasecomponent, int i, int j, int k) {
++        this.a = packetplayouttitle_enumtitleaction;
++        this.b = ichatbasecomponent;
++        this.c = i;
++        this.d = j;
++        this.e = k;
++    }
++
++    public void a(PacketDataSerializer packetdataserializer) throws IOException {
++        this.a = (EnumTitleAction) packetdataserializer.a(EnumTitleAction.class);
++        if (this.a == EnumTitleAction.TITLE || this.a == EnumTitleAction.SUBTITLE) {
++            this.b = packetdataserializer.d();
++        }
++
++        if (this.a == EnumTitleAction.TIMES) {
++            this.c = packetdataserializer.readInt();
++            this.d = packetdataserializer.readInt();
++            this.e = packetdataserializer.readInt();
++        }
++
++    }
++
++    public void b(PacketDataSerializer packetdataserializer) throws IOException {
++        packetdataserializer.a((Enum) this.a);
++        if (this.a == EnumTitleAction.TITLE || this.a == EnumTitleAction.SUBTITLE) {
++            packetdataserializer.a(this.b);
++        }
++
++        if (this.a == EnumTitleAction.TIMES) {
++            packetdataserializer.writeInt(this.c);
++            packetdataserializer.writeInt(this.d);
++            packetdataserializer.writeInt(this.e);
++        }
++
++    }
++
++    public void a(PacketListenerPlayOut packetlistenerplayout) {
++        packetlistenerplayout.a(this);
++    }
++
++    public void a(PacketListener packetlistener) {
++        this.a((PacketListenerPlayOut) packetlistener);
++    }
++
++    public static enum EnumTitleAction {
++
++        TITLE, SUBTITLE, TIMES, CLEAR, RESET;
++
++        private EnumTitleAction() {}
++
++        public static EnumTitleAction a(String s) {
++            EnumTitleAction[] apacketplayouttitle_enumtitleaction = values();
++            int i = apacketplayouttitle_enumtitleaction.length;
++
++            for (int j = 0; j < i; ++j) {
++                EnumTitleAction packetplayouttitle_enumtitleaction = apacketplayouttitle_enumtitleaction[j];
++
++                if (packetplayouttitle_enumtitleaction.name().equalsIgnoreCase(s)) {
++                    return packetplayouttitle_enumtitleaction;
++                }
++            }
++
++            return EnumTitleAction.TITLE;
++        }
++
++        public static String[] a() {
++            String[] astring = new String[values().length];
++            int i = 0;
++            EnumTitleAction[] apacketplayouttitle_enumtitleaction = values();
++            int j = apacketplayouttitle_enumtitleaction.length;
++
++            for (int k = 0; k < j; ++k) {
++                EnumTitleAction packetplayouttitle_enumtitleaction = apacketplayouttitle_enumtitleaction[k];
++
++                astring[i++] = packetplayouttitle_enumtitleaction.name().toLowerCase();
++            }
++
++            return astring;
++        }
++    }
 +}
 diff --git a/src/main/java/net/minecraft/server/PathfinderGoalFloat.java b/src/main/java/net/minecraft/server/PathfinderGoalFloat.java
 new file mode 100644
