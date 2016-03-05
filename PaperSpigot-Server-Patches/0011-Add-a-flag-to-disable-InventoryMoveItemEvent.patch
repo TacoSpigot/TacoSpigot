@@ -1,4 +1,4 @@
-From 6013d8f1d049d3be8108142cdf62aaa6908c9408 Mon Sep 17 00:00:00 2001
+From 15bc21a6def240743e74296247ca67967774fdd2 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 3 Feb 2016 11:27:34 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -8,93 +8,81 @@ This patch prevents the event from firing if there are no listeners
 Some plugins offer no way to disable their IMIE listeners. (See WorldGuard-3520)
 This patch adds a per-world flag to disable InventoryMoveItemEvent for hoppers.
 
-When the event is disabled, the overhead of cloning items, and various other things are avoided
-
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index 3fdc15d..767fa6c 100644
+index 3fdc15d..4d7f160 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
-@@ -265,8 +265,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
-                         ItemStack itemstack = this.getItem(i).cloneItemStack();
-                         // ItemStack itemstack1 = addItem(iinventory, this.splitStack(i, 1), enumdirection);
+@@ -5,6 +5,7 @@ import java.util.List;
  
-+                        // TacoSpigot start - add an option to turn of InventoryMoveItemEvent
-+                        final ItemStack originalStack = this.splitStack(i, world.spigotConfig.hopperAmount);
-+                        final ItemStack stack;
-+                        if (HopperHelper.isFireInventoryMoveItemEvent(this)) {
+ // CraftBukkit start
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.entity.CraftItem;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.entity.HumanEntity;
+ import org.bukkit.event.inventory.InventoryMoveItemEvent;
+@@ -267,6 +268,10 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+ 
                          // CraftBukkit start - Call event when pushing items into other inventories
--                        CraftItemStack oitemstack = CraftItemStack.asCraftMirror(this.splitStack(i, world.spigotConfig.hopperAmount)); // Spigot
-+                        CraftItemStack oitemstack = CraftItemStack.asCraftMirror(originalStack); // Spigot
+                         CraftItemStack oitemstack = CraftItemStack.asCraftMirror(this.splitStack(i, world.spigotConfig.hopperAmount)); // Spigot
++                        // TacoSpigot start - add an option to turn of InventoryMoveItemEvent
++                        final org.bukkit.inventory.ItemStack stack;
++                        if (HopperHelper.isFireInventoryMoveItemEvent(this)) {
 +                        // TacoSpigot end
  
                          Inventory destinationInventory;
                          // Have to special case large chests as they work oddly
-@@ -283,11 +288,23 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -283,11 +288,18 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                              this.d(world.spigotConfig.hopperTransfer); // Spigot
                              return false;
                          }
 -                        int origCount = event.getItem().getAmount(); // Spigot
 -                        ItemStack itemstack1 = addItem(iinventory, CraftItemStack.asNMSCopy(event.getItem()), enumdirection);
 +                        // TacoSpigot start
-+                        stack = CraftItemStack.asNMSCopy(event.getItem());
++                        stack = event.getItem();
 +                        // handle cases where the event is not fired
 +                        } else {
-+                            /*
-+                             * Normally, vanilla would require us to call 'iinventory.update()'
-+                             * craftbukkit logic below calls update() if 'stack.equals(originalStack)'
-+                             * Since we set 'stack' to be the same as 'orgiginalStack' they will be eaual, and update
-+                             */
-+                            stack = originalStack;
++                            stack = oitemstack;
 +                        }
-+                        int origCount = stack.count; // Spigot
-+                        ItemStack itemstack1 = addItem(iinventory, stack, enumdirection);
++                        int origCount = stack.getAmount(); // Spigot
++                        ItemStack itemstack1 = addItem(iinventory, CraftItemStack.asNMSCopy(stack), enumdirection);
 +                        // TacoSpigot end
  
                          if (itemstack1 == null || itemstack1.count == 0) {
 -                            if (event.getItem().equals(oitemstack)) {
-+                            if (stack.equals(originalStack)) { // TacoSpigot
++                            if (stack.equals(oitemstack)) { // TacoSpigot - event.getItem() -> stack
                                  iinventory.update();
                              } else {
                                  this.setItem(i, itemstack);
-@@ -416,8 +433,13 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
-         if (itemstack != null && b(iinventory, itemstack, i, enumdirection)) {
-             ItemStack itemstack1 = itemstack.cloneItemStack();
+@@ -418,6 +430,10 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
              // ItemStack itemstack2 = addItem(ihopper, iinventory.splitStack(i, 1), (EnumDirection) null);
-+            // TacoSpigot start - add an option to turn of InventoryMoveItemEvent
-+            final ItemStack originalStack = iinventory.splitStack(i, ihopper.getWorld().spigotConfig.hopperAmount);
-+            final ItemStack stack;
-+            if (HopperHelper.isFireInventoryMoveItemEvent(ihopper)) {
              // CraftBukkit start - Call event on collection of items from inventories into the hopper
--            CraftItemStack oitemstack = CraftItemStack.asCraftMirror(iinventory.splitStack(i, ihopper.getWorld().spigotConfig.hopperAmount)); // Spigot
-+            CraftItemStack oitemstack = CraftItemStack.asCraftMirror(originalStack); // Spigot
+             CraftItemStack oitemstack = CraftItemStack.asCraftMirror(iinventory.splitStack(i, ihopper.getWorld().spigotConfig.hopperAmount)); // Spigot
++            // TacoSpigot start - add an option to turn of InventoryMoveItemEvent
++            final org.bukkit.inventory.ItemStack stack;
++            if (HopperHelper.isFireInventoryMoveItemEvent(ihopper)) {
 +            // TacoSpigot end
  
              Inventory sourceInventory;
              // Have to special case large chests as they work oddly
-@@ -440,11 +462,23 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+@@ -440,11 +456,18 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
                  }
                  return false;
              }
 -            int origCount = event.getItem().getAmount(); // Spigot
 -            ItemStack itemstack2 = addItem(ihopper, CraftItemStack.asNMSCopy(event.getItem()), null);
 +            // TacoSpigot start
-+            stack = CraftItemStack.asNMSCopy(event.getItem());
-+            // handle cases where the event is not firedgol
++            stack = event.getItem();
++            // handle cases where the event is not fired
 +            } else {
-+                /*
-+                 * Normally, vanilla would require us to call 'iinventory.update()'
-+                 * craftbukkit logic below calls update() if 'stack.equals(originalStack)'
-+                 * Since we set 'stack' to be the same as 'orgiginalStack' they will be eaual, and update
-+                 */
-+                stack = originalStack;
++                stack = oitemstack;
 +            }
-+            int origCount = stack.count; // Spigot
-+            ItemStack itemstack2 = addItem(ihopper, stack, null);
++            int origCount = stack.getAmount(); // Spigot
++            ItemStack itemstack2 = addItem(ihopper, CraftItemStack.asNMSCopy(stack), null);
 +            // TacoSpigot end
  
              if (itemstack2 == null || itemstack2.count == 0) {
 -                if (event.getItem().equals(oitemstack)) {
-+                if (stack.equals(originalStack)) { // TacoSpigot
++                if (stack.equals(oitemstack)) {
                      iinventory.update();
                  } else {
                      iinventory.setItem(i, itemstack1);
@@ -142,5 +130,5 @@ index c012c8d..c1f297c 100644
      private void isArmorStandMoveWithoutGravity() {
          optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
 -- 
-2.7.0
+2.7.1
 
