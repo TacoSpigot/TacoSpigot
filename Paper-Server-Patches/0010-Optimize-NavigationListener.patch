@@ -1,4 +1,4 @@
-From 17c95921c7aaba8cdff266d29d5d1003a86366ae Mon Sep 17 00:00:00 2001
+From d7a7d208f2d940d4e4e170588d4e8464aba1cc58 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 4 Mar 2016 23:12:22 -0700
 Subject: [PATCH] Optimize NavigationListener
@@ -8,10 +8,10 @@ This was very slow, since maps are slow, and copies are pretty slow.
 Mojang was using maps for their weak-key functionality, which we reimplement directly.
 
 diff --git a/src/main/java/net/minecraft/server/NavigationListener.java b/src/main/java/net/minecraft/server/NavigationListener.java
-index f82ea80..a2e4d0c 100644
+index f82ea80..3d3a066 100644
 --- a/src/main/java/net/minecraft/server/NavigationListener.java
 +++ b/src/main/java/net/minecraft/server/NavigationListener.java
-@@ -1,26 +1,56 @@
+@@ -1,26 +1,65 @@
  package net.minecraft.server;
  
  import java.util.WeakHashMap;
@@ -21,8 +21,12 @@ index f82ea80..a2e4d0c 100644
 +import java.lang.ref.ReferenceQueue;
 +import java.util.HashSet;
 +import java.util.Set;
-+import java.util.List;
-+import java.util.ArrayList;
++import java.util.concurrent.CopyOnWriteArrayList;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.Future;
++
++import com.google.common.util.concurrent.ThreadFactoryBuilder;
 +// Paper end
  
  public class NavigationListener implements IWorldAccess {
@@ -30,8 +34,10 @@ index f82ea80..a2e4d0c 100644
 -    private static final Object a = new Object();
 -    private final WeakHashMap<NavigationAbstract, Object> b = new WeakHashMap();
 +    // Paper start
-+    private final List<Reference<NavigationAbstract>> navigations = new ArrayList<>();
++    private final CopyOnWriteArrayList<Reference<NavigationAbstract>> navigations = new CopyOnWriteArrayList<>();
 +    private static final ReferenceQueue<NavigationAbstract> referenceQueue = new ReferenceQueue<>();
++    private static ExecutorService cleanupExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("TacoSpigot NavigationListener Cleanup Thread").build());
++    private Future<?> cleanupFuture = null;
 +
 +    private void cleanup() {
 +        Reference<NavigationAbstract> navigation;
@@ -39,6 +45,11 @@ index f82ea80..a2e4d0c 100644
 +        while ((navigation = (Reference<NavigationAbstract>) referenceQueue.poll()) != null) {
 +            toRemove.add(navigation);
 +        }
++        navigations.forEach((ref) -> {
++            if (ref.get() == null) {
++                toRemove.add(ref);
++            }
++        });
 +        navigations.removeAll(toRemove);
 +    }
 +    // Paper end
@@ -49,7 +60,6 @@ index f82ea80..a2e4d0c 100644
 -        this.b.put(navigationabstract, NavigationListener.a);
 +        // Paper start
 +        if (navigationabstract == null) throw new IllegalArgumentException("Null navigation");
-+        cleanup();
 +        navigations.add(new WeakReference<>(navigationabstract));
 +        // Paper end
      }
@@ -61,28 +71,26 @@ index f82ea80..a2e4d0c 100644
 -            int j = anavigationabstract.length;
 -
 +            // Paper start - iterate over our own array instead of a copied array from the set
-+            cleanup();
-+            Set<Reference<NavigationAbstract>> toRemove = new HashSet<>();
 +            int j = navigations.size();
              for (int k = 0; k < j; ++k) {
 -                NavigationAbstract navigationabstract = anavigationabstract1[k];
 +                Reference<NavigationAbstract> ref = navigations.get(k);
 +                NavigationAbstract navigationabstract = ref.get();
 +                if (navigationabstract == null) {
-+                    // Ugg, lets remove this
-+                    toRemove.add(ref);
++                    if (cleanupFuture == null || cleanupFuture.isDone()) {
++                        cleanupFuture = cleanupExecutor.submit(this::cleanup);
++                    }
 +                    continue;
 +                }
 +                // Paper end
  
                  if (navigationabstract != null && !navigationabstract.i()) {
                      PathEntity pathentity = navigationabstract.k();
-@@ -36,7 +66,7 @@ public class NavigationListener implements IWorldAccess {
+@@ -36,7 +75,6 @@ public class NavigationListener implements IWorldAccess {
                      }
                  }
              }
 -
-+            navigations.removeAll(toRemove); // Paper
          }
      }
  
