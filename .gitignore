@@ -40,12 +40,15 @@ TacoSpigot-API
 TacoSpigot-Server
 Spigot-API
 Spigot-Server
+Paper-Server
+Paper-API
 PaperSpigot-Server
 PaperSpigot-API
-Bukkit
 CraftBukkit
 
 #Build System
 Paperclip
 work
 build
+Paperclip.jar
+paperclip.jar

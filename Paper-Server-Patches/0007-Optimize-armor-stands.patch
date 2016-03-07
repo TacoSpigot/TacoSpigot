@@ -1,0 +1,58 @@
+From 095d53f70dc6499e43cc631e049148c9d85aad98 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Tue, 6 Oct 2015 19:10:21 -0700
+Subject: [PATCH] Optimize armor stands
+
+Armor stands try and move() every tick, which can add up fast on creative servers with a lot of armor stands.
+This patch adds an option to prevent armor stands from moving.
+This patch also avoids armor stands looking up entities, which provides
+most of the benefits of avoiding move() while keeping gravity.
+
+diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
+index 04161e7..e686c24 100644
+--- a/src/main/java/net/minecraft/server/EntityArmorStand.java
++++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
+@@ -747,6 +747,14 @@ public class EntityArmorStand extends EntityLiving {
+         return false;
+     }
+ 
++    // TacoSpigot start - add an option to make armor stands not move
++    @Override
++    public void move(double motX, double motY, double motZ) {
++        if (getWorld().tacoSpigotConfig.optimizeArmorStandMovement) return;
++        super.move(motX, motY, motZ);
++    }
++    // TacoSpigot end
++
+     static class SyntheticClass_1 {
+ 
+         static final int[] a = new int[EnumItemSlot.Function.values().length];
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index dea3e59..aeda24f 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1138,6 +1138,7 @@ public abstract class World implements IBlockAccess {
+ 
+         blockposition_pooledblockposition.t();
+         if (entity != null) {
++            if (entity instanceof EntityArmorStand) return arraylist; // TacoSpigot - Optimize armor stand movement
+             List list = this.getEntities(entity, axisalignedbb.g(0.25D));
+ 
+             for (k1 = 0; k1 < list.size(); ++k1) {
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+index d431d3b..4e2283c 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+@@ -67,4 +67,9 @@ public class TacoSpigotWorldConfig {
+     private void isHopperPushBased() {
+         isHopperPushBased = getBoolean("hopper.push-based", true);
+     }
++
++    public boolean optimizeArmorStandMovement;
++    private void isArmorStandMoveWithoutGravity() {
++        optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
++    }
+ }
+-- 
+2.7.1
+

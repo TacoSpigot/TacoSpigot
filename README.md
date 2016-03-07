@@ -1,5 +1,4 @@
 TacoSpigot[![Build Status](https://travis-ci.org/TacoSpigot/TacoSpigot.svg?branch=master)](https://travis-ci.org/TacoSpigot/TacoSpigot)
-===========
 
 A even-higher higher performance PaperSpigot fork that adds new features.
 
@@ -16,7 +15,6 @@ Run the TacoSpigot jar directly from your server. Just like old times
 We do this with [Paperclip](https://github.com/PaperSpigot/Paperclip) like PaperSpigot.
 
 TacoSpigot requires **Java 8** or above.
-
 
 How To (Compiling From Source)
 ------

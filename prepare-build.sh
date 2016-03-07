@@ -1,6 +1,6 @@
 #!/bin/bash
 
-git submodule update --init && ./remap.sh && ./decompile.sh && ./init.sh && ./newApplyPatches.sh
+git submodule update --init && ./remap.sh && ./decompile.sh && ./init.sh && ./applyPatches.sh
 
 # Generate paperclip jar in this stage
 mkdir -p work/Paperclip

@@ -1,0 +1,432 @@
+From 762e421878cec76855077abab8aaf61dc98ff369 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Fri, 24 Jul 2015 16:20:18 -0700
+Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
+
+Every tick hoppers try and find an block-inventory to extract from.
+If no tile entity is above the hopper (which there often isn't) it will do a bounding box search for minecart chests and minecart hoppers.
+If it can't find an inventory, it will then look for a dropped item, which is another bounding box search.
+This patch eliminates that expensive check by having dropped items and minecart hoppers/chests look for hoppers instead.
+Hoppers are tile entities meaning you can do a simple tile entity lookup to find the nearest hopper in range.
+Pushing out of hoppers causes a bouding box lookup, which this patch replaces with a tile entity lookup.
+
+This patch may causes a decrease in the performance of dropped items, which is why it can be disabled in the configuration.
+
+diff --git a/src/main/java/net/minecraft/server/EntityItem.java b/src/main/java/net/minecraft/server/EntityItem.java
+index 39af5d5..9a99327 100644
+--- a/src/main/java/net/minecraft/server/EntityItem.java
++++ b/src/main/java/net/minecraft/server/EntityItem.java
+@@ -5,8 +5,15 @@ import java.util.Iterator;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.bukkit.event.player.PlayerPickupItemEvent; // CraftBukkit
++import net.techcable.tacospigot.HopperPusher; // TacoSpigot
+ 
+-public class EntityItem extends Entity {
++// TacoSpigot start - implement HopperPusher
++public class EntityItem extends Entity implements HopperPusher {
++    @Override
++    public boolean acceptItem(TileEntityHopper hopper) {
++        return TileEntityHopper.a(hopper, this);
++    }
++// TacoSpigot end
+ 
+     private static final Logger b = LogManager.getLogger();
+     private static final DataWatcherObject<Optional<ItemStack>> c = DataWatcher.a(EntityItem.class, DataWatcherRegistry.f);
+@@ -61,6 +68,7 @@ public class EntityItem extends Entity {
+             this.die();
+         } else {
+             super.m();
++            if (tryPutInHopper()) return; // TacoSpigot
+             // CraftBukkit start - Use wall time for pickup and despawn timers
+             int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
+             if (this.pickupDelay != 32767) this.pickupDelay -= elapsedTicks;
+@@ -125,6 +133,7 @@ public class EntityItem extends Entity {
+     // Spigot start - copied from above
+     @Override
+     public void inactiveTick() {
++        if (tryPutInHopper()) return; // TacoSpigot
+         // CraftBukkit start - Use wall time for pickup and despawn timers
+         int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
+         if (this.pickupDelay != 32767) this.pickupDelay -= elapsedTicks;
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartContainer.java b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
+index 9b7745c..c86ca39 100644
+--- a/src/main/java/net/minecraft/server/EntityMinecartContainer.java
++++ b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
+@@ -7,8 +7,27 @@ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.entity.HumanEntity;
+ import org.bukkit.inventory.InventoryHolder;
+ // CraftBukkit end
++import net.techcable.tacospigot.HopperPusher; // TacoSpigot
+ 
+-public abstract class EntityMinecartContainer extends EntityMinecartAbstract implements ITileInventory, ILootable {
++// TacoSpigot start - push into hoppers
++public abstract class EntityMinecartContainer extends EntityMinecartAbstract implements ITileInventory, ILootable, HopperPusher {
++    @Override
++    public boolean acceptItem(TileEntityHopper hopper) {
++        return TileEntityHopper.acceptItem(hopper, this);
++    }
++
++    @Override
++    public void m() {
++        super.m();
++        tryPutInHopper();
++    }
++
++    @Override
++    public void inactiveTick() {
++        super.inactiveTick();
++        tryPutInHopper();
++    }
++    // TacoSpigot end
+ 
+     private ItemStack[] items = new ItemStack[27]; // CraftBukkit - 36 -> 27
+     private boolean b = true;
+diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
+index 4cd2caa..5ff93a3 100644
+--- a/src/main/java/net/minecraft/server/TileEntityHopper.java
++++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
+@@ -11,6 +11,9 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
+ import org.bukkit.event.inventory.InventoryPickupItemEvent;
+ import org.bukkit.inventory.Inventory;
+ // CraftBukkit end
++// TacoSpigot start
++import net.techcable.tacospigot.HopperHelper;
++// TacoSpigot end
+ 
+ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITickable {
+ 
+@@ -185,6 +188,12 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+         }
+     }
+ 
++    // TacoSpigot start
++    public boolean canAcceptItems() {
++        return !this.o() && !this.q() && BlockHopper.f(this.u());
++    }
++    // TacoSpigot end
++
+     private boolean q() {
+         ItemStack[] aitemstack = this.items;
+         int i = aitemstack.length;
+@@ -216,7 +225,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+     }
+ 
+     private boolean H() {
+-        IInventory iinventory = this.I();
++        IInventory iinventory = HopperHelper.getInventory(getWorld(), getPosition().shift(BlockHopper.e(this.u()))); // TacoSpigot - avoid bounding box search
+ 
+         if (iinventory == null) {
+             return false;
+@@ -321,8 +330,20 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+         return true;
+     }
+ 
++    // TacoSpigot start - split methods, and only do entity lookup if in pull mode
+     public static boolean a(IHopper ihopper) {
+-        IInventory iinventory = b(ihopper);
++        IInventory iinventory;
++        if (ihopper.getWorld().tacoSpigotConfig.isHopperPushBased && ihopper instanceof TileEntityHopper) {
++            BlockPosition pos = ((TileEntityHopper) ihopper).getPosition().up(); // Only pull from above, as everything else is pushed into the hopper
++            iinventory = HopperHelper.getInventory(ihopper.getWorld(), pos);
++        } else {
++            iinventory = b(ihopper);
++        }
++        return acceptItem(ihopper, iinventory);
++    }
++
++    public static boolean acceptItem(IHopper ihopper, IInventory iinventory) {
++        // TacoSpigot end
+ 
+         if (iinventory != null) {
+             EnumDirection enumdirection = EnumDirection.DOWN;
+@@ -349,7 +370,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+                     }
+                 }
+             }
+-        } else {
++        } else if (!ihopper.getWorld().tacoSpigotConfig.isHopperPushBased || !(ihopper instanceof TileEntityHopper)) { // TacoSpigot - only search for entities in 'pull mode'
+             Iterator iterator = a(ihopper.getWorld(), ihopper.E(), ihopper.F(), ihopper.G()).iterator();
+ 
+             while (iterator.hasNext()) {
+@@ -523,6 +544,18 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+         return world.a(EntityItem.class, new AxisAlignedBB(d0 - 0.5D, d1, d2 - 0.5D, d0 + 0.5D, d1 + 1.5D, d2 + 0.5D), IEntitySelector.a);
+     }
+ 
++    // TacoSpigot start
++    public AxisAlignedBB getHopperLookupBoundingBox() {
++        // Change this if b(IHopper) ever changes
++        return getHopperLookupBoundingBox(this.E(), this.F() + 1.0D, this.G());
++    }
++
++    private static AxisAlignedBB getHopperLookupBoundingBox(double d0, double d1, double d2) {
++        // Change this if a(World, double, double, double) above ever changes
++        return new AxisAlignedBB(d0 - 0.5D, d1, d2 - 0.5D, d0 + 0.5D, d1 + 1.5D, d2 + 0.5D);
++    }
++    // TacoSpigot end
++
+     public static IInventory b(World world, double d0, double d1, double d2) {
+         Object object = null;
+         int i = MathHelper.floor(d0);
+diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
+new file mode 100644
+index 0000000..c175b7c
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
+@@ -0,0 +1,33 @@
++package net.techcable.tacospigot;
++
++import net.minecraft.server.Block;
++import net.minecraft.server.BlockChest;
++import net.minecraft.server.BlockPosition;
++import net.minecraft.server.IInventory;
++import net.minecraft.server.TileEntity;
++import net.minecraft.server.TileEntityHopper;
++import net.minecraft.server.World;
++
++public class HopperHelper {
++
++    public static TileEntityHopper getHopper(World world, BlockPosition pos) {
++        TileEntity tileEntity = world.getTileEntity(pos);
++        if (tileEntity instanceof TileEntityHopper) {
++            return (TileEntityHopper) tileEntity;
++        }
++        return null;
++    }
++
++    public static IInventory getInventory(World world, BlockPosition position) {
++        Block block = world.getType(position).getBlock();
++        if (block instanceof BlockChest) {
++            return ((BlockChest) block).c(world, position);
++        }
++        if (block.isTileEntity()) {
++            TileEntity tile = world.getTileEntity(position);
++            if (tile instanceof IInventory) return (IInventory) tile;
++        }
++        return null;
++    }
++
++}
+diff --git a/src/main/java/net/techcable/tacospigot/HopperPusher.java b/src/main/java/net/techcable/tacospigot/HopperPusher.java
+new file mode 100644
+index 0000000..da2c789
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/HopperPusher.java
+@@ -0,0 +1,57 @@
++package net.techcable.tacospigot;
++
++import net.minecraft.server.AxisAlignedBB;
++import net.minecraft.server.BlockPosition;
++import net.minecraft.server.Entity;
++import net.minecraft.server.EntityItem;
++import net.minecraft.server.IHopper;
++import net.minecraft.server.IInventory;
++import net.minecraft.server.TileEntityHopper;
++import net.minecraft.server.Vec3D;
++import net.minecraft.server.World;
++import net.techcable.tacospigot.utils.BlockHelper;
++
++public interface HopperPusher {
++
++    public default TileEntityHopper findHopper() {
++        for (BlockPosition adjacentPos : new BlockHelper.AdjacentBlockSet(new BlockPosition(getX(), getY(), getZ()), 1)) {
++            TileEntityHopper hopper = HopperHelper.getHopper(getWorld(), adjacentPos);
++            if (hopper == null) continue; // Avoid playing with the bounding boxes, if at all possible
++            /**
++             * We add one to getY(), just like {@link TileEntityHopper#b(IHopper)}
++             */
++            AxisAlignedBB hopperBoundingBox = hopper.getHopperLookupBoundingBox();
++            if (hopperBoundingBox.b(this.getBoundingBox())) { // AxisAlignedBB.b(AxisAlignedBB) -> isIntersect()
++                return hopper;
++            }
++        }
++        return null;
++    }
++
++    public boolean acceptItem(TileEntityHopper hopper);
++
++    public default boolean tryPutInHopper() {
++        if (!getWorld().tacoSpigotConfig.isHopperPushBased) return false;
++        TileEntityHopper hopper = findHopper();
++        return hopper != null && hopper.canAcceptItems() && acceptItem(hopper);
++    }
++
++    public AxisAlignedBB getBoundingBox();
++
++    public World getWorld();
++
++    // Default implementations for entities
++
++    public default double getX() {
++        return ((Entity) this).locX;
++    }
++
++    public default double getY() {
++        return ((Entity) this).locY;
++    }
++
++    public default double getZ() {
++        return ((Entity) this).locZ;
++    }
++
++}
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+index 2bc5877..d431d3b 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+@@ -62,4 +62,9 @@ public class TacoSpigotWorldConfig {
+         config.addDefault("world-settings.default." + path, def);
+         return config.getString("world-settings." + worldName + "." + path, config.getString("world-settings.default." + path));
+     }
++
++    public boolean isHopperPushBased;
++    private void isHopperPushBased() {
++        isHopperPushBased = getBoolean("hopper.push-based", true);
++    }
+ }
+diff --git a/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
+new file mode 100644
+index 0000000..32db322
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
+@@ -0,0 +1,137 @@
++package net.techcable.tacospigot.utils;
++
++import java.util.AbstractSet;
++import java.util.Iterator;
++import java.util.Spliterator;
++import java.util.Spliterators;
++import java.util.function.Consumer;
++import java.util.function.Predicate;
++import java.util.stream.Stream;
++import java.util.stream.StreamSupport;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.AbstractIterator;
++
++import net.minecraft.server.Block;
++import net.minecraft.server.BlockPosition;
++
++public class BlockHelper {
++    private BlockHelper() {
++    }
++
++    public static Stream<BlockPosition> streamAdjacentBlocks(final BlockPosition pos, int radius) {
++        Preconditions.checkArgument(radius >= 0, "Negative radius %s", radius);
++        return StreamSupport.stream(new AdjacentBlockSet(pos, radius).spliterator(), false);
++    }
++
++    public static void forEachAdjacentBlock(BlockPosition position, int radius, Consumer<BlockPosition> action) {
++        new AdjacentBlockSet(position, radius).forEach(action);
++    }
++
++    public static boolean isAllAdjacentBlocksFillPredicate(BlockPosition position, int radius, Predicate<BlockPosition> predicate) {
++        for (BlockPosition adjacent : new AdjacentBlockSet(position, radius)) {
++            if (!predicate.test(adjacent)) return false;
++        }
++        return true;
++    }
++
++    private static final Block[] blockById = new Block[256];
++
++    static {
++        for (int i = 0; i < blockById.length; i++) {
++            blockById[i] = Block.getById(i);
++        }
++    }
++
++    public static Block getBlock(int id) {
++        return id < 256 ? blockById[id] : Block.getById(id);
++    }
++
++    public static class AdjacentBlockSet extends AbstractSet<BlockPosition> {
++        private final int startX, endX;
++        private final int startY, endY;
++        private final int startZ, endZ;
++
++
++        public AdjacentBlockSet(BlockPosition pos, int radius) {
++            this(
++                    pos.getX() - radius, // startX
++                    pos.getX() + radius, // endX
++                    Math.max(0, pos.getY() - radius), // startY
++                    Math.min(255, pos.getY() + radius), // endY
++                    pos.getZ() - radius, // startZ
++                    pos.getZ() + radius // endZ
++            );
++        }
++
++        public AdjacentBlockSet(int startX, int endX, int startY, int endY, int startZ, int endZ) {
++            this.startX = startX;
++            this.endX = endX;
++            this.startY = startY;
++            this.endY = endY;
++            this.startZ = startZ;
++            this.endZ = endZ;
++        }
++
++        @Override
++        public int size() {
++            return (endX - startX) * (endY - startY) * (endZ - startZ);
++        }
++
++        @Override
++        public Spliterator<BlockPosition> spliterator() {
++            return Spliterators.spliterator(iterator(), size(), Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT | Spliterator.NONNULL);
++        }
++
++        @Override
++        public Iterator<BlockPosition> iterator() {
++            return new AdjacentBlockIterator();
++        }
++
++        @Override
++        public void forEach(Consumer<? super BlockPosition> action) {
++            iterator().forEachRemaining(action);
++        }
++
++        private class AdjacentBlockIterator extends AbstractIterator<BlockPosition> {
++            private int x = startX;
++            private int y = startY;
++            private int z = startZ;
++
++            @Override
++            protected BlockPosition computeNext() {
++                final int x = this.x;
++                final int y = this.y;
++                final int z = this.z;
++                if (z <= endZ) {
++                    ++this.z;
++                } else {
++                    if (y < endY) {
++                        ++this.y;
++                    } else {
++                        if (x < endX) {
++                            ++this.x;
++                        } else return endOfData();
++                        this.y = startY;
++                    }
++                    this.z = startZ;
++                    return computeNext();
++                }
++                return new BlockPosition(x, y, z);
++            }
++
++            @Override
++            public void forEachRemaining(Consumer<? super BlockPosition> action) {
++                for (int x = this.x; x <= endX; x++) {
++                    for (int y = this.y; y <= endY; y++) {
++                        for (int z = this.z; z <= endZ; z++) {
++                            BlockPosition adjacent = new BlockPosition(x, y, z);
++                            action.accept(adjacent);
++                        }
++                    }
++                }
++                endOfData();
++            }
++        }
++    }
++}
+-- 
+2.7.1
+
