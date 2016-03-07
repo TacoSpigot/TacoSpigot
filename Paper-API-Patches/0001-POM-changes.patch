@@ -1,4 +1,4 @@
-From 7f75bea8119457b1c071a31d2e3025ba68041b27 Mon Sep 17 00:00:00 2001
+From a2cbeade2bcfd710033842f963452321aff38b3c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -35,7 +35,7 @@ index 0b615b4..f1331c0 100644
  
      <properties>
 diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-index ad3a9e5..531c507 100644
+index ad3a9e5..c907e93 100644
 --- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 +++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 @@ -27,6 +27,14 @@ import java.util.logging.Logger;
@@ -87,7 +87,7 @@ index ad3a9e5..531c507 100644
      private static int getDistance(String repo, String currentVerInt) { // Paper
          try {
 +            // TacoSpigot start
-+            HttpURLConnection connection = (HttpURLConnection) new URL("https://api.github.com/repos/" + repo + "/compare/master..." + currentVerInt).openConnection();
++            HttpURLConnection connection = (HttpURLConnection) new URL("https://api.github.com/repos/" + repo + "/compare/version/1.9..." + currentVerInt).openConnection();
 +            connection.connect();
 +            if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) return -2; // Unknown commit
 +            try (
