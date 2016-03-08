@@ -1,4 +1,4 @@
-From d7a7d208f2d940d4e4e170588d4e8464aba1cc58 Mon Sep 17 00:00:00 2001
+From dfa9567a60eafd95591551e6192983e32cd98755 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 4 Mar 2016 23:12:22 -0700
 Subject: [PATCH] Optimize NavigationListener
@@ -8,10 +8,10 @@ This was very slow, since maps are slow, and copies are pretty slow.
 Mojang was using maps for their weak-key functionality, which we reimplement directly.
 
 diff --git a/src/main/java/net/minecraft/server/NavigationListener.java b/src/main/java/net/minecraft/server/NavigationListener.java
-index f82ea80..3d3a066 100644
+index f82ea80..5ff03ed 100644
 --- a/src/main/java/net/minecraft/server/NavigationListener.java
 +++ b/src/main/java/net/minecraft/server/NavigationListener.java
-@@ -1,26 +1,65 @@
+@@ -1,26 +1,63 @@
  package net.minecraft.server;
  
  import java.util.WeakHashMap;
@@ -70,27 +70,28 @@ index f82ea80..3d3a066 100644
 -            NavigationAbstract[] anavigationabstract1 = anavigationabstract;
 -            int j = anavigationabstract.length;
 -
-+            // Paper start - iterate over our own array instead of a copied array from the set
-+            int j = navigations.size();
-             for (int k = 0; k < j; ++k) {
+-            for (int k = 0; k < j; ++k) {
 -                NavigationAbstract navigationabstract = anavigationabstract1[k];
-+                Reference<NavigationAbstract> ref = navigations.get(k);
++            // Paper start - iterate over our own array instead of a copied array from the set
++            navigations.forEach((ref) -> {
 +                NavigationAbstract navigationabstract = ref.get();
 +                if (navigationabstract == null) {
 +                    if (cleanupFuture == null || cleanupFuture.isDone()) {
 +                        cleanupFuture = cleanupExecutor.submit(this::cleanup);
 +                    }
-+                    continue;
++                    return;
 +                }
 +                // Paper end
  
                  if (navigationabstract != null && !navigationabstract.i()) {
                      PathEntity pathentity = navigationabstract.k();
-@@ -36,7 +75,6 @@ public class NavigationListener implements IWorldAccess {
+@@ -35,8 +72,7 @@ public class NavigationListener implements IWorldAccess {
+                         }
                      }
                  }
-             }
+-            }
 -
++            }); // Paper - close lambda
          }
      }
  
