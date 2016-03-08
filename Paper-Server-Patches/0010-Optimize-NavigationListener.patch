@@ -1,4 +1,4 @@
-From dfa9567a60eafd95591551e6192983e32cd98755 Mon Sep 17 00:00:00 2001
+From 8a2d6b7b08551f15c36832486f8a55d87fd97da2 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 4 Mar 2016 23:12:22 -0700
 Subject: [PATCH] Optimize NavigationListener
@@ -8,17 +8,16 @@ This was very slow, since maps are slow, and copies are pretty slow.
 Mojang was using maps for their weak-key functionality, which we reimplement directly.
 
 diff --git a/src/main/java/net/minecraft/server/NavigationListener.java b/src/main/java/net/minecraft/server/NavigationListener.java
-index f82ea80..5ff03ed 100644
+index f82ea80..119883c 100644
 --- a/src/main/java/net/minecraft/server/NavigationListener.java
 +++ b/src/main/java/net/minecraft/server/NavigationListener.java
-@@ -1,26 +1,63 @@
+@@ -1,26 +1,57 @@
  package net.minecraft.server;
  
  import java.util.WeakHashMap;
 +// Paper start
 +import java.lang.ref.WeakReference;
 +import java.lang.ref.Reference;
-+import java.lang.ref.ReferenceQueue;
 +import java.util.HashSet;
 +import java.util.Set;
 +import java.util.concurrent.CopyOnWriteArrayList;
@@ -35,16 +34,11 @@ index f82ea80..5ff03ed 100644
 -    private final WeakHashMap<NavigationAbstract, Object> b = new WeakHashMap();
 +    // Paper start
 +    private final CopyOnWriteArrayList<Reference<NavigationAbstract>> navigations = new CopyOnWriteArrayList<>();
-+    private static final ReferenceQueue<NavigationAbstract> referenceQueue = new ReferenceQueue<>();
 +    private static ExecutorService cleanupExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("TacoSpigot NavigationListener Cleanup Thread").build());
 +    private Future<?> cleanupFuture = null;
 +
 +    private void cleanup() {
-+        Reference<NavigationAbstract> navigation;
 +        Set<Reference<NavigationAbstract>> toRemove = new HashSet<>();
-+        while ((navigation = (Reference<NavigationAbstract>) referenceQueue.poll()) != null) {
-+            toRemove.add(navigation);
-+        }
 +        navigations.forEach((ref) -> {
 +            if (ref.get() == null) {
 +                toRemove.add(ref);
@@ -85,7 +79,7 @@ index f82ea80..5ff03ed 100644
  
                  if (navigationabstract != null && !navigationabstract.i()) {
                      PathEntity pathentity = navigationabstract.k();
-@@ -35,8 +72,7 @@ public class NavigationListener implements IWorldAccess {
+@@ -35,8 +66,7 @@ public class NavigationListener implements IWorldAccess {
                          }
                      }
                  }
