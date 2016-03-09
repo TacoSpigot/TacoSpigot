@@ -1,0 +1,53 @@
+From dcf0c7053dafb396ad5826592261177e80f664e9 Mon Sep 17 00:00:00 2001
+From: Aikar <aikar@aikar.co>
+Date: Tue, 8 Mar 2016 23:25:45 -0500
+Subject: [PATCH] Disable Scoreboards for non players by default
+
+Entities collision is checking for scoreboards setting.
+This is very heavy to do map lookups for every collision to check
+this setting.
+
+So avoid looking up scoreboards and short circuit to the "not on a team"
+logic which is most likely to be true.
+
+diff --git a/src/main/java/net/minecraft/server/CommandScoreboard.java b/src/main/java/net/minecraft/server/CommandScoreboard.java
+index 5bf61b0..3acb074 100644
+--- a/src/main/java/net/minecraft/server/CommandScoreboard.java
++++ b/src/main/java/net/minecraft/server/CommandScoreboard.java
+@@ -478,6 +478,7 @@ public class CommandScoreboard extends CommandAbstract {
+ 
+                     while (iterator.hasNext()) {
+                         Entity entity = (Entity) iterator.next();
++                        if (!entity.world.tacoSpigotConfig.nonPlayerEntitiesOnScoreboards && !(entity instanceof EntityHuman)) continue; // TacoSpigot
+                         String s2 = e(icommandlistener, entity.getUniqueID().toString());
+ 
+                         if (scoreboard.addPlayerToTeam(s2, s)) {
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index c8b4e29..ca8cc5d 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -1824,6 +1824,7 @@ public abstract class EntityLiving extends Entity {
+     }
+ 
+     public ScoreboardTeamBase getScoreboardTeam() {
++        if (!this.world.tacoSpigotConfig.nonPlayerEntitiesOnScoreboards && !(this instanceof EntityHuman)) return null; // TacoSpigot
+         return this.world.getScoreboard().getPlayerTeam(this.getUniqueID().toString());
+     }
+ 
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+index c1f297c..a494d4b 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+@@ -78,4 +78,9 @@ public class TacoSpigotWorldConfig {
+     private void isArmorStandMoveWithoutGravity() {
+         optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
+     }
++
++    public boolean nonPlayerEntitiesOnScoreboards = false;
++    private void nonPlayerEntitiesOnScoreboards() {
++        nonPlayerEntitiesOnScoreboards = getBoolean("allow-non-player-entities-on-scoreboards", false);
++    }
+ }
+-- 
+2.7.1
+

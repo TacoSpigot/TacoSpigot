@@ -1,4 +1,4 @@
-From c55f1b3b517f039c7aadf9e6835a578af6125050 Mon Sep 17 00:00:00 2001
+From e946af41ffbc7d0451534c79c54a7cb7b3ebd285 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 5 Sep 2015 11:08:15 -0700
 Subject: [PATCH] Fix compile issues
@@ -78,6 +78,24 @@ index 8a815a6..7e91392 100644
              }
          }
  
+diff --git a/src/main/java/net/minecraft/server/CommandScoreboard.java b/src/main/java/net/minecraft/server/CommandScoreboard.java
+index 27d08a7..5bf61b0 100644
+--- a/src/main/java/net/minecraft/server/CommandScoreboard.java
++++ b/src/main/java/net/minecraft/server/CommandScoreboard.java
+@@ -13,6 +13,13 @@ import java.util.Set;
+ 
+ public class CommandScoreboard extends CommandAbstract {
+ 
++    // TacoSpigot start - fix compile errors
++    @Override
++    public int compareTo(ICommand o) {
++        return super.a(o);
++    }
++    // TacoSpigot end
++
+     public CommandScoreboard() {}
+ 
+     public String getCommand() {
 diff --git a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java b/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
 index 5540dde..5cdc263 100644
 --- a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
@@ -92,5 +110,5 @@ index 5540dde..5cdc263 100644
              Collections.sort(list, this.b);
              if (list.isEmpty()) {
 -- 
-2.7.0
+2.7.1
 
