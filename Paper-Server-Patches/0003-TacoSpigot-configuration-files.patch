@@ -1,4 +1,4 @@
-From 3912d3e8f1fce81f580646c0292e059c3b313f9d Mon Sep 17 00:00:00 2001
+From acc8affef79c8966f9df1e3795cf5212907a9117 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -17,7 +17,7 @@ index a0186ef..94e3463 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 5ae2f14..50bdd49 100644
+index 1db5334..44d37ec 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -137,6 +137,7 @@ public abstract class World implements IBlockAccess {
@@ -36,7 +36,7 @@ index 5ae2f14..50bdd49 100644
          this.generator = gen;
          this.world = new CraftWorld((WorldServer) this, gen, env);
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
-@@ -2639,7 +2641,7 @@ public abstract class World implements IBlockAccess {
+@@ -2636,7 +2638,7 @@ public abstract class World implements IBlockAccess {
                      continue;
                  }
              }
