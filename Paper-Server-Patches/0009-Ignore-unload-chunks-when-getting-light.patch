@@ -1,0 +1,39 @@
+From 571e522cf9f326482acefb7080dae24dc974fe9e Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Wed, 9 Mar 2016 09:34:49 -0700
+Subject: [PATCH] Ignore unload chunks when getting light
+
+Loading chunks is very expensive on 1.9.
+Fetching light can load adjacent chunks that are not loaded.
+
+This returns the default value if the chunks are not loaded, to prevent loading chunks.
+
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index fd4c934..365fc88 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -635,6 +635,12 @@ public abstract class World implements IBlockAccess {
+     }
+ 
+     public int c(BlockPosition blockposition, boolean flag) {
++        // TacoSpigot - fetch chunk if loaded
++        Chunk chunk = getChunkIfLoaded(blockposition.getX() >> 4, blockposition.getZ() >> 4);
++        if (chunk == null) {
++            return flag ? 15 : 0;
++        }
++        // TacoSpigot end
+         if (blockposition.getX() >= -30000000 && blockposition.getZ() >= -30000000 && blockposition.getX() < 30000000 && blockposition.getZ() < 30000000) {
+             if (flag && this.getType(blockposition).f()) {
+                 int i = this.c(blockposition.up(), false);
+@@ -667,7 +673,7 @@ public abstract class World implements IBlockAccess {
+                     blockposition = new BlockPosition(blockposition.getX(), 255, blockposition.getZ());
+                 }
+ 
+-                Chunk chunk = this.getChunkAtWorldCoords(blockposition);
++                //Chunk chunk = this.getChunkAtWorldCoords(blockposition); // TacoSpigot
+ 
+                 return chunk.a(blockposition, this.J);
+             }
+-- 
+2.7.1
+
