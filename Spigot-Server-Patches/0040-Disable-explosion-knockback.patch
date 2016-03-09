@@ -1,11 +1,11 @@
-From 919039afb553383de586fa3c5eecd56dab683712 Mon Sep 17 00:00:00 2001
+From 20711d38315229d4506eb215fb101d4d413a20ca Mon Sep 17 00:00:00 2001
 From: Sudzzy <originmc@outlook.com>
 Date: Wed, 2 Mar 2016 14:48:03 -0600
 Subject: [PATCH] Disable explosion knockback
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 8d6e0a2..6b5067a 100644
+index 1c8e310..694b448 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -213,4 +213,9 @@ public class PaperWorldConfig {
