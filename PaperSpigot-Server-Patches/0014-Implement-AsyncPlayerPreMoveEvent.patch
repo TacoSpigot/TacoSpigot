@@ -1,0 +1,89 @@
+From 343117220b8c17258521cecc545db9335c9fbcd8 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Thu, 10 Mar 2016 12:18:42 -0700
+Subject: [PATCH] Implement AsyncPlayerPreMoveEvent
+
+
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 4391ad7..ab84071 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -3,7 +3,7 @@ package net.minecraft.server;
+ import com.google.common.collect.Lists;
+ import com.google.common.primitives.Doubles;
+ import com.google.common.primitives.Floats;
+-import com.google.common.util.concurrent.Futures;
++
+ import io.netty.buffer.Unpooled;
+ import io.netty.util.concurrent.Future;
+ import io.netty.util.concurrent.GenericFutureListener;
+@@ -64,6 +64,9 @@ import co.aikar.timings.SpigotTimings; // Spigot
+ // CraftBukkit end
+ 
+ import org.github.paperspigot.PaperSpigotConfig; // PaperSpigot
++// TacoSpigot start
++import net.techcable.tacospigot.event.entity.AsyncPlayerPreMoveEvent;
++// TacoSpigot end
+ 
+ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerListBox {
+ 
+@@ -202,8 +205,55 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+         return !Doubles.isFinite(packetplayinflying.a()) || !Doubles.isFinite(packetplayinflying.b()) || !Doubles.isFinite(packetplayinflying.c()) || !Floats.isFinite(packetplayinflying.e()) || !Floats.isFinite(packetplayinflying.d());
+     }
+ 
++    // TacoSpigot start - fire async event
++    private final Location lastLocation = getPlayer().getLocation();
+     public void a(PacketPlayInFlying packetplayinflying) {
+-        PlayerConnectionUtils.ensureMainThread(packetplayinflying, this, this.player.u());
++        synchronized (lastLocation) {
++            if (this.minecraftServer.isMainThread()) {
++                c.warn("Fired AsyncFlyEvent on main thread");
++            }
++            Location to = lastLocation.clone();
++
++            if (packetplayinflying.hasPos && !(packetplayinflying.hasPos && packetplayinflying.y == -999.0D)) {
++                to.setX(packetplayinflying.x);
++                to.setY(packetplayinflying.y);
++                to.setZ(packetplayinflying.z);
++            }
++
++            if (packetplayinflying.hasLook) {
++                to.setYaw(packetplayinflying.yaw);
++                to.setPitch(packetplayinflying.pitch);
++            }
++
++            AsyncPlayerPreMoveEvent event = new AsyncPlayerPreMoveEvent(getPlayer(), lastLocation, to);
++            player.world.getServer().getPluginManager().callEvent(event);
++            // If the event is cancelled we move the player back to their old location.
++            if (event.isCancelled()) {
++                this.player.playerConnection.sendPacket(new PacketPlayOutPosition(lastLocation.getX(), lastLocation.getY(), lastLocation.getZ(), lastLocation.getYaw(), lastLocation.getPitch(), Collections.<PacketPlayOutPosition.EnumPlayerTeleportFlags>emptySet()));
++                return;
++            }
++            if (!this.minecraftServer.isMainThread()) {
++                minecraftServer.postToMainThread(() -> {
++                    synchronized (lastLocation) {
++                        onFly(packetplayinflying);
++                        lastLocation.setWorld(getPlayer().getWorld());
++                        lastLocation.setX(player.locX);
++                        lastLocation.setY(player.locY);
++                        lastLocation.setZ(player.locZ);
++                        lastLocation.setYaw(player.yaw);
++                        lastLocation.setPitch(player.pitch);
++                    }
++                });
++            } else {
++                onFly(packetplayinflying);
++            }
++        }
++    }
++
++    public void onFly(PacketPlayInFlying packetplayinflying) {
++        if (!this.minecraftServer.isMainThread()) throw new AssertionError("onFly() can only be called from main thread");
++        if (!Thread.holdsLock(lastLocation)) throw new AssertionError("Should hold move lock");
++            // TacoSpigot end
+         if (this.b(packetplayinflying)) {
+             this.disconnect("Invalid move packet received");
+         } else {
+-- 
+2.7.1
+
