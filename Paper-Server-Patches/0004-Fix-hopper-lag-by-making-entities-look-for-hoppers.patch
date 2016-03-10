@@ -1,4 +1,4 @@
-From c88d3cd494e4be16b3feeb1b2adf442581272e78 Mon Sep 17 00:00:00 2001
+From f590f746c7c2f2f07414e29b68abeb1b78c0c1c9 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -209,35 +209,43 @@ index 0000000..c175b7c
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/HopperPusher.java b/src/main/java/net/techcable/tacospigot/HopperPusher.java
 new file mode 100644
-index 0000000..da2c789
+index 0000000..21d5a11
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperPusher.java
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,65 @@
 +package net.techcable.tacospigot;
 +
 +import net.minecraft.server.AxisAlignedBB;
 +import net.minecraft.server.BlockPosition;
 +import net.minecraft.server.Entity;
-+import net.minecraft.server.EntityItem;
 +import net.minecraft.server.IHopper;
-+import net.minecraft.server.IInventory;
 +import net.minecraft.server.TileEntityHopper;
-+import net.minecraft.server.Vec3D;
 +import net.minecraft.server.World;
-+import net.techcable.tacospigot.utils.BlockHelper;
 +
 +public interface HopperPusher {
 +
 +    public default TileEntityHopper findHopper() {
-+        for (BlockPosition adjacentPos : new BlockHelper.AdjacentBlockSet(new BlockPosition(getX(), getY(), getZ()), 1)) {
-+            TileEntityHopper hopper = HopperHelper.getHopper(getWorld(), adjacentPos);
-+            if (hopper == null) continue; // Avoid playing with the bounding boxes, if at all possible
-+            /**
-+             * We add one to getY(), just like {@link TileEntityHopper#b(IHopper)}
-+             */
-+            AxisAlignedBB hopperBoundingBox = hopper.getHopperLookupBoundingBox();
-+            if (hopperBoundingBox.b(this.getBoundingBox())) { // AxisAlignedBB.b(AxisAlignedBB) -> isIntersect()
-+                return hopper;
++        BlockPosition pos = new BlockPosition(getX(), getY(), getZ());
++        int startX = pos.getX() - 1;
++        int endX = pos.getX() + 1;
++        int startY = Math.max(0, pos.getY() - 1);
++        int endY = Math.min(255, pos.getY() + 1);
++        int startZ = pos.getZ() - 1;
++        int endZ = pos.getZ() + 1;
++        for (int x = startX; x <= endX; x++) {
++            for (int y = startY; y <= endY; y++) {
++                for (int z = startZ; z <= endZ; z++) {
++                    BlockPosition adjacentPos = new BlockPosition(x, y, z);
++                    TileEntityHopper hopper = HopperHelper.getHopper(getWorld(), adjacentPos);
++                    if (hopper == null) continue; // Avoid playing with the bounding boxes, if at all possible
++                    /**
++                     * We add one to getY(), just like {@link TileEntityHopper#b(IHopper)}
++                     */
++                    AxisAlignedBB hopperBoundingBox = hopper.getHopperLookupBoundingBox();
++                    if (hopperBoundingBox.b(this.getBoundingBox())) { // AxisAlignedBB.b(AxisAlignedBB) -> isIntersect()
++                        return hopper;
++                    }
++                }
 +            }
 +        }
 +        return null;
@@ -284,149 +292,6 @@ index 2bc5877..d431d3b 100644
 +        isHopperPushBased = getBoolean("hopper.push-based", true);
 +    }
  }
-diff --git a/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
-new file mode 100644
-index 0000000..32db322
---- /dev/null
-+++ b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
-@@ -0,0 +1,137 @@
-+package net.techcable.tacospigot.utils;
-+
-+import java.util.AbstractSet;
-+import java.util.Iterator;
-+import java.util.Spliterator;
-+import java.util.Spliterators;
-+import java.util.function.Consumer;
-+import java.util.function.Predicate;
-+import java.util.stream.Stream;
-+import java.util.stream.StreamSupport;
-+
-+import com.google.common.base.Preconditions;
-+import com.google.common.collect.AbstractIterator;
-+
-+import net.minecraft.server.Block;
-+import net.minecraft.server.BlockPosition;
-+
-+public class BlockHelper {
-+    private BlockHelper() {
-+    }
-+
-+    public static Stream<BlockPosition> streamAdjacentBlocks(final BlockPosition pos, int radius) {
-+        Preconditions.checkArgument(radius >= 0, "Negative radius %s", radius);
-+        return StreamSupport.stream(new AdjacentBlockSet(pos, radius).spliterator(), false);
-+    }
-+
-+    public static void forEachAdjacentBlock(BlockPosition position, int radius, Consumer<BlockPosition> action) {
-+        new AdjacentBlockSet(position, radius).forEach(action);
-+    }
-+
-+    public static boolean isAllAdjacentBlocksFillPredicate(BlockPosition position, int radius, Predicate<BlockPosition> predicate) {
-+        for (BlockPosition adjacent : new AdjacentBlockSet(position, radius)) {
-+            if (!predicate.test(adjacent)) return false;
-+        }
-+        return true;
-+    }
-+
-+    private static final Block[] blockById = new Block[256];
-+
-+    static {
-+        for (int i = 0; i < blockById.length; i++) {
-+            blockById[i] = Block.getById(i);
-+        }
-+    }
-+
-+    public static Block getBlock(int id) {
-+        return id < 256 ? blockById[id] : Block.getById(id);
-+    }
-+
-+    public static class AdjacentBlockSet extends AbstractSet<BlockPosition> {
-+        private final int startX, endX;
-+        private final int startY, endY;
-+        private final int startZ, endZ;
-+
-+
-+        public AdjacentBlockSet(BlockPosition pos, int radius) {
-+            this(
-+                    pos.getX() - radius, // startX
-+                    pos.getX() + radius, // endX
-+                    Math.max(0, pos.getY() - radius), // startY
-+                    Math.min(255, pos.getY() + radius), // endY
-+                    pos.getZ() - radius, // startZ
-+                    pos.getZ() + radius // endZ
-+            );
-+        }
-+
-+        public AdjacentBlockSet(int startX, int endX, int startY, int endY, int startZ, int endZ) {
-+            this.startX = startX;
-+            this.endX = endX;
-+            this.startY = startY;
-+            this.endY = endY;
-+            this.startZ = startZ;
-+            this.endZ = endZ;
-+        }
-+
-+        @Override
-+        public int size() {
-+            return (endX - startX) * (endY - startY) * (endZ - startZ);
-+        }
-+
-+        @Override
-+        public Spliterator<BlockPosition> spliterator() {
-+            return Spliterators.spliterator(iterator(), size(), Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT | Spliterator.NONNULL);
-+        }
-+
-+        @Override
-+        public Iterator<BlockPosition> iterator() {
-+            return new AdjacentBlockIterator();
-+        }
-+
-+        @Override
-+        public void forEach(Consumer<? super BlockPosition> action) {
-+            iterator().forEachRemaining(action);
-+        }
-+
-+        private class AdjacentBlockIterator extends AbstractIterator<BlockPosition> {
-+            private int x = startX;
-+            private int y = startY;
-+            private int z = startZ;
-+
-+            @Override
-+            protected BlockPosition computeNext() {
-+                final int x = this.x;
-+                final int y = this.y;
-+                final int z = this.z;
-+                if (z <= endZ) {
-+                    ++this.z;
-+                } else {
-+                    if (y < endY) {
-+                        ++this.y;
-+                    } else {
-+                        if (x < endX) {
-+                            ++this.x;
-+                        } else return endOfData();
-+                        this.y = startY;
-+                    }
-+                    this.z = startZ;
-+                    return computeNext();
-+                }
-+                return new BlockPosition(x, y, z);
-+            }
-+
-+            @Override
-+            public void forEachRemaining(Consumer<? super BlockPosition> action) {
-+                for (int x = this.x; x <= endX; x++) {
-+                    for (int y = this.y; y <= endY; y++) {
-+                        for (int z = this.z; z <= endZ; z++) {
-+                            BlockPosition adjacent = new BlockPosition(x, y, z);
-+                            action.accept(adjacent);
-+                        }
-+                    }
-+                }
-+                endOfData();
-+            }
-+        }
-+    }
-+}
 -- 
 2.7.1
 
