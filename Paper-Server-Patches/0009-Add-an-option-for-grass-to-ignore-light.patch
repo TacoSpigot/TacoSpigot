@@ -1,0 +1,36 @@
+From 8029db816e28fedf585678f139684eacec2226b9 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@outlook.com>
+Date: Thu, 10 Mar 2016 14:03:57 -0700
+Subject: [PATCH] Add an option for grass to ignore light
+
+
+diff --git a/src/main/java/net/minecraft/server/BlockGrass.java b/src/main/java/net/minecraft/server/BlockGrass.java
+index fe55848..65f877c 100644
+--- a/src/main/java/net/minecraft/server/BlockGrass.java
++++ b/src/main/java/net/minecraft/server/BlockGrass.java
+@@ -44,7 +44,7 @@ public class BlockGrass extends Block implements IBlockFragilePlantElement {
+                 }
+                 // CraftBukkit end
+             } else {
+-                if (world.getLightLevel(blockposition.up()) >= 9) {
++                if (world.tacoSpigotConfig.grassIgnoresLight || world.getLightLevel(blockposition.up()) >= 9) {
+                     for (int i = 0; i < 4; ++i) {
+                         BlockPosition blockposition1 = blockposition.a(random.nextInt(3) - 1, random.nextInt(5) - 3, random.nextInt(3) - 1);
+ 
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+index 3f18f79..949f2d9 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+@@ -77,4 +77,9 @@ public class TacoSpigotWorldConfig {
+     private void isHopperFireIMIE() {
+         isHopperFireIMIE = getBoolean("hopper.fire-InventoryMoveItemEvent", true);
+     }
++
++    public boolean grassIgnoresLight = false;
++    private void isGrassIgnoresLight() {
++        grassIgnoresLight = getBoolean("grass-ignores-light", false);
++    }
+ }
+-- 
+2.7.2
+
