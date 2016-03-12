@@ -1,22 +1,44 @@
-From 8029db816e28fedf585678f139684eacec2226b9 Mon Sep 17 00:00:00 2001
+From 6422957a12c8e34fc0ab4a29b6116dfbf5552cfb Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 10 Mar 2016 14:03:57 -0700
 Subject: [PATCH] Add an option for grass to ignore light
 
+Only fetch light for grass once
 
 diff --git a/src/main/java/net/minecraft/server/BlockGrass.java b/src/main/java/net/minecraft/server/BlockGrass.java
-index fe55848..65f877c 100644
+index fe55848..e2d870d 100644
 --- a/src/main/java/net/minecraft/server/BlockGrass.java
 +++ b/src/main/java/net/minecraft/server/BlockGrass.java
-@@ -44,7 +44,7 @@ public class BlockGrass extends Block implements IBlockFragilePlantElement {
+@@ -29,7 +29,10 @@ public class BlockGrass extends Block implements IBlockFragilePlantElement {
+ 
+     public void b(World world, BlockPosition blockposition, IBlockData iblockdata, Random random) {
+         if (!world.isClientSide) {
+-            if (world.getLightLevel(blockposition.up()) < 4 && world.getType(blockposition.up()).c() > 2) {
++            // TacoSpigot start - only fetch light once
++            int light = world.tacoSpigotConfig.grassIgnoresLight ? 15 : world.getLightLevel(blockposition.up()); // Add an option to ignore light
++            if (light < 4 && world.getType(blockposition.up()).c() > 2) {
++                // TacoSpigot end
+                 // CraftBukkit start
+                 // world.setTypeUpdate(blockposition, Blocks.DIRT.getBlockData());
+                 org.bukkit.World bworld = world.getWorld();
+@@ -44,7 +47,7 @@ public class BlockGrass extends Block implements IBlockFragilePlantElement {
                  }
                  // CraftBukkit end
              } else {
 -                if (world.getLightLevel(blockposition.up()) >= 9) {
-+                if (world.tacoSpigotConfig.grassIgnoresLight || world.getLightLevel(blockposition.up()) >= 9) {
++                if (light >= 9) { // TacoSpigot
                      for (int i = 0; i < 4; ++i) {
                          BlockPosition blockposition1 = blockposition.a(random.nextInt(3) - 1, random.nextInt(5) - 3, random.nextInt(3) - 1);
  
+@@ -55,7 +58,7 @@ public class BlockGrass extends Block implements IBlockFragilePlantElement {
+                         IBlockData iblockdata1 = world.getType(blockposition1.up());
+                         IBlockData iblockdata2 = world.getType(blockposition1);
+ 
+-                        if (iblockdata2.getBlock() == Blocks.DIRT && iblockdata2.get(BlockDirt.VARIANT) == BlockDirt.EnumDirtVariant.DIRT && world.getLightLevel(blockposition1.up()) >= 4 && iblockdata1.c() <= 2) {
++                        if (iblockdata2.getBlock() == Blocks.DIRT && iblockdata2.get(BlockDirt.VARIANT) == BlockDirt.EnumDirtVariant.DIRT && light >= 4 && iblockdata1.c() <= 2) { // TacoSpigot - use pre-fetched light level
+                             // CraftBukkit start
+                             // world.setTypeUpdate(blockposition1, Blocks.GRASS.getBlockData());
+                             org.bukkit.World bworld = world.getWorld();
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 index 3f18f79..949f2d9 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
