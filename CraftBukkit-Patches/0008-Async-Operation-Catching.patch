@@ -1,4 +1,4 @@
-From 3015a566462335939f05cdcbfe7ac43610fc3432 Mon Sep 17 00:00:00 2001
+From 49e75481d06159520ed6f324b3850419ec100811 Mon Sep 17 00:00:00 2001
 From: md_5 <git@md-5.net>
 Date: Tue, 25 Mar 2014 16:10:01 +1100
 Subject: [PATCH] Async Operation Catching
@@ -26,10 +26,10 @@ index 12589d6..1d2f580 100644
      public int a(Random random) {
          return 1;
 diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
-index 3a0b94d..9b73738 100644
+index 750a5d9..73caf4e 100644
 --- a/src/main/java/net/minecraft/server/EntityLiving.java
 +++ b/src/main/java/net/minecraft/server/EntityLiving.java
-@@ -619,6 +619,7 @@ public abstract class EntityLiving extends Entity {
+@@ -620,6 +620,7 @@ public abstract class EntityLiving extends Entity {
      }
  
      public void addEffect(MobEffect mobeffect) {
@@ -78,7 +78,7 @@ index 8b38bd2..f8570a8 100644
              this.trackedPlayers.remove(entityplayer);
              this.tracker.c(entityplayer);
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 238f8f3..e0416a8 100644
+index e548d00..c73f0ef 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -897,6 +897,7 @@ public abstract class World implements IBlockAccess {
@@ -106,10 +106,10 @@ index 238f8f3..e0416a8 100644
          // this.entityList.addAll(collection);
          Iterator iterator = collection.iterator();
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index f85bf83..10e321f 100644
+index fb84060..69875c9 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -166,6 +166,7 @@ public class CraftWorld implements World {
+@@ -169,6 +169,7 @@ public class CraftWorld implements World {
      }
  
      public boolean unloadChunkRequest(int x, int z, boolean safe) {
@@ -117,7 +117,7 @@ index f85bf83..10e321f 100644
          if (safe && isChunkInUse(x, z)) {
              return false;
          }
-@@ -176,6 +177,7 @@ public class CraftWorld implements World {
+@@ -179,6 +180,7 @@ public class CraftWorld implements World {
      }
  
      public boolean unloadChunk(int x, int z, boolean save, boolean safe) {
@@ -125,7 +125,7 @@ index f85bf83..10e321f 100644
          if (safe && isChunkInUse(x, z)) {
              return false;
          }
-@@ -258,6 +260,7 @@ public class CraftWorld implements World {
+@@ -261,6 +263,7 @@ public class CraftWorld implements World {
      }
  
      public boolean loadChunk(int x, int z, boolean generate) {
@@ -146,7 +146,7 @@ index 01ba89f..e93cedb 100644
  
          getHandle().playerConnection.disconnect(message == null ? "" : message);
 diff --git a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
-index db4c1db..12768ed 100644
+index 69fcb10..3992c71 100644
 --- a/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
 +++ b/src/main/java/org/bukkit/craftbukkit/scoreboard/CraftScoreboardManager.java
 @@ -42,6 +42,7 @@ public final class CraftScoreboardManager implements ScoreboardManager {
