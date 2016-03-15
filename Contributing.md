@@ -1,5 +1,5 @@
 Contributing to TacoSpigot
-========================
+==========================
 TacoSpigot has a very lenient policy towards PRs, but would prefer that you try and adhere to the following guidelines.
 
 ## Understanding Patches
@@ -13,7 +13,7 @@ Assuming you already have forked the repository:
 
 These directories aren't git repositories in the traditional sense:
 
-- Every single commit in TacoSpigot-Server/API is a patch. 
+- Every single commit in TacoSpigot-Server/API is a patch.
 - 'origin/master' points to a directory similar to TacoSpigot-Server/API but for PaperSpigot
 - Typing `git status` should show that we are 10 or 11 commits ahead of master, meaning we have 10 or 11 patches that PaperSpigot and Spigot don't
   - If it says something like `212 commits ahead, 207 commits behind`, then type `git fetch` to update spigot/paper
@@ -21,11 +21,11 @@ These directories aren't git repositories in the traditional sense:
 ## Adding Patches
 Adding patches to TacoSpigot is very simple:
 
-1) Modify `TacoSpigot-Server` and/or `TacoSpigot-API` with the appropriate changes
-2) Type `git add .` to add your changes
-3) Run `git commit` with the desired patch message
-4) Run `./rebuildPatches.sh` in the main directory to convert your commit into a new patch
-5) PR your patches on github
+1. Modify `TacoSpigot-Server` and/or `TacoSpigot-API` with the appropriate changes
+2. Type `git add .` to add your changes
+3. Run `git commit` with the desired patch message
+4. Run `./rebuildPatches.sh` in the main directory to convert your commit into a new patch
+5. PR your patches on github
 
 Your commit will be converted into a patch that you can then PR into TacoSpigot
 
