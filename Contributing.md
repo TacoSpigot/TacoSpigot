@@ -1,5 +1,5 @@
 Contributing to TacoSpigot
-==========================
+========================
 TacoSpigot has a very lenient policy towards PRs, but would prefer that you try and adhere to the following guidelines.
 
 ## Understanding Patches
@@ -16,7 +16,7 @@ These directories aren't git repositories in the traditional sense:
 - Every single commit in TacoSpigot-Server/API is a patch. 
 - 'origin/master' points to a directory similar to TacoSpigot-Server/API but for PaperSpigot
 - Typing `git status` should show that we are 10 or 11 commits ahead of master, meaning we have 10 or 11 patches that PaperSpigot and Spigot don't
-  - If it says something like `212 commits ahead, 207 commits behind`, then type `git fetch` to update spigot/paperspigot
+  - If it says something like `212 commits ahead, 207 commits behind`, then type `git fetch` to update spigot/paper
 
 ## Adding Patches
 Adding patches to TacoSpigot is very simple:
