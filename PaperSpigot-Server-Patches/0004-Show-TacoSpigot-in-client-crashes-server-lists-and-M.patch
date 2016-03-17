@@ -1,10 +1,24 @@
-From 64b68a36830b5286f17a4d71047a997476069a39 Mon Sep 17 00:00:00 2001
+From bff04693f809531b53ddab027df90241ef0be6fc Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 7 Mar 2015 22:55:25 -0600
 Subject: [PATCH] Show 'TacoSpigot' in client crashes, server lists, and Mojang
  stats
 
 
+diff --git a/src/main/java/net/minecraft/server/EULA.java b/src/main/java/net/minecraft/server/EULA.java
+index c872029..6ede27d 100644
+--- a/src/main/java/net/minecraft/server/EULA.java
++++ b/src/main/java/net/minecraft/server/EULA.java
+@@ -51,7 +51,8 @@ public class EULA {
+ 
+             fileoutputstream = new FileOutputStream(this.b);
+             properties.setProperty("eula", "false");
+-            properties.store(fileoutputstream, "By changing the setting below to TRUE you are indicating your agreement to our EULA (https://account.mojang.com/documents/minecraft_eula).");
++            properties.store(fileoutputstream, "By changing the setting below to TRUE you are indicating your agreement to our EULA (https://account.mojang.com/documents/minecraft_eula)." +
++                    "\nand also agreeing that tacos are tasty.");  // TacoSpigot - fix lag
+         } catch (Exception exception) {
+             EULA.a.warn("Failed to save " + this.b, exception);
+         } finally {
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
 index b400ce0..e02c619 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
@@ -19,5 +33,5 @@ index b400ce0..e02c619 100644
  
      public CrashReport b(CrashReport crashreport) {
 -- 
-2.7.1
+2.7.2
 
