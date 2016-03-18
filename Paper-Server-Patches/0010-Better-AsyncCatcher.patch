@@ -1,0 +1,111 @@
+From 9a744acd90f1d7943494d17dcb02aaa5d9d1da2f Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Fri, 18 Mar 2016 13:56:01 -0700
+Subject: [PATCH] Better AsyncCatcher
+
+Async catching for PlayerChunkMap
+
+diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
+index 5421026..cbe8b4a 100644
+--- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
++++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
+@@ -15,6 +15,9 @@ import java.util.Set;
+ // CraftBukkit start
+ import java.util.LinkedList;
+ // CraftBukkit end
++// TacoSpigot start
++import org.spigotmc.AsyncCatcher;
++// TacoSpigot end
+ 
+ public class PlayerChunkMap {
+ 
+@@ -37,12 +40,14 @@ public class PlayerChunkMap {
+         }
+     };
+     private final WorldServer world;
+-    private final List<EntityPlayer> managedPlayers = Lists.newArrayList();
++    // TacoSpigot start - catch async access
++    private final List<EntityPlayer> managedPlayers = AsyncCatcher.catchAsyncUsage(Lists.newArrayList(), "list access PlayerChunkMap.managedPlayers");
+     private final LongHashMap<PlayerChunk> e = new LongHashMap();
+-    private final Set<PlayerChunk> f = Sets.newHashSet();
+-    private final List<PlayerChunk> g = Lists.newLinkedList();
+-    private final List<PlayerChunk> h = Lists.newLinkedList();
+-    private final List<PlayerChunk> i = Lists.newArrayList();
++    private final Set<PlayerChunk> f = AsyncCatcher.catchAsyncUsage(Sets.newHashSet(), "set access PlayerChunkMap.f");
++    private final List<PlayerChunk> g = AsyncCatcher.catchAsyncUsage(Lists.newLinkedList(), "list access PlayerChunkMap.g");
++    private final List<PlayerChunk> h = AsyncCatcher.catchAsyncUsage(Lists.newLinkedList(), "list access PlayerChunkMap.h");
++    private final List<PlayerChunk> i = AsyncCatcher.catchAsyncUsage(Lists.newArrayList(), "list access PlayerChunkMap.i");
++    // TacoSpigot end
+     private int j;
+     private long k;
+     private boolean l = true;
+diff --git a/src/main/java/org/spigotmc/AsyncCatcher.java b/src/main/java/org/spigotmc/AsyncCatcher.java
+index 4b3aa85..c2e0271 100644
+--- a/src/main/java/org/spigotmc/AsyncCatcher.java
++++ b/src/main/java/org/spigotmc/AsyncCatcher.java
+@@ -1,17 +1,47 @@
+ package org.spigotmc;
+ 
+ import net.minecraft.server.MinecraftServer;
++// TacoSpigot start
++import java.util.List;
++import java.util.Set;
++
++import com.google.common.collect.ForwardingList;
++import com.google.common.collect.ForwardingSet;
++// TacoSpigot end
+ 
+ public class AsyncCatcher
+ {
+ 
+-    public static boolean enabled = true;
++    public static final boolean enabled = true; // TacoSpigot - final (never disable)
+ 
+     public static void catchOp(String reason)
+     {
+         if ( enabled && Thread.currentThread() != MinecraftServer.getServer().primaryThread )
+         {
+-            throw new IllegalStateException( "Asynchronous " + reason + "!" );
++            MinecraftServer.LOGGER.warn(reason + " called async on " + Thread.currentThread().getName()); // TacoSpigot - log
++            throw new IllegalStateException( "Asynchronous " + reason + " on thread " + Thread.currentThread().getName() + "!" ); // TacoSpigot - give thread
+         }
+     }
++
++    // TacoSpigot start - safety wrappers
++    public static <E> List<E> catchAsyncUsage(List<E> list, String msg) {
++        return new ForwardingList<E>() {
++            @Override
++            protected List<E> delegate() {
++                AsyncCatcher.catchOp(msg);
++                return list;
++            }
++        };
++    }
++
++    public static <E> Set<E> catchAsyncUsage(Set<E> set, String msg) {
++        return new ForwardingSet<E>() {
++            @Override
++            protected Set<E> delegate() {
++                AsyncCatcher.catchOp(msg);
++                return set;
++            }
++        };
++    }
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/spigotmc/RestartCommand.java b/src/main/java/org/spigotmc/RestartCommand.java
+index 429c258..86c8bf6 100644
+--- a/src/main/java/org/spigotmc/RestartCommand.java
++++ b/src/main/java/org/spigotmc/RestartCommand.java
+@@ -42,7 +42,7 @@ public class RestartCommand extends Command
+ 
+     public static void restart(final File script)
+     {
+-        AsyncCatcher.enabled = false; // Disable async catcher incase it interferes with us
++        // AsyncCatcher.enabled = false; // Disable async catcher incase it interferes with us // TacoSpigot - remove, its all on the main thread
+         try
+         {
+             if ( script.isFile() )
+-- 
+2.7.2
+
