@@ -1,4 +1,4 @@
-From acc8affef79c8966f9df1e3795cf5212907a9117 Mon Sep 17 00:00:00 2001
+From 86cd612f8a999a2d48eb1912d3b7bb5a7e4f7ed6 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -17,7 +17,7 @@ index a0186ef..94e3463 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 1db5334..44d37ec 100644
+index 6ed328a..2305cce 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -137,6 +137,7 @@ public abstract class World implements IBlockAccess {
@@ -31,7 +31,7 @@ index 1db5334..44d37ec 100644
 @@ -163,6 +164,7 @@ public abstract class World implements IBlockAccess {
      protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
-         this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig( worlddata.getName() ); // Paper
+         this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig( worlddata.getName(), this.spigotConfig); // Paper
 +        this.tacoSpigotConfig = new net.techcable.tacospigot.TacoSpigotWorldConfig(worlddata.getName()); // TacoSpigot
          this.generator = gen;
          this.world = new CraftWorld((WorldServer) this, gen, env);
@@ -155,6 +155,9 @@ index 0000000..bf74153
 +        return config.getString(path, config.getString(path));
 +    }
 +}
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java.porig b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java.porig
+new file mode 100644
+index 0000000..e69de29
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 new file mode 100644
 index 0000000..2bc5877
@@ -226,11 +229,14 @@ index 0000000..2bc5877
 +        return config.getString("world-settings." + worldName + "." + path, config.getString("world-settings.default." + path));
 +    }
 +}
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java.porig b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java.porig
+new file mode 100644
+index 0000000..e69de29
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index cb9906a..b64352d 100644
+index d677731..e90a219 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -710,6 +710,7 @@ public final class CraftServer implements Server {
+@@ -673,6 +673,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
@@ -238,15 +244,15 @@ index cb9906a..b64352d 100644
          for (WorldServer world : console.worlds) {
              world.worldData.setDifficulty(difficulty);
              world.setSpawnFlags(monsters, animals);
-@@ -726,6 +727,7 @@ public final class CraftServer implements Server {
+@@ -689,6 +690,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperConfig.init(); // Paper
 +            world.tacoSpigotConfig.init(); // TacoSpigot
          }
  
-         pluginManager.clearPlugins();
-@@ -1405,7 +1407,7 @@ public final class CraftServer implements Server {
+         // Paper start
+@@ -1376,7 +1378,7 @@ public final class CraftServer implements Server {
  
          for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
              result.add(getOfflinePlayer((GameProfile) entry.getKey()));
@@ -275,5 +281,5 @@ index 979adad..6471de4 100644
          };
  
 -- 
-2.7.1
+2.7.2
 

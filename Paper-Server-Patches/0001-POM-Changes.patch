@@ -1,11 +1,11 @@
-From 3bea0779ce84abce01a378277036da713880865b Mon Sep 17 00:00:00 2001
+From 2510a91ce14b2e2b9f92e1572423bb514e9c5ac0 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 986dcd7..00fedd6 100644
+index 7762cc9..ef96e2f 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -46,7 +46,7 @@ index 986dcd7..00fedd6 100644
              <version>${project.version}</version>
              <scope>compile</scope>
          </dependency>
-@@ -100,7 +100,7 @@
+@@ -101,7 +101,7 @@
                  <artifactId>gitdescribe-maven-plugin</artifactId>
                  <version>1.3</version>
                  <configuration>
@@ -55,7 +55,7 @@ index 986dcd7..00fedd6 100644
                      <scmDirectory>..</scmDirectory>
                  </configuration>
                  <executions>
-@@ -111,7 +111,7 @@
+@@ -112,7 +112,7 @@
                          </goals>
                      </execution>
                  </executions>
@@ -78,5 +78,5 @@ index 674096c..3bcb8bf 100644
  
          if (stream != null) {
 -- 
-2.7.1
+2.7.2
 
