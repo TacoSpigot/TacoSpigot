@@ -1,5 +1,7 @@
 #!/bin/bash
 
+pushd Paper # TacoSpigot
+
 PS1="$"
 basedir=`pwd`
 workdir=$basedir/work
@@ -28,3 +30,5 @@ if [ ! -d "$decompiledir/net/minecraft/server" ]; then
         exit 1
     fi
 fi
+
+popd # TacoSpigot

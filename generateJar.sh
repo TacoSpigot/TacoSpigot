@@ -7,7 +7,7 @@ if [[ $# < 4 ]]; then
     exit 1;
 fi;
 
-workdir=work/Paperclip
+workdir=Paper/work/Paperclip
 
 mkdir -p $workdir
 PAPERCLIP_JAR=paperclip.jar

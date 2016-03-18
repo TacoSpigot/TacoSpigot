@@ -1,12 +1,12 @@
 #!/bin/bash
 
-git submodule update --init && ./remap.sh && ./decompile.sh && ./init.sh && ./applyPatches.sh
+git submodule update --recursive --init && ./remap.sh && ./decompile.sh && ./init.sh && ./applyPatches.sh
 
 # Generate paperclip jar in this stage
-mkdir -p work/Paperclip
+mkdir -p Paper/work/Paperclip
 PAPERCLIP_JAR=paperclip.jar
 
-if [ ! -f work/Paperclip/$PAPERCLIP_JAR ]; then
+if [ ! -f Paper/work/Paperclip/$PAPERCLIP_JAR ]; then
     if [ ! -d Paperclip ]; then
         echo "Paperclip not found"
         exit 1;
@@ -19,5 +19,5 @@ if [ ! -f work/Paperclip/$PAPERCLIP_JAR ]; then
         exit;
     fi;
     popd
-    cp Paperclip/target/paperclip*.jar work/Paperclip/$PAPERCLIP_JAR
+    cp Paperclip/target/paperclip*.jar Paper/work/Paperclip/$PAPERCLIP_JAR
 fi;

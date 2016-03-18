@@ -6,6 +6,7 @@ echo "Rebuilding Forked projects.... "
 
 function applyPatch {
     what=$1
+    what_name=$(basename $what) # TacoSpigot - add a seperate 'name' of what, for situations where 'what' contains a slash
     target=$2
     branch=$3
     cd "$basedir/$what"
@@ -17,14 +18,14 @@ function applyPatch {
         git clone "$what" "$target"
     fi
     cd "$basedir/$target"
-    echo "Resetting $target to $what..."
+    echo "Resetting $target to $what_name..."
     git remote add -f upstream ../$what >/dev/null 2>&1
     git checkout master >/dev/null 2>&1
     git fetch upstream >/dev/null 2>&1
     git reset --hard upstream/upstream
     echo "  Applying patches to $target..."
     git am --abort >/dev/null 2>&1
-    git am --3way --ignore-whitespace "$basedir/${what}-Patches/"*.patch
+    git am --3way --ignore-whitespace "$basedir/${what_name}-Patches/"*.patch
     if [ "$?" != "0" ]; then
         echo "  Something did not apply cleanly to $target."
         echo "  Please review above details and finish the apply then"
@@ -35,6 +36,16 @@ function applyPatch {
     fi
 }
 
+# TacoSpigot start
+pushd Paper
+basedir=$basedir/Paper
+# TacoSpigot end
 applyPatch Bukkit Spigot-API HEAD && applyPatch CraftBukkit Spigot-Server patched
 applyPatch Spigot-API Paper-API HEAD && applyPatch Spigot-Server Paper-Server HEAD
-applyPatch Paper-API TacoSpigot-API HEAD && applyPatch Paper-Server TacoSpigot-Server HEAD
+# TacoSpigot start
+popd
+echo "taco $basedir"
+basedir=$(dirname $basedir)
+echo "taco $basedir"
+# TacoSpigot end
+applyPatch Paper/Paper-API TacoSpigot-API HEAD && applyPatch Paper/Paper-Server TacoSpigot-Server HEAD

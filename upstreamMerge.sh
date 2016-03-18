@@ -10,7 +10,9 @@ function update {
     git add $1
 }
 
-update Bukkit
-update CraftBukkit
-update Paperclip
-
+# TacoSpigot start - update paper, not Craftbukit
+#update Bukkit
+#update CraftBukkit
+#update Paperclip
+update Paper
+# TacoSpigot end

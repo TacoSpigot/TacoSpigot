@@ -1,5 +1,7 @@
 #!/bin/bash
 
+pushd Paper # TacoSpigot
+
 PS1="$"
 basedir=`pwd`
 workdir=$basedir/work
@@ -33,3 +35,5 @@ done
 git add src >/dev/null 2>&1
 git commit -m "CraftBukkit $ $(date)" >/dev/null 2>&1
 git checkout -f HEAD^ >/dev/null 2>&1
+
+popd # TacoSpigot

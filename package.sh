@@ -1,7 +1,9 @@
 #!/bin/bash
 
+pushd Paper
 MINECRAFT_VERSION=$(cat BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
-VANILLA_JAR=work/$MINECRAFT_VERSION/$MINECRAFT_VERSION.jar
+popd
+VANILLA_JAR=Paper/work/$MINECRAFT_VERSION/$MINECRAFT_VERSION.jar
 
 VANILLA_URL="https://s3.amazonaws.com/Minecraft.Download/versions/$MINECRAFT_VERSION/minecraft_server.$MINECRAFT_VERSION.jar"
 
@@ -21,4 +23,4 @@ fi;
 
 mkdir -p build
 
-cp work/Paperclip/TacoSpigot.jar build/TacoSpigot.jar
+cp Paper/work/Paperclip/TacoSpigot.jar build/TacoSpigot.jar

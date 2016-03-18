@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# TacoSpigot start
+echo "Unsupported with new submodule paper system"
+exit 1
+# TacoSpgiot end
+
 PS1="$"
 
 workdir=work
