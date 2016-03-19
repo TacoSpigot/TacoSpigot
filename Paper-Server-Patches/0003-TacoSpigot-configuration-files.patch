@@ -1,4 +1,4 @@
-From 86cd612f8a999a2d48eb1912d3b7bb5a7e4f7ed6 Mon Sep 17 00:00:00 2001
+From 5f174ea4746abd1df754d252f6148cfcd50c3ec7 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -17,7 +17,7 @@ index a0186ef..94e3463 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 6ed328a..2305cce 100644
+index dafe3b2..33b68e7 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -137,6 +137,7 @@ public abstract class World implements IBlockAccess {
@@ -28,23 +28,14 @@ index 6ed328a..2305cce 100644
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Paper
      private boolean guardEntityList; // Spigot
-@@ -163,6 +164,7 @@ public abstract class World implements IBlockAccess {
+@@ -169,6 +170,7 @@ public abstract class World implements IBlockAccess {
      protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
-         this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig( worlddata.getName(), this.spigotConfig); // Paper
+         this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig(worlddata.getName(), this.spigotConfig); // Paper
 +        this.tacoSpigotConfig = new net.techcable.tacospigot.TacoSpigotWorldConfig(worlddata.getName()); // TacoSpigot
          this.generator = gen;
          this.world = new CraftWorld((WorldServer) this, gen, env);
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
-@@ -2636,7 +2638,7 @@ public abstract class World implements IBlockAccess {
-                     continue;
-                 }
-             }
--            
-+
-             if (oclass.isAssignableFrom(entity.getClass())) {
-             // if ((!(entity instanceof EntityInsentient) || !((EntityInsentient) entity).isPersistent()) && oclass.isAssignableFrom(entity.getClass())) {
-                 // CraftBukkit end
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 new file mode 100644
 index 0000000..bf74153
