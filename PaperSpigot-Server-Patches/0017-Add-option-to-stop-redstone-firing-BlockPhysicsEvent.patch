@@ -1,0 +1,42 @@
+From cd1931ef6fe4e46c82f40e4289099c613a657ad2 Mon Sep 17 00:00:00 2001
+From: frash23 <jacob@bytesizedpacket.com>
+Date: Wed, 23 Mar 2016 00:25:22 +0100
+Subject: [PATCH] Add option to stop redstone firing BlockPhysicsEvent
+
+
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 1bb15b6..8fa41d9 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -571,7 +571,11 @@ public abstract class World implements IBlockAccess {
+             try {
+                 // CraftBukkit start
+                 CraftWorld world = ((WorldServer) this).getWorld();
+-                if (world != null) {
++				// TacoSpigot start - Add config to disable redstone firing BlockPhysicsEvent 
++				boolean isRedstone = block instanceof BlockRedstoneWire || block instanceof BlockRedstoneTorch;
++				boolean dispatchBPE = isRedstone && !this.tacoSpigotConfig.isRedstoneFireBPE? false : true;
++                if (world != null && dispatchBPE) {
++				// TacoSpigot end
+                     BlockPhysicsEvent event = new BlockPhysicsEvent(world.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), CraftMagicNumbers.getId(block));
+                     this.getServer().getPluginManager().callEvent(event);
+ 
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+index 951126a..4892bff 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
+@@ -64,6 +64,11 @@ public class TacoSpigotWorldConfig {
+         return config.getString("world-settings." + worldName + "." + path, config.getString("world-settings.default." + path));
+     }
+ 
++    public boolean isRedstoneFireBPE;
++    private void isRedstoneFireBPE() {
++        isRedstoneFireBPE = getBoolean("redstone-fire-BlockPhysicsEvent", true);
++    }
++
+     public boolean isHopperPushBased;
+     private void isHopperPushBased() {
+         isHopperPushBased = getBoolean("hopper.push-based", true);
+-- 
+2.7.3
+
