@@ -14,8 +14,7 @@ index 1bb15b6..8fa41d9 100644
                  CraftWorld world = ((WorldServer) this).getWorld();
 -                if (world != null) {
 +				// TacoSpigot start - Add config to disable redstone firing BlockPhysicsEvent 
-+				boolean isRedstone = block instanceof BlockRedstoneWire || block instanceof BlockRedstoneTorch;
-+				boolean dispatchBPE = isRedstone && !this.tacoSpigotConfig.isRedstoneFireBPE? false : true;
++				boolean dispatchBPE = this.tacoSpigotConfig.isRedstoneFireBPE? true : !(block instanceof BlockRedstoneWire || block instanceof BlockRedstoneTorch);
 +                if (world != null && dispatchBPE) {
 +				// TacoSpigot end
                      BlockPhysicsEvent event = new BlockPhysicsEvent(world.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), CraftMagicNumbers.getId(block));
