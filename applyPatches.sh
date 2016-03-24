@@ -6,7 +6,7 @@ echo "Rebuilding Forked projects.... "
 
 function applyPatch {
     what=$1
-    what_name=$(basename $what) # TacoSpigot - add a seperate 'name' of what, for situations where 'what' contains a slash
+    what_name=$(basename $what) # the 'name' of what, for situations where 'what' contains a slash
     target=$2
     branch=$3
     cd "$basedir/$what"
@@ -36,16 +36,26 @@ function applyPatch {
     fi
 }
 
-# TacoSpigot start
+
+# Move into paper dir
 pushd Paper
 basedir=$basedir/Paper
-# TacoSpigot end
-applyPatch Bukkit Spigot-API HEAD && applyPatch CraftBukkit Spigot-Server patched
-applyPatch Spigot-API Paper-API HEAD && applyPatch Spigot-Server Paper-Server HEAD
-# TacoSpigot start
+
+# Move into spigot dir
+pushd Spigot
+basedir=$basedir/Spigot
+# Apply Spigot
+applyPatch ../Bukkit Spigot-API HEAD && applyPatch ../CraftBukkit Spigot-Server patched
+# Move out of Spigot
 popd
-echo "taco $basedir"
 basedir=$(dirname $basedir)
-echo "taco $basedir"
-# TacoSpigot end
+
+# Apply paper
+
+applyPatch Spigot/Spigot-API Paper-API HEAD && applyPatch Spigot/Spigot-Server Paper-Server HEAD
+# Move out of paper
+popd
+basedir=$(dirname $basedir)
+
+# Apply TacoSpigot
 applyPatch Paper/Paper-API TacoSpigot-API HEAD && applyPatch Paper/Paper-Server TacoSpigot-Server HEAD
