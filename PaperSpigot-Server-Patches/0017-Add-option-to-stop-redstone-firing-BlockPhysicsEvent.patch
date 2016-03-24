@@ -1,22 +1,20 @@
-From cd1931ef6fe4e46c82f40e4289099c613a657ad2 Mon Sep 17 00:00:00 2001
+From 2bd2e2dd8f413db5deae476d3858721d361bed01 Mon Sep 17 00:00:00 2001
 From: frash23 <jacob@bytesizedpacket.com>
-Date: Wed, 23 Mar 2016 00:25:22 +0100
+Date: Thu, 24 Mar 2016 04:07:04 +0100
 Subject: [PATCH] Add option to stop redstone firing BlockPhysicsEvent
 
 
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 1bb15b6..8fa41d9 100644
+index 1bb15b6..22e39bd 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -571,7 +571,11 @@ public abstract class World implements IBlockAccess {
+@@ -571,7 +571,9 @@ public abstract class World implements IBlockAccess {
              try {
                  // CraftBukkit start
                  CraftWorld world = ((WorldServer) this).getWorld();
 -                if (world != null) {
 +				// TacoSpigot start - Add config to disable redstone firing BlockPhysicsEvent 
-+				boolean isRedstone = block instanceof BlockRedstoneWire || block instanceof BlockRedstoneTorch;
-+				boolean dispatchBPE = isRedstone && !this.tacoSpigotConfig.isRedstoneFireBPE? false : true;
-+                if (world != null && dispatchBPE) {
++				if (world != null && (this.tacoSpigotConfig.isRedstoneFireBPE || !(block instanceof BlockRedstoneWire || block instanceof BlockRedstoneTorch || block instanceof BlockRepeater))) {
 +				// TacoSpigot end
                      BlockPhysicsEvent event = new BlockPhysicsEvent(world.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), CraftMagicNumbers.getId(block));
                      this.getServer().getPluginManager().callEvent(event);
