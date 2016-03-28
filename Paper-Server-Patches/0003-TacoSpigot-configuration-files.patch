@@ -1,4 +1,4 @@
-From 38d3393a118f306dbbd219618d902f13956f569d Mon Sep 17 00:00:00 2001
+From a6105c1a2c3c6df561290ca670682fa3561d1938 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -17,10 +17,10 @@ index a0186ef..94e3463 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 6f45d2a..e387bc8 100644
+index e5ea99c..45cdcda 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -137,6 +137,7 @@ public abstract class World implements IBlockAccess {
+@@ -134,6 +134,7 @@ public abstract class World implements IBlockAccess {
      public final org.spigotmc.SpigotWorldConfig spigotConfig; // Spigot
  
      public final com.destroystokyo.paper.PaperWorldConfig paperConfig; // Paper
@@ -28,7 +28,7 @@ index 6f45d2a..e387bc8 100644
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Paper
      private boolean guardEntityList; // Spigot
-@@ -181,6 +182,7 @@ public abstract class World implements IBlockAccess {
+@@ -177,6 +178,7 @@ public abstract class World implements IBlockAccess {
      protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
          this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig(worlddata.getName(), this.spigotConfig); // Paper
@@ -224,7 +224,7 @@ diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java.p
 new file mode 100644
 index 0000000..e69de29
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 21fb010..f1c0275 100644
+index 01a5ebe..30f5043 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -673,6 +673,7 @@ public final class CraftServer implements Server {
@@ -243,7 +243,7 @@ index 21fb010..f1c0275 100644
          }
  
          // Paper start
-@@ -1376,7 +1378,7 @@ public final class CraftServer implements Server {
+@@ -1380,7 +1382,7 @@ public final class CraftServer implements Server {
  
          for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
              result.add(getOfflinePlayer((GameProfile) entry.getKey()));

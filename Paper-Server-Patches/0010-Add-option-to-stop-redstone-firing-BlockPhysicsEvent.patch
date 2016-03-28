@@ -1,14 +1,14 @@
-From d3ca9a56a4a8ede5c001418a7735b81438ff62b7 Mon Sep 17 00:00:00 2001
+From 117b4b52d7a32e397ab527af4c3a808a99dfed41 Mon Sep 17 00:00:00 2001
 From: frash23 <jacob@bytesizedpacket.com>
 Date: Thu, 24 Mar 2016 04:07:04 +0100
 Subject: [PATCH] Add option to stop redstone firing BlockPhysicsEvent
 
 
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index c0f93ca..a97ec56 100644
+index b7584ca..1f7f546 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -570,7 +570,9 @@ public abstract class World implements IBlockAccess {
+@@ -576,7 +576,9 @@ public abstract class World implements IBlockAccess {
              try {
                  // CraftBukkit start
                  CraftWorld world = ((WorldServer) this).getWorld();

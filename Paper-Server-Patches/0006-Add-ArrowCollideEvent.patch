@@ -1,16 +1,16 @@
-From 9ea12a674df4b9c68780db601ed317c487b4d1d6 Mon Sep 17 00:00:00 2001
+From bb0921d801b7ded5231d4d016d6ffd29c2b26872 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 23 Sep 2015 12:29:13 -0700
 Subject: [PATCH] Add ArrowCollideEvent
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityArrow.java b/src/main/java/net/minecraft/server/EntityArrow.java
-index 5ccdb88..da3c63c 100644
+index 97948f4..2c8f673 100644
 --- a/src/main/java/net/minecraft/server/EntityArrow.java
 +++ b/src/main/java/net/minecraft/server/EntityArrow.java
 @@ -9,6 +9,11 @@ import org.bukkit.entity.LivingEntity;
  import org.bukkit.event.entity.EntityCombustByEntityEvent;
- import org.bukkit.event.player.PlayerPickupItemEvent;
+ import org.bukkit.event.player.PlayerPickupArrowEvent;
  // CraftBukkit end
 +// TacoSpigot start
 +import net.techcable.tacospigot.event.entity.ArrowCollideEvent;
@@ -38,5 +38,5 @@ index 5ccdb88..da3c63c 100644
                  this.a(movingobjectposition);
              }
 -- 
-2.7.1
+2.7.4
 
