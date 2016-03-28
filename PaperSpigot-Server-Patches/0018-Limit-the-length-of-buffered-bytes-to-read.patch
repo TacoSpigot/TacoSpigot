@@ -1,0 +1,52 @@
+From 4f0bb86504c547058285f7619d0f45933fd637f8 Mon Sep 17 00:00:00 2001
+From: Thinkofdeath <thinkofdeath@spigotmc.org>
+Date: Mon, 28 Mar 2016 15:41:31 -0700
+Subject: [PATCH] Limit the length of buffered bytes to read
+
+This is a particularly severe/exploitable issue -- clients can send packets forcing the server to allocate any valid array size, without actually sending any data for it to fill. This is fixed by limiting the size of read byte arrays to at most Short.MAX_VALUE.
+
+The arrays in encryption packets are limited to 256 bytes.
+
+diff --git a/src/main/java/net/minecraft/server/PacketDataSerializer.java b/src/main/java/net/minecraft/server/PacketDataSerializer.java
+index f426c2e..71ec6a7 100644
+--- a/src/main/java/net/minecraft/server/PacketDataSerializer.java
++++ b/src/main/java/net/minecraft/server/PacketDataSerializer.java
+@@ -46,9 +46,17 @@ public class PacketDataSerializer extends ByteBuf {
+         this.writeBytes(abyte);
+     }
+ 
++    // TacoSpigot start
+     public byte[] a() {
+-        byte[] abyte = new byte[this.e()];
++        // TacoSpigot start - limit the size of the received byte array to Short.MAX_VALUE
++        return readByteArray(Short.MAX_VALUE);
++    }
+ 
++    public byte[] readByteArray(int limit) {
++        int len = this.e();
++        if (len > limit) throw new DecoderException("The received a byte array longer than allowed " + len + " > " + limit);
++        byte[] abyte = new byte[len];
++        // TacoSpigot end
+         this.readBytes(abyte);
+         return abyte;
+     }
+diff --git a/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
+index a591b2f..2d408b5 100644
+--- a/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
++++ b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
+@@ -12,8 +12,10 @@ public class PacketLoginInEncryptionBegin implements Packet<PacketLoginInListene
+     public PacketLoginInEncryptionBegin() {}
+ 
+     public void a(PacketDataSerializer packetdataserializer) throws IOException {
+-        this.a = packetdataserializer.a();
+-        this.b = packetdataserializer.a();
++        // TacoSpigot start - limit to 256 bytes
++        this.a = packetdataserializer.readByteArray(256);
++        this.b = packetdataserializer.readByteArray(256);
++        // TacoSpigot end
+     }
+ 
+     public void b(PacketDataSerializer packetdataserializer) throws IOException {
+-- 
+2.7.4
+

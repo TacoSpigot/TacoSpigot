@@ -1,4 +1,4 @@
-From fb811cf95dc977495353f3344cfd31dee4224c4f Mon Sep 17 00:00:00 2001
+From cfda39926d14b460ff89977c08b00c31b4c1954d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 16 Aug 2015 12:18:44 -0700
 Subject: [PATCH] NMS Imports
@@ -1755,6 +1755,51 @@ index 0000000..064d0b2
 +        }
 +    }
 +}
+diff --git a/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
+new file mode 100644
+index 0000000..6385ab2
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
+@@ -0,0 +1,39 @@
++package net.minecraft.server;
++
++import java.io.IOException;
++import java.security.PrivateKey;
++import javax.crypto.SecretKey;
++
++public class PacketLoginInEncryptionBegin implements Packet<PacketLoginInListener> {
++
++    private byte[] a = new byte[0];
++    private byte[] b = new byte[0];
++
++    public PacketLoginInEncryptionBegin() {}
++
++    public void a(PacketDataSerializer packetdataserializer) throws IOException {
++        this.a = packetdataserializer.a();
++        this.b = packetdataserializer.a();
++    }
++
++    public void b(PacketDataSerializer packetdataserializer) throws IOException {
++        packetdataserializer.a(this.a);
++        packetdataserializer.a(this.b);
++    }
++
++    public void a(PacketLoginInListener packetlogininlistener) {
++        packetlogininlistener.a(this);
++    }
++
++    public SecretKey a(PrivateKey privatekey) {
++        return MinecraftEncryption.a(privatekey, this.a);
++    }
++
++    public byte[] b(PrivateKey privatekey) {
++        return privatekey == null ? this.b : MinecraftEncryption.b(privatekey, this.b);
++    }
++
++    public void a(PacketListener packetlistener) {
++        this.a((PacketLoginInListener) packetlistener);
++    }
++}
 -- 
-2.7.2
+2.7.4
 

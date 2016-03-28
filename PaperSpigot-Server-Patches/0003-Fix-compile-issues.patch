@@ -1,4 +1,4 @@
-From e946af41ffbc7d0451534c79c54a7cb7b3ebd285 Mon Sep 17 00:00:00 2001
+From 408d89f4b21427472c333183a754033585c397ea Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 5 Sep 2015 11:08:15 -0700
 Subject: [PATCH] Fix compile issues
@@ -96,6 +96,22 @@ index 27d08a7..5bf61b0 100644
      public CommandScoreboard() {}
  
      public String getCommand() {
+diff --git a/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
+index 6385ab2..a591b2f 100644
+--- a/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
++++ b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
+@@ -33,7 +33,11 @@ public class PacketLoginInEncryptionBegin implements Packet<PacketLoginInListene
+         return privatekey == null ? this.b : MinecraftEncryption.b(privatekey, this.b);
+     }
+ 
++    // TacoSpigot start - fernflower is gud at generics
++    /*
+     public void a(PacketListener packetlistener) {
+         this.a((PacketLoginInListener) packetlistener);
+     }
++    */
++    // TacoSpigot end
+ }
 diff --git a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java b/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
 index 5540dde..5cdc263 100644
 --- a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
@@ -110,5 +126,5 @@ index 5540dde..5cdc263 100644
              Collections.sort(list, this.b);
              if (list.isEmpty()) {
 -- 
-2.7.1
+2.7.4
 
