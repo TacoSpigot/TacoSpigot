@@ -1,4 +1,4 @@
-From b9a8a6d51e12919147f6890cebdf28f38b7adf5b Mon Sep 17 00:00:00 2001
+From 656c2ec7cffdf20a51d272a429a1c3414d152a5d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -6,7 +6,7 @@ Subject: [PATCH] POM changes
 Check our github versioning
 
 diff --git a/pom.xml b/pom.xml
-index 1ad108e..141ae19 100644
+index 043b7b2..4cf5bbd 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -3,18 +3,18 @@
@@ -24,7 +24,7 @@ index 1ad108e..141ae19 100644
 -    <artifactId>paper-api</artifactId>
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>api</artifactId>
-     <version>1.9-R0.1-SNAPSHOT</version>
+     <version>1.9.2-R0.1-SNAPSHOT</version>
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>
@@ -119,5 +119,5 @@ index 6d32e1d..5d1a5ac 100644
      // Contributed by Techcable <Techcable@outlook.com> in GH PR #65
      private static final String BRANCH = "master";
 -- 
-2.7.2
+2.7.4
 

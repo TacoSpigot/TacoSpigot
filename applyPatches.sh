@@ -50,12 +50,19 @@ applyPatch ../Bukkit Spigot-API HEAD && applyPatch ../CraftBukkit Spigot-Server 
 popd
 basedir=$(dirname $basedir)
 
+echo "Importing Paper MC Dev"
+
+./importmcdev.sh
+
 # Apply paper
 
 applyPatch Spigot/Spigot-API Paper-API HEAD && applyPatch Spigot/Spigot-Server Paper-Server HEAD
 # Move out of paper
 popd
 basedir=$(dirname $basedir)
+
+echo "Importing TacoSpigot mc-dev"
+./importmcdev.sh
 
 # Apply TacoSpigot
 applyPatch Paper/Paper-API TacoSpigot-API HEAD && applyPatch Paper/Paper-Server TacoSpigot-Server HEAD
