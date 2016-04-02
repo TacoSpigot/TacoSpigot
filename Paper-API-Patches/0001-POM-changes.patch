@@ -1,4 +1,4 @@
-From 656c2ec7cffdf20a51d272a429a1c3414d152a5d Mon Sep 17 00:00:00 2001
+From b695286d37cf77ae07d131d532713ee4cc501959 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -6,10 +6,10 @@ Subject: [PATCH] POM changes
 Check our github versioning
 
 diff --git a/pom.xml b/pom.xml
-index 043b7b2..4cf5bbd 100644
+index 58ddcf3..75e0ab8 100644
 --- a/pom.xml
 +++ b/pom.xml
-@@ -3,18 +3,18 @@
+@@ -4,18 +4,18 @@
      <modelVersion>4.0.0</modelVersion>
  
      <parent>
@@ -119,5 +119,5 @@ index 6d32e1d..5d1a5ac 100644
      // Contributed by Techcable <Techcable@outlook.com> in GH PR #65
      private static final String BRANCH = "master";
 -- 
-2.7.4
+2.8.0
 

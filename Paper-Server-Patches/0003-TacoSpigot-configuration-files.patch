@@ -1,11 +1,11 @@
-From a7ac7ff7d4502091d6352c4585c4a7f118e5f5ba Mon Sep 17 00:00:00 2001
+From a7184ca4ff8f13b7e6e26e60cd406749d5bce0a8 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index a0186ef..94e3463 100644
+index 0225a2e..8cef3fc 100644
 --- a/src/main/java/net/minecraft/server/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/DedicatedServer.java
 @@ -184,6 +184,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
@@ -17,7 +17,7 @@ index a0186ef..94e3463 100644
              DedicatedServer.LOGGER.info("Generating keypair");
              this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index fa84bad..a468f40 100644
+index ea187f9..aea8881 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -134,6 +134,7 @@ public abstract class World implements IBlockAccess {
@@ -28,7 +28,7 @@ index fa84bad..a468f40 100644
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Paper
      private boolean guardEntityList; // Spigot
-@@ -177,6 +178,7 @@ public abstract class World implements IBlockAccess {
+@@ -171,6 +172,7 @@ public abstract class World implements IBlockAccess {
      protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
          this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig(worlddata.getName(), this.spigotConfig); // Paper
@@ -272,5 +272,5 @@ index 979adad..6471de4 100644
          };
  
 -- 
-2.7.4
+2.8.0
 

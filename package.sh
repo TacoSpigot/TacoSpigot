@@ -7,7 +7,7 @@ VANILLA_JAR=Paper/work/$MINECRAFT_VERSION/$MINECRAFT_VERSION.jar
 
 VANILLA_URL="https://s3.amazonaws.com/Minecraft.Download/versions/$MINECRAFT_VERSION/minecraft_server.$MINECRAFT_VERSION.jar"
 
-SERVER_JAR=TacoSpigot-Server/target/$(ls TacoSpigot-Server/target | grep -P "^server-[\d\.]+-[\w\.]+(-SNAPSHOT)?.jar")
+SERVER_JAR=TacoSpigot-Server/target/paper-$MINECRAFT_VERSION.jar
 
 if [ ! -f "$SERVER_JAR" ]; then
     echo "Server Jar: $SERVER_JAR not found"
