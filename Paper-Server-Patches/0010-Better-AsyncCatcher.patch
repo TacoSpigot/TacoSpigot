@@ -1,4 +1,4 @@
-From 58970aab43b8828768c769f4d47d1b0e96b328fe Mon Sep 17 00:00:00 2001
+From 2cda5c230d33bf22dc5e1fffd14203ecb0852ea1 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Fri, 18 Mar 2016 13:56:01 -0700
 Subject: [PATCH] Better AsyncCatcher
@@ -6,7 +6,7 @@ Subject: [PATCH] Better AsyncCatcher
 Async catching for PlayerChunkMap
 
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index 5421026..cbe8b4a 100644
+index 7100710..bd68a02 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
 @@ -15,6 +15,9 @@ import java.util.Set;
@@ -107,5 +107,5 @@ index 429c258..86c8bf6 100644
          {
              if ( script.isFile() )
 -- 
-2.7.2
+2.8.0
 

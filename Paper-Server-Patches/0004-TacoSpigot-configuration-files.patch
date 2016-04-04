@@ -1,21 +1,9 @@
-From a7184ca4ff8f13b7e6e26e60cd406749d5bce0a8 Mon Sep 17 00:00:00 2001
+From f633ed713d7820e3301253bc69eb2085a5f5c97c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
-diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index 0225a2e..8cef3fc 100644
---- a/src/main/java/net/minecraft/server/DedicatedServer.java
-+++ b/src/main/java/net/minecraft/server/DedicatedServer.java
-@@ -184,6 +184,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
-             com.destroystokyo.paper.PaperConfig.init((File) options.valueOf("paper-settings"));
-             com.destroystokyo.paper.PaperConfig.registerCommands();
-             // Paper end
-+            net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // TacoSpigot
- 
-             DedicatedServer.LOGGER.info("Generating keypair");
-             this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
 index ea187f9..aea8881 100644
 --- a/src/main/java/net/minecraft/server/World.java
@@ -38,10 +26,10 @@ index ea187f9..aea8881 100644
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 new file mode 100644
-index 0000000..bf74153
+index 0000000..6cee5dd
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,105 @@
 +package net.techcable.tacospigot;
 +
 +import java.io.File;
@@ -76,6 +64,7 @@ index 0000000..bf74153
 +        CONFIG_FILE = configFile;
 +        config = new YamlConfiguration();
 +        try {
++            System.out.println("Loading TacoSpigot configuration from: " + configFile.getName());
 +            config.load(CONFIG_FILE);
 +        } catch (IOException ex) {
 +        } catch (InvalidConfigurationException ex) {
@@ -146,9 +135,6 @@ index 0000000..bf74153
 +        return config.getString(path, config.getString(path));
 +    }
 +}
-diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java.porig b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java.porig
-new file mode 100644
-index 0000000..e69de29
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 new file mode 100644
 index 0000000..2bc5877
@@ -220,9 +206,6 @@ index 0000000..2bc5877
 +        return config.getString("world-settings." + worldName + "." + path, config.getString("world-settings.default." + path));
 +    }
 +}
-diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java.porig b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java.porig
-new file mode 100644
-index 0000000..e69de29
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 index 5b70d7a..91d5bf9 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
@@ -253,7 +236,7 @@ index 5b70d7a..91d5bf9 100644
          return result;
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index 979adad..6471de4 100644
+index 979adad..2f7cb20 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -130,6 +130,14 @@ public class Main {
@@ -271,6 +254,14 @@ index 979adad..6471de4 100644
              }
          };
  
+@@ -197,6 +205,7 @@ public class Main {
+                     System.out.println( "Please see http://www.spigotmc.org/wiki/changing-permgen-size/ for more details and more in-depth instructions." );
+                 }
+                 // Spigot End
++                net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // TacoSpigot - initalize before library loading so we can access while loading
+                 System.out.println("Loading libraries, please wait...");
+                 MinecraftServer.main(options);
+             } catch (Throwable t) {
 -- 
 2.8.0
 

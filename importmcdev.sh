@@ -13,7 +13,7 @@ export importedmcdev=""
 function import {
 	export importedmcdev="$importedmcdev $1"
 	file="${1}.java"
-        .target="$basedir/Paper/Paper-Server/src/main/java/$nms/$file"
+        target="$basedir/Paper/Paper-Server/src/main/java/$nms/$file"
 	base="$decompiledir/$nms/$file"
 
 	if [[ ! -f "$target" ]]; then
@@ -32,6 +32,11 @@ function import {
 )
 
 # Sources to import
+import IBlockState
+import BlockState
+import BlockStateBoolean
+import BlockStateEnum
+import BlockStateInteger
 
 (
 	cd Paper/Paper-Server/

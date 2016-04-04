@@ -1,0 +1,23 @@
+From 8eeb4bb7a34c7c45f4f54422dc04b0d849c1c296 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Sun, 3 Apr 2016 14:05:27 -0700
+Subject: [PATCH] MC-Dev Fixes
+
+Sometimes fernflower makes mistakes too
+
+diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
+index d708a7e..6aa06b2 100644
+--- a/src/main/java/net/minecraft/server/BlockStateEnum.java
++++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
+@@ -21,7 +21,7 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+         Iterator iterator = collection.iterator();
+ 
+         while (iterator.hasNext()) {
+-            Enum oenum = (Enum) iterator.next();
++            T oenum = (T) iterator.next(); // TacoSpigot - fix decompile error
+             String s1 = ((INamable) oenum).getName();
+ 
+             if (this.b.containsKey(s1)) {
+-- 
+2.8.0
+

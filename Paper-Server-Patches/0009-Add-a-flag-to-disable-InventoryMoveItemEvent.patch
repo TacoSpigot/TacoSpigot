@@ -1,4 +1,4 @@
-From da022f0fea962856b336426201a364c43c88bc3a Mon Sep 17 00:00:00 2001
+From a399ae60f17f6f5c37b15762da736551e401cd0d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 3 Feb 2016 11:27:34 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -9,7 +9,7 @@ Some plugins offer no way to disable their IMIE listeners. (See WorldGuard-3520)
 This patch adds a per-world flag to disable InventoryMoveItemEvent for hoppers.
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index e80bcc3..fa96496 100644
+index f824c6c..306fad0 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -12,6 +12,7 @@ import org.bukkit.event.inventory.InventoryPickupItemEvent;
@@ -127,5 +127,5 @@ index 4e2283c..3f18f79 100644
 +    }
  }
 -- 
-2.7.2
+2.8.0
 
