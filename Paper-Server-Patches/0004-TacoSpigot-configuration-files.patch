@@ -1,4 +1,4 @@
-From f633ed713d7820e3301253bc69eb2085a5f5c97c Mon Sep 17 00:00:00 2001
+From 1dce79e9390ab671af2eab37ffeb976dfa0c8728 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -26,7 +26,7 @@ index ea187f9..aea8881 100644
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 new file mode 100644
-index 0000000..6cee5dd
+index 0000000..ce66b1c
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -0,0 +1,105 @@
@@ -54,7 +54,7 @@ index 0000000..6cee5dd
 +public class TacoSpigotConfig {
 +
 +    private static File CONFIG_FILE;
-+    private static final String HEADER = "This is the main configuration file for TacoSpigot.\n" + "As you can see, there's tons to configure. Some options may impact gameplay, so use\n" + "with caution, and make sure you know what each option does before configuring.\n" + "\n" + "If you need help with the configuration or have any questions related to TacoSpigot,\n" + "join us at the IRC.\n" + "\n" + "IRC: #taco @ irc.spi.gt ( http://irc.spi.gt/iris/?channels=taco )\n";
++    private static final String HEADER = "This is the main configuration file for TacoSpigot.\n" + "As you can see, there's tons to configure. Some options may impact gameplay, so use\n" + "with caution, and make sure you know what each option does before configuring.\n" + "\n" + "If you need help with the configuration or have any questions related to TacoSpigot,\n" + "join us at the IRC.\n" + "\n" + "IRC: #techcable @ irc.spi.gt ( http://irc.spi.gt/iris/?channels=taco )\n";
 +    /*========================================================================*/
 +    static YamlConfiguration config;
 +    static int version;
