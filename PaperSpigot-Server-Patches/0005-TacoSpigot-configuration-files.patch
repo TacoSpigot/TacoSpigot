@@ -1,21 +1,9 @@
-From 0c1ecd63868851b908c0bcd5335b367b4bb12029 Mon Sep 17 00:00:00 2001
+From f41f628c8e8f3f9527c1c3c4380658b5b2e748bc Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
-diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index 088beb2..cb8cbff 100644
---- a/src/main/java/net/minecraft/server/DedicatedServer.java
-+++ b/src/main/java/net/minecraft/server/DedicatedServer.java
-@@ -181,6 +181,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
-             org.github.paperspigot.PaperSpigotConfig.init((File) options.valueOf("paper-settings"));
-             org.github.paperspigot.PaperSpigotConfig.registerCommands();
-             // PaperSpigot end
-+            net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // TacoSpigot
- 
-             DedicatedServer.LOGGER.info("Generating keypair");
-             this.a(MinecraftEncryption.b());
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
 index f0cd810..26ca52a 100644
 --- a/src/main/java/net/minecraft/server/World.java
@@ -80,10 +68,10 @@ index f0cd810..26ca52a 100644
                  // CraftBukkit end
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 new file mode 100644
-index 0000000..84ed7d2
+index 0000000..2cb3cf7
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,106 @@
 +package net.techcable.tacospigot;
 +
 +import java.io.File;
@@ -118,6 +106,7 @@ index 0000000..84ed7d2
 +        CONFIG_FILE = configFile;
 +        config = new YamlConfiguration();
 +        try {
++            System.out.println("Loading TacoSpigot config from " + configFile.getName());
 +            config.load(CONFIG_FILE);
 +        } catch (IOException ex) {
 +        } catch (InvalidConfigurationException ex) {
@@ -282,7 +271,7 @@ index 69485fa..a2fb039 100644
  
          pluginManager.clearPlugins();
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index 5def35a..d2b4509 100644
+index 5def35a..a5bbd8b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -140,6 +140,14 @@ public class Main {
@@ -300,6 +289,14 @@ index 5def35a..d2b4509 100644
              }
          };
  
+@@ -207,6 +215,7 @@ public class Main {
+                     System.out.println( "Please see http://www.spigotmc.org/wiki/changing-permgen-size/ for more details and more in-depth instructions." );
+                 }
+                 // Spigot End
++                net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // TacoSpigot - load config before we load libraries to allow access while loading
+                 System.out.println("Loading libraries, please wait...");
+                 MinecraftServer.main(options);
+             } catch (Throwable t) {
 -- 
-2.7.1
+2.8.0
 

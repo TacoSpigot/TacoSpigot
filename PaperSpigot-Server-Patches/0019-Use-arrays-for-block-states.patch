@@ -1,0 +1,856 @@
+From 91a7fd42170a6be2d08ed2922da621334e90a51a Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Tue, 5 Apr 2016 09:36:24 -0700
+Subject: [PATCH] Use arrays for block states
+
+It uses a special data structure that is a combination of a lookup table and a binary search. Most blockstates have sequental ids, so they can go in a lookup table. However, there are some blockstates that are not sequental, which are stuffed into a seperate sorted array, and then do a binary search over that.
+This data structure is usualy faster than a hashmap (especially when using the lookup table), and since the array we binary search over is so small.
+
+Should help with redstone.
+
+diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
+index 3cada5a..3217cff 100644
+--- a/src/main/java/net/minecraft/server/BlockState.java
++++ b/src/main/java/net/minecraft/server/BlockState.java
+@@ -2,14 +2,44 @@ package net.minecraft.server;
+ 
+ import com.google.common.base.Objects;
+ 
++// TacoSpigot start
++import java.util.Arrays;
++// TacoSpigot end
++
+ public abstract class BlockState<T extends Comparable<T>> implements IBlockState<T> {
+ 
+     private final Class<T> a;
+     private final String b;
++    // TacoSpigot start
++    private static int nextId = 0;
++    private final int id;
++
++    @Override
++    public int getId() {
++        return id;
++    }
++
++    private static BlockState[] byId = new BlockState[0];
++
++    public static BlockState getById(int id) {
++        if (id < 0) {
++            throw new IllegalArgumentException("Negative id: " + id);
++        } else if (id < byId.length) {
++            return byId[id];
++        } else {
++            return null;
++        }
++    }
++    // TacoSpigot end
+ 
+     protected BlockState(String s, Class<T> oclass) {
+         this.a = oclass;
+         this.b = s;
++        // TacoSpigot start
++        id = nextId++;
++        if (id >= byId.length) byId = Arrays.copyOf(byId, id + 1);
++        byId[id] = this;
++        // TacoSpigot end
+     }
+ 
+     public String a() {
+diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
+index c3c94cb..d6d9a22 100644
+--- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
++++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
+@@ -11,6 +11,25 @@ public class BlockStateBoolean extends BlockState<Boolean> {
+         super(s, Boolean.class);
+     }
+ 
++    // TacoSpigot start
++    @Override
++    public int getValueId(Boolean value) {
++        return value ? 1 : 0;
++    }
++
++    @Override
++    public Boolean getByValueId(int id) {
++        switch (id) {
++            case 0:
++                return false;
++            case 1:
++                return true;
++            default:
++                throw new IllegalArgumentException("Invalid id: " + id);
++        }
++    }
++    // TacoSpigot end
++
+     public Collection<Boolean> c() {
+         return this.a;
+     }
+diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
+index d10d799..ca38c59 100644
+--- a/src/main/java/net/minecraft/server/BlockStateEnum.java
++++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
+@@ -36,11 +36,28 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+     public Collection<T> c() {
+         return this.a;
+     }
+-
+     public String a(T t0) {
+         return ((INamable) t0).getName();
+     }
+ 
++    // TacoSpigot start
++    @Override
++    public int
++getValueId(T value) {
++        return value.ordinal();
++    }
++
++    @Override
++    public T getByValueId(int id) {
++        T[] values = this.b().getEnumConstants();
++        if (id >= 0 && id < values.length) {
++            return values[id];
++        } else {
++            throw new IllegalArgumentException("Invalid id: " + id);
++        }
++    }
++    // TacoSpigot end
++
+     public static <T extends Enum<T> & INamable> BlockStateEnum<T> of(String s, Class<T> oclass) {
+         return a(s, oclass, Predicates.alwaysTrue());
+     }
+diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
+index a492201..13b7d37 100644
+--- a/src/main/java/net/minecraft/server/BlockStateInteger.java
++++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
+@@ -8,9 +8,40 @@ import java.util.HashSet;
+ public class BlockStateInteger extends BlockState<Integer> {
+ 
+     private final ImmutableSet<Integer> a;
++    // TacoSpigot start
++    private final int min, max;
++    private final int range;
++
++    @Override
++    public int getValueId(Integer value) {
++        if (value < min) {
++            throw new IllegalArgumentException("Too small: " + value);
++        } else if (value > max) {
++            throw new IllegalArgumentException("Too large: " + value);
++        } else {
++            return value - min;
++        }
++    }
++
++    @Override
++    public Integer getByValueId(int id) {
++        if (id < 0) {
++            throw new IllegalArgumentException("Negative id: " + id);
++        } else if (id > range) {
++            throw new IllegalArgumentException("Id is out of range: " + id);
++        } else {
++            return id;
++        }
++    }
++    // TacoSpigot end
+ 
+     protected BlockStateInteger(String s, int i, int j) {
+         super(s, Integer.class);
++        // TacoSpigot start
++        this.min = i;
++        this.max = j;
++        this.range = (max - min); // min and max are _both_ inclusive (there's a reason you're not supposed to do this :p)
++        // TacoSpigot end
+         if (i < 0) {
+             throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
+         } else if (j <= i) {
+diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
+index 7e91392..dd96646 100644
+--- a/src/main/java/net/minecraft/server/BlockStateList.java
++++ b/src/main/java/net/minecraft/server/BlockStateList.java
+@@ -21,6 +21,16 @@ import java.util.LinkedHashMap;
+ import java.util.List;
+ import java.util.Map;
+ 
++// TacoSpigot start
++import com.google.common.collect.Table;
++
++import java.util.function.ToIntBiFunction;
++
++import net.techcable.tacospigot.ImmutableArrayMap;
++import net.techcable.tacospigot.ImmutableArrayTable;
++import net.techcable.tacospigot.TacoSpigotConfig;
++// TacoSpigot end
++
+ public class BlockStateList {
+ 
+     private static final Joiner a = Joiner.on(", ");
+@@ -107,12 +117,22 @@ public class BlockStateList {
+     static class BlockData extends BlockDataAbstract {
+ 
+         private final Block a;
+-        private final ImmutableMap<IBlockState, Comparable> b;
+-        private ImmutableTable<IBlockState, Comparable, IBlockData> c;
++        // TacoSpigot start
++        private final ImmutableMap<IBlockState, Comparable> bAsImmutableMap;
++        private final Map<IBlockState, Comparable> b;
++        private Table<IBlockState, Comparable, IBlockData> c;
++        // TacoSpigot end
+ 
+         private BlockData(Block block, ImmutableMap<IBlockState, Comparable> immutablemap) {
+             this.a = block;
+-            this.b = immutablemap;
++            // TacoSpigot start
++            this.bAsImmutableMap = immutablemap;
++            if (TacoSpigotConfig.useArraysForBlockStates) {
++                b = new ImmutableArrayMap<>(IBlockState.INDEXER, BlockState::getById, immutablemap);
++            } else {
++                b = immutablemap;
++            }
++            // TacoSpigot end
+         }
+ 
+         public Collection<IBlockState> a() {
+@@ -120,25 +140,33 @@ public class BlockStateList {
+         }
+ 
+         public <T extends Comparable<T>> T get(IBlockState<T> iblockstate) {
++            // TacoSpigot start - remove un-needed code
++            /*
+             if (!this.b.containsKey(iblockstate)) {
+                 throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.P());
+             } else {
+-                return iblockstate.b().cast(this.b.get(iblockstate)); // TacoSpigot - remove illegal and unnecessary cast
+-            }
++            */
++                return (T) /* iblockstate.b().cast */(this.b.get(iblockstate)); // TacoSpigot - remove illegal and unnecessary cast
++            //}
++            // TacoSpigot end
+         }
+ 
+         public <T extends Comparable<T>, V extends T> IBlockData set(IBlockState<T> iblockstate, V v0) {
++            // TacoSpigot start - remove un-needed code
++            /*
+             if (!this.b.containsKey(iblockstate)) {
+                 throw new IllegalArgumentException("Cannot set property " + iblockstate + " as it does not exist in " + this.a.P());
+             } else if (!iblockstate.c().contains(v0)) {
+                 throw new IllegalArgumentException("Cannot set property " + iblockstate + " to " + v0 + " on block " + Block.REGISTRY.c(this.a) + ", it is not an allowed value");
+             } else {
++            */
+                 return (IBlockData) (this.b.get(iblockstate) == v0 ? this : (IBlockData) this.c.get(iblockstate, v0));
+-            }
++            //}
++            // TacoSpigot end
+         }
+ 
+         public ImmutableMap<IBlockState, Comparable> b() {
+-            return this.b;
++            return this.bAsImmutableMap; // TacoSpigot
+         }
+ 
+         public Block getBlock() {
+@@ -167,19 +195,32 @@ public class BlockStateList {
+                     while (iterator1.hasNext()) {
+                         Comparable comparable = (Comparable) iterator1.next();
+ 
+-                        if (comparable != this.b.get(iblockstate)) {
++                        if (true) { // TacoSpigot - include everything in the table
+                             hashbasedtable.put(iblockstate, comparable, map.get(this.b(iblockstate, comparable)));
+                         }
+                     }
+                 }
+ 
+-                this.c = ImmutableTable.copyOf(hashbasedtable);
++                // TacoSpigot start
++                if (TacoSpigotConfig.useArraysForBlockStates) {
++                    this.c = new ImmutableArrayTable<IBlockState, Comparable, IBlockData> (
++                            IBlockState.INDEXER,
++                            BlockState::getById,
++                            (IBlockState state, Comparable value) -> state.getValueId(value),
++                            IBlockState::getByValueId,
++                            hashbasedtable
++                    );
++                } else {
++                    this.c = ImmutableTable.copyOf(hashbasedtable);
++                }
++                // TacoSpigot end
+             }
+         }
+ 
+         private Map<IBlockState, Comparable> b(IBlockState iblockstate, Comparable comparable) {
+             HashMap hashmap = Maps.newHashMap(this.b);
+ 
++
+             hashmap.put(iblockstate, comparable);
+             return hashmap;
+         }
+diff --git a/src/main/java/net/minecraft/server/IBlockState.java b/src/main/java/net/minecraft/server/IBlockState.java
+index 7e35d33..791d1c6 100644
+--- a/src/main/java/net/minecraft/server/IBlockState.java
++++ b/src/main/java/net/minecraft/server/IBlockState.java
+@@ -2,6 +2,10 @@ package net.minecraft.server;
+ 
+ import java.util.Collection;
+ 
++// TacoSpigot start
++import net.techcable.tacospigot.Indexer;
++// TacoSpigot end
++
+ public interface IBlockState<T extends Comparable<T>> {
+ 
+     String a();
+@@ -11,4 +15,20 @@ public interface IBlockState<T extends Comparable<T>> {
+     Class<T> b();
+ 
+     String a(T t0);
++
++    // TacoSpigot start
++    @SuppressWarnings("Convert2Lambda") // We have to use anon for performance reasons :/
++    public static final Indexer<IBlockState> INDEXER = new Indexer<IBlockState>() {
++        @Override
++        public int getId(IBlockState state) {
++            return state.getId();
++        }
++    };
++
++    public int getId();
++
++    public int getValueId(T value);
++
++    public T getByValueId(int id);
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
+new file mode 100644
+index 0000000..b62beb3
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
+@@ -0,0 +1,221 @@
++package net.techcable.tacospigot;
++
++import java.util.AbstractMap;
++import java.util.AbstractSet;
++import java.util.Arrays;
++import java.util.Comparator;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.NoSuchElementException;
++import java.util.Set;
++import java.util.function.BiConsumer;
++import java.util.function.IntFunction;
++import java.util.function.ToIntFunction;
++
++import com.google.common.base.Preconditions;
++
++import org.apache.commons.lang3.tuple.Pair;
++
++public class ImmutableArrayMap<K, V> extends AbstractMap<K, V> implements Map<K, V> {
++    private final Indexer<K> indexer;
++    private final IntFunction<K> byIndex;
++    private final int offset;
++    private final Object[] data;
++    private final Object[] outlyingData;
++    private final int[] outlyingIds;
++
++    private final int size;
++
++    @SuppressWarnings("Convert2Lambda") // The comparator is anonomous for performance reasons
++    public ImmutableArrayMap(Indexer<K> getId, IntFunction<K> byIndex, Map<K, V> map) {
++        Preconditions.checkNotNull(getId, "Null getId function");
++        Preconditions.checkNotNull(byIndex, "Null byIndex function");
++        Preconditions.checkNotNull(map, "Null map");
++        this.indexer = getId;
++        this.byIndex = byIndex;
++        this.size = map.size();
++        this.keyComparator = new Comparator<K>() {
++            @Override
++            public int compare(K o1, K o2) {
++                return Integer.compare(indexer.getId(o1), indexer.getId(o2));
++            }
++        };
++        @SuppressWarnings("unchecked")
++        Entry<K, V>[] entries = new Entry[size];
++        Iterator<Entry<K, V>> iterator = map.entrySet().iterator();
++        for (int i = 0; i < entries.length; i++) {
++            Preconditions.checkArgument(iterator.hasNext(), "Expected %s entries but only got %s", size, i + 1);
++            entries[i] = iterator.next();
++        }
++        Arrays.sort(entries, (entry1, entry2) -> keyComparator.compare(entry1.getKey(), entry2.getKey()));
++        Preconditions.checkArgument(!iterator.hasNext(), "Got more than expected %s entries", size);
++        int[] ids = Arrays.stream(entries).map(Entry::getKey).mapToInt(indexer::getId).toArray(); // Don't worry, its sorted by key id ;)
++        int[] largestRangeOfSequentialValues = calculateLargestRangeOfSequentialValues(ids);
++        int minIndex = largestRangeOfSequentialValues == null ? -1 : largestRangeOfSequentialValues[0];
++        int maxIndex = largestRangeOfSequentialValues == null ? -1 : largestRangeOfSequentialValues[1];
++        int sequentalRangeSize = largestRangeOfSequentialValues == null ? 0 : largestRangeOfSequentialValues[2];
++        if (sequentalRangeSize < size / 2) {
++            System.err.println("Less than 50% of values are sequential");
++            System.err.print(sequentalRangeSize);
++            System.err.print(" out of ");
++            System.err.println(size);
++            System.err.println("Expect reduced performance");
++        }
++        this.data = new Object[sequentalRangeSize];
++        this.outlyingIds = new int[size - sequentalRangeSize];
++        this.outlyingData = new Object[size - sequentalRangeSize];
++        this.offset = sequentalRangeSize == 0 ? 0 : ids[minIndex];
++        int outlyingIndex = 0;
++        for (int i = 0; i < entries.length; i++) {
++            Entry<K, V> entry = entries[i];
++            K key = entry.getKey();
++            V value = entry.getValue();
++            int id = indexer.getId(key);
++            Preconditions.checkArgument(id >= 0, "Negative id for %s: %s", key, id);
++            if (i >= minIndex && i < maxIndex) {
++                int index = id - offset;
++                data[index] = value;
++            } else {
++                int index = outlyingIndex++;
++                outlyingIds[index] = id;
++                outlyingData[index] = value;
++            }
++        }
++    }
++    private final Comparator<K> keyComparator;
++
++    @Override
++    public int size() {
++        return size;
++    }
++
++    @Override
++    public boolean containsKey(Object key) {
++        return get(key) != null;
++    }
++
++    @Override
++    @SuppressWarnings("unchecked")
++    public V get(Object key) {
++        int id = indexer.getId((K) key);
++        int index = id - offset;
++        if (index >= 0 && index < data.length) {
++            return (V) data[index];
++        }
++        int outlyingIndex = Arrays.binarySearch(outlyingIds, id);
++        if (outlyingIndex >= 0 && outlyingIndex < outlyingData.length) {
++            return (V) outlyingData[outlyingIndex];
++        } else {
++            return null;
++        }
++    }
++
++    @Override
++    public Set<Entry<K, V>> entrySet() {
++        return new AbstractSet<Entry<K,V>>() {
++            @Override
++            public int size() {
++                return ImmutableArrayMap.this.size();
++            }
++
++            @Override
++            public boolean contains(Object o) {
++                if (!(o instanceof Entry)) return false;
++                Entry<?, ?> e = (Entry) o;
++                Object key = e.getKey();
++                if (key == null) return false;
++                Object value = get(key);
++                return value != null && value.equals(e.getValue());
++            }
++
++            @Override
++            public Iterator<Entry<K, V>> iterator() {
++                return new Iterator<Entry<K, V>>() {
++                    private int index, outlyingIndex;
++
++                    @Override
++                    public boolean hasNext() {
++                        while (index < data.length) {
++                            if (data[index] != null) {
++                                return true;
++                            } else {
++                                index++;
++                            }
++                        }
++                        return outlyingIndex < outlyingIds.length;
++                    }
++
++                    @Override
++                    @SuppressWarnings("unchecked")
++                    public Entry<K, V> next() {
++                        int index = this.index++;
++                        int outlyingIndex;
++                        if (index < data.length) {
++                            while (data[index] == null) index = this.index++;
++                            int id = index + offset;
++                            return Pair.of(byIndex.apply(id), (V) data[index]);
++                        } else if ((outlyingIndex = this.outlyingIndex++) < outlyingIds.length) {
++                            int id = outlyingIds[outlyingIndex];
++                            return Pair.of(byIndex.apply(id), (V) outlyingData[outlyingIndex]);
++                        } else {
++                            throw new NoSuchElementException();
++                        }
++                    }
++                };
++            }
++        };
++    }
++
++    @Override
++    public void forEach(BiConsumer<? super K, ? super V> action) {
++        for (int index = 0, id = offset; index < data.length; index++, id++) {
++            K key = byIndex.apply(id);
++            V value = (V) data[index];
++            action.accept(key, value);
++        }
++        for (int index = 0; index < outlyingIds.length; index++) {
++            int id = outlyingIds[index];
++            K key = byIndex.apply(id);
++            V value = (V) outlyingData[index];
++            action.accept(key, value);
++        }
++    }
++
++    @Override
++    public void clear() {
++        throw new UnsupportedOperationException();
++    }
++
++    @Override
++    public V put(K key, V value) {
++        throw new UnsupportedOperationException();
++    }
++
++    @Override
++    public V remove(Object key) {
++        throw new UnsupportedOperationException();
++    }
++
++    private static int[] calculateLargestRangeOfSequentialValues(int[] ids) {
++        int largestRangeSize = 0;
++        int[] largestRange = new int[3];
++        for (int minIndex = 0; minIndex < ids.length; minIndex++) {
++            final int min = ids[minIndex];
++            int lastNum = min;
++            int maxIndex;
++            for (maxIndex = minIndex + 1; maxIndex < ids.length; maxIndex++) {
++                final int max = ids[maxIndex];
++                if (lastNum + 1 != max) break; // The number is not sequential
++                lastNum = max;
++            }
++            int rangeSize = maxIndex - minIndex;
++            if (rangeSize > largestRangeSize) {
++                largestRange[0] = minIndex;
++                largestRange[1] = maxIndex;
++                largestRange[2] = rangeSize;
++                largestRangeSize = rangeSize;
++            }
++        }
++        return largestRangeSize == 0 ? null : largestRange;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java b/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java
+new file mode 100644
+index 0000000..3090e39
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java
+@@ -0,0 +1,259 @@
++package net.techcable.tacospigot;
++
++import java.util.AbstractCollection;
++import java.util.AbstractSet;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Map;
++import java.util.NoSuchElementException;
++import java.util.Set;
++import java.util.function.IntFunction;
++import java.util.function.ToIntBiFunction;
++import java.util.function.ToIntFunction;
++import javax.annotation.Nullable;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.ImmutableMap;
++import com.google.common.collect.Table;
++
++import net.techcable.tacospigot.function.ObjIntFunction;
++
++public class ImmutableArrayTable<R, C, V> implements Table<R, C, V> {
++    private final Indexer<R> rowIndexer;
++    private final IntFunction<R> rowById;
++    private final ToIntBiFunction<R, C> columnGetId;
++    private final ObjIntFunction<R, C> columnById;
++    private final ImmutableArrayMap<R, Map<C, V>> rowMap;
++    private final ImmutableMap<C, Map<R, V>> columnMap;
++    private final int size;
++
++    public ImmutableArrayTable(Indexer<R> rowIndexer, IntFunction<R> rowById, ToIntBiFunction<R, C> columnGetId, ObjIntFunction<R, C> columnById, Table<R, C, V> table) {
++        this.rowIndexer = Preconditions.checkNotNull(rowIndexer, "Null indexer for row");
++        this.rowById = Preconditions.checkNotNull(rowById, "Null byId function for row");
++        this.columnGetId = Preconditions.checkNotNull(columnGetId, "Null getId function for column");
++        this.columnById = Preconditions.checkNotNull(columnById, "Null byId function for column");
++        Preconditions.checkNotNull(table, "Null table");
++        ImmutableMap.Builder<R, Map<C, V>> rowMapBuilder = ImmutableMap.builder();
++        for (Map.Entry<R, Map<C, V>> rowEntry : table.rowMap().entrySet()) {
++            R row = rowEntry.getKey();
++            Preconditions.checkNotNull(row, "Null row");
++            ImmutableMap.Builder<C, V> rowMapEntryBuilder = ImmutableMap.builder();
++            for (Map.Entry<C, V> rowEntryEntry : rowEntry.getValue().entrySet()) {
++                rowMapEntryBuilder.put(rowEntryEntry);
++            }
++            rowMapBuilder.put(row, new ImmutableArrayMap<>((c) -> columnGetId.applyAsInt(row, c), (id) -> columnById.apply(row, id), rowMapEntryBuilder.build()));
++        }
++        this.rowMap = new ImmutableArrayMap<>(rowIndexer, rowById, rowMapBuilder.build());
++        Map<C, Map<R, V>> columnMapBuilder = new HashMap<>();
++        int size = 0;
++        for (Cell<R, C, V> cell : cellSet()) {
++            R row = cell.getRowKey();
++            C column = cell.getColumnKey();
++            V value = cell.getValue();
++            Preconditions.checkNotNull(column, "Null column");
++            Preconditions.checkNotNull(value, "Null value");
++            Map<R, V> columnEntry = columnMapBuilder.computeIfAbsent(column, (c) -> new HashMap<>());
++            columnEntry.put(cell.getRowKey(), cell.getValue());
++            size++;
++        }
++        this.size = size;
++        this.columnMap = ImmutableMap.copyOf(columnMapBuilder);
++    }
++
++    @Override
++    public boolean contains(@Nullable Object rowKey, @Nullable Object columnKey) {
++        Map<C, V> rowEntry = rowMap.get(rowKey);
++        return rowEntry != null && rowEntry.containsKey(columnKey);
++    }
++
++    @Override
++    public boolean containsRow(@Nullable Object rowKey) {
++        return rowMap.containsKey(rowKey);
++    }
++
++    @Override
++    public boolean containsColumn(@Nullable Object columnKey) {
++        return columnMap.containsKey(columnKey);
++    }
++
++    @Override
++    public boolean containsValue(@Nullable Object value) {
++        Preconditions.checkNotNull(value, "Null value");
++        for (V v : values()) {
++            if (v.equals(value)) return true;
++        }
++        return false;
++    }
++
++    @Override
++    public V get(@Nullable Object rowKey, @Nullable Object columnKey) {
++        Map<C, V> rowEntry = rowMap.get(rowKey);
++        return rowEntry != null ? rowEntry.get(columnKey) : null;
++    }
++
++    @Override
++    public boolean isEmpty() {
++        return size() == 0;
++    }
++
++    @Override
++    public int size() {
++        return size;
++    }
++
++    @Override
++    public Map<C, V> row(R rowKey) {
++        return rowMap.get(rowKey);
++    }
++
++    @Override
++    public Map<R, V> column(C columnKey) {
++        return columnMap.get(columnKey);
++    }
++
++    @Override
++    public Set<Cell<R, C, V>> cellSet() {
++        return new AbstractSet<Cell<R, C, V>>() {
++            @Override
++            public Iterator<Cell<R, C, V>> iterator() {
++                Iterator<Map.Entry<R, Map<C, V>>> rowMapIterator = rowMap().entrySet().iterator();
++                if (!rowMapIterator.hasNext()) return Collections.emptyIterator();
++                return new Iterator<Cell<R, C, V>>() {
++                    private R row;
++                    private Iterator<Map.Entry<C, V>> rowMapEntryIterator;
++
++                    {
++                        Map.Entry<R, Map<C, V>> firstEntry = rowMapIterator.next();
++                        row = firstEntry.getKey();
++                        rowMapEntryIterator = firstEntry.getValue().entrySet().iterator();
++                    }
++
++                    @Override
++                    public boolean hasNext() {
++                        if (rowMapEntryIterator.hasNext()) {
++                            return true;
++                        } else {
++                            while (rowMapIterator.hasNext()) {
++                                Map.Entry<R, Map<C, V>> rowMapEntry = rowMapIterator.next();
++                                row = rowMapEntry.getKey();
++                                rowMapEntryIterator = rowMapEntry.getValue().entrySet().iterator();
++                                if (rowMapEntryIterator.hasNext()) return true;
++                            }
++                            return false;
++                        }
++                    }
++
++                    @Override
++                    public Cell<R, C, V> next() {
++                        if (!hasNext()) throw new NoSuchElementException();
++                        Map.Entry<C, V> rowMapEntryEntry = rowMapEntryIterator.next();
++                        return new SimpleCell<>(row, rowMapEntryEntry.getKey(), rowMapEntryEntry.getValue());
++                    }
++                };
++            }
++
++            @Override
++            public int size() {
++                return size;
++            }
++        };
++    }
++
++    @Override
++    public Set<R> rowKeySet() {
++        return rowMap.keySet();
++    }
++
++    @Override
++    public Set<C> columnKeySet() {
++        return columnMap.keySet();
++    }
++
++    @Override
++    public Collection<V> values() {
++        return new AbstractCollection<V>() {
++            @Override
++            public Iterator<V> iterator() {
++
++                Iterator<Cell<R, C, V>> cellIterator = cellSet().iterator();
++                return new Iterator<V>() {
++                    @Override
++                    public boolean hasNext() {
++                        return cellIterator.hasNext();
++                    }
++
++                    @Override
++                    public V next() {
++                        return cellIterator.next().getValue();
++                    }
++                };
++            }
++
++            @Override
++            public int size() {
++                return size;
++            }
++        };
++    }
++
++    @Override
++    public Map<R, Map<C, V>> rowMap() {
++        return rowMap;
++    }
++
++    @Override
++    public Map<C, Map<R, V>> columnMap() {
++        return columnMap;
++    }
++
++    private static class SimpleCell<R, C, V> implements Cell<R, C, V> {
++        private final R row;
++        private final C column;
++        private final V value;
++
++        private SimpleCell(R row, C column, V value) {
++            this.row = row;
++            this.column = column;
++            this.value = value;
++        }
++
++        @Override
++        public R getRowKey() {
++            return row;
++        }
++
++        @Override
++        public C getColumnKey() {
++            return column;
++        }
++
++        @Override
++        public V getValue() {
++            return value;
++        }
++    }
++
++    // Mutators
++    @Override
++    public void clear() {
++        throw new UnsupportedOperationException();
++    }
++
++
++    @Override
++    public V put(R rowKey, C columnKey, V value) {
++        throw new UnsupportedOperationException();
++    }
++
++    @Override
++    public void putAll(Table<? extends R, ? extends C, ? extends V> table) {
++        throw new UnsupportedOperationException();
++    }
++
++    @Override
++    public V remove(@Nullable Object rowKey, @Nullable Object columnKey) {
++        throw new UnsupportedOperationException();
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/Indexer.java b/src/main/java/net/techcable/tacospigot/Indexer.java
+new file mode 100644
+index 0000000..f6fec82
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/Indexer.java
+@@ -0,0 +1,5 @@
++package net.techcable.tacospigot;
++
++public interface Indexer<T> {
++    public int getId(T t);
++}
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
+index 2cb3cf7..c0a7160 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
+@@ -103,4 +103,9 @@ public class TacoSpigotConfig {
+         config.addDefault(path, def);
+         return config.getString(path, config.getString(path));
+     }
++
++    public static boolean useArraysForBlockStates;
++    private static void useArraysForBlockStates() {
++        useArraysForBlockStates = getBoolean("useArraysForBlockStates", false);
++    }
+ }
+diff --git a/src/main/java/net/techcable/tacospigot/function/ObjIntFunction.java b/src/main/java/net/techcable/tacospigot/function/ObjIntFunction.java
+new file mode 100644
+index 0000000..b5adb4e
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/function/ObjIntFunction.java
+@@ -0,0 +1,6 @@
++package net.techcable.tacospigot.function;
++
++@FunctionalInterface
++public interface ObjIntFunction<T, R> {
++    public R apply(T t, int i);
++}
+-- 
+2.8.0
+
