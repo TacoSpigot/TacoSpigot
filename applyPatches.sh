@@ -42,21 +42,21 @@ pushd Paper
 basedir=$basedir/Paper
 
 # Move into spigot dir
-pushd Spigot
-basedir=$basedir/Spigot
+pushd work/Spigot
+basedir=$basedir/work/Spigot
 # Apply Spigot
 applyPatch ../Bukkit Spigot-API HEAD && applyPatch ../CraftBukkit Spigot-Server patched
 # Move out of Spigot
 popd
-basedir=$(dirname $basedir)
+basedir=$(dirname $(dirname $basedir))
 
 echo "Importing Paper MC Dev"
 
-./importmcdev.sh
+./scripts/importmcdev.sh
 
 # Apply paper
 
-applyPatch Spigot/Spigot-API Paper-API HEAD && applyPatch Spigot/Spigot-Server Paper-Server HEAD
+applyPatch work/Spigot/Spigot-API Paper-API HEAD && applyPatch work/Spigot/Spigot-Server Paper-Server HEAD
 # Move out of paper
 popd
 basedir=$(dirname $basedir)

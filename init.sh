@@ -5,7 +5,7 @@ pushd Paper # TacoSpigot
 PS1="$"
 basedir=`pwd`
 workdir=$basedir/work
-minecraftversion=$(cat BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
+minecraftversion=$(cat work/BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
 decompiledir=$workdir/$minecraftversion
 nms=$decompiledir/net/minecraft/server
 cb=src/main/java/net/minecraft/server
@@ -16,7 +16,7 @@ if [ "x$patch" == "x" ]; then
 fi
 
 echo "Applying CraftBukkit patches to NMS..."
-cd "$basedir/CraftBukkit"
+cd "$basedir/work/CraftBukkit"
 git checkout -B patched HEAD >/dev/null 2>&1
 rm -rf $cb
 mkdir -p $cb

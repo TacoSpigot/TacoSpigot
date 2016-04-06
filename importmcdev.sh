@@ -6,7 +6,7 @@ PS1="$"
 basedir=`pwd`
 
 workdir=$basedir/Paper/work
-minecraftversion=$(cat Paper/BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
+minecraftversion=$(cat Paper/work/BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
 decompiledir=$workdir/$minecraftversion
 
 export importedmcdev=""
