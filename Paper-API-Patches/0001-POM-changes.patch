@@ -1,4 +1,4 @@
-From b695286d37cf77ae07d131d532713ee4cc501959 Mon Sep 17 00:00:00 2001
+From fb096b11f6dcf35e737ff69c1dee6e816625ac1c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -35,52 +35,32 @@ index 58ddcf3..75e0ab8 100644
  
      <properties>
 diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-index 6d32e1d..5d1a5ac 100644
+index 6d32e1d..32177d3 100644
 --- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 +++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-@@ -27,6 +27,14 @@ import java.util.logging.Logger;
- import org.json.simple.JSONObject;
- import org.json.simple.parser.JSONParser;
- import org.json.simple.parser.ParseException;
-+// TacoSpigot start
-+import com.google.gson.JsonParser;
-+import com.google.gson.stream.JsonReader;
-+import java.io.InputStreamReader;
-+import java.net.HttpURLConnection;
-+import java.util.regex.Matcher;
-+import java.util.regex.Pattern;
-+// TacoSpigot end
- 
- // Paper start
- import java.io.InputStreamReader;
-@@ -191,7 +199,25 @@ public class VersionCommand extends BukkitCommand {
+@@ -191,8 +191,10 @@ public class VersionCommand extends BukkitCommand {
      private void obtainVersion() {
          String version = Bukkit.getVersion();
          if (version == null) version = "Custom";
 -        if (version.startsWith("git-Paper-")) {
+-            String[] parts = version.substring("git-Paper-".length()).split("[-\\s]");
 +        // TacoSpigot start
 +        if (version.startsWith("git-TacoSpigot-")) {
 +            String[] parts = version.substring("git-TacoSpigot-".length()).split("[-\\s]");
-+            int distance = getDistance(null, parts[0]);
-+            switch (distance) {
-+                case -1:
-+                    setVersionMessage("Error obtaining version information");
-+                    break;
-+                case 0:
-+                    setVersionMessage("You are running the latest version");
-+                    break;
-+                case -2:
-+                    setVersionMessage("Unknown version");
-+                    break;
-+                default:
-+                    setVersionMessage("You are " + distance + " version(s) behind");
-+            }
-+        } else if (version.startsWith("git-Paper-")) {
 +            // TacoSpigot end
-             String[] parts = version.substring("git-Paper-".length()).split("[-\\s]");
              int distance = getDistance(null, parts[0]);
              switch (distance) {
-@@ -243,13 +269,17 @@ public class VersionCommand extends BukkitCommand {
+                 case -1:
+@@ -205,7 +207,7 @@ public class VersionCommand extends BukkitCommand {
+                     setVersionMessage("Unknown version");
+                     break;
+                 default:
+-                    setVersionMessage("You are " + distance + " version(s) behind");
++                    setVersionMessage("You are " + distance + " commit(s) behind"); // TacoSpigot - version -> commit
+             }
+         } else if (version.startsWith("git-Bukkit-")) {
+             // Paper end
+@@ -243,13 +245,17 @@ public class VersionCommand extends BukkitCommand {
  
      // Paper start
      private static int getDistance(String repo, String verInfo) {
@@ -100,7 +80,7 @@ index 6d32e1d..5d1a5ac 100644
              /*
              BufferedReader reader = Resources.asCharSource(
                      new URL("https://hub.spigotmc.org/stash/rest/api/1.0/projects/SPIGOT/repos/" + repo + "/commits?since=" + URLEncoder.encode(hash, "UTF-8") + "&withCounts=true"),
-@@ -267,6 +297,8 @@ public class VersionCommand extends BukkitCommand {
+@@ -267,6 +273,8 @@ public class VersionCommand extends BukkitCommand {
              */
      }
  
@@ -109,7 +89,7 @@ index 6d32e1d..5d1a5ac 100644
      private static int getFromJenkins(int currentVer) {
          try {
              BufferedReader reader = Resources.asCharSource(
-@@ -287,6 +319,8 @@ public class VersionCommand extends BukkitCommand {
+@@ -287,6 +295,8 @@ public class VersionCommand extends BukkitCommand {
              return -1;
          }
      }
@@ -118,6 +98,15 @@ index 6d32e1d..5d1a5ac 100644
  
      // Contributed by Techcable <Techcable@outlook.com> in GH PR #65
      private static final String BRANCH = "master";
+@@ -306,7 +316,7 @@ public class VersionCommand extends BukkitCommand {
+                     case "behind":
+                         return ((Number) obj.get("behind_by")).intValue();
+                     default:
+-                        return -1;
++                        return -2;
+                 }
+             } catch (ParseException | NumberFormatException e) {
+                 e.printStackTrace();
 -- 
 2.8.0
 
