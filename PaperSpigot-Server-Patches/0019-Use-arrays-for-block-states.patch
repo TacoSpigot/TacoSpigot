@@ -1,4 +1,4 @@
-From ecc3cca4e84d190b2488a54fc79dacb7d736ca17 Mon Sep 17 00:00:00 2001
+From 558dfd2a806aec4bcfa22dba7bf8ead69511cae7 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Tue, 5 Apr 2016 09:36:24 -0700
 Subject: [PATCH] Use arrays for block states
@@ -8,16 +8,30 @@ This data structure is usualy faster than a hashmap (especially when using the l
 
 Should help with redstone.
 
+diff --git a/src/main/java/net/minecraft/server/Block.java b/src/main/java/net/minecraft/server/Block.java
+index a784e04..2817389 100644
+--- a/src/main/java/net/minecraft/server/Block.java
++++ b/src/main/java/net/minecraft/server/Block.java
+@@ -970,6 +970,7 @@ public class Block {
+             while (iterator1.hasNext()) {
+                 IBlockData iblockdata = (IBlockData) iterator1.next();
+                 int i = Block.REGISTRY.b(block13) << 4 | block13.toLegacyData(iblockdata);
++                // TacoSpigot start
+ 
+                 Block.d.a(iblockdata, i);
+             }
 diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
-index 3cada5a..3217cff 100644
+index 3cada5a..17a1617 100644
 --- a/src/main/java/net/minecraft/server/BlockState.java
 +++ b/src/main/java/net/minecraft/server/BlockState.java
-@@ -2,14 +2,44 @@ package net.minecraft.server;
+@@ -2,10 +2,31 @@ package net.minecraft.server;
  
  import com.google.common.base.Objects;
  
 +// TacoSpigot start
-+import java.util.Arrays;
++import com.google.common.base.Preconditions;
++
++import net.techcable.tacospigot.BlockStateRegistry;
 +// TacoSpigot end
 +
  public abstract class BlockState<T extends Comparable<T>> implements IBlockState<T> {
@@ -25,38 +39,23 @@ index 3cada5a..3217cff 100644
      private final Class<T> a;
      private final String b;
 +    // TacoSpigot start
-+    private static int nextId = 0;
-+    private final int id;
++    private int id = -1;
 +
 +    @Override
 +    public int getId() {
++        assert id >= 0 : "Id not initialized";
 +        return id;
 +    }
 +
-+    private static BlockState[] byId = new BlockState[0];
-+
-+    public static BlockState getById(int id) {
++    public void tryInitId() {
 +        if (id < 0) {
-+            throw new IllegalArgumentException("Negative id: " + id);
-+        } else if (id < byId.length) {
-+            return byId[id];
-+        } else {
-+            return null;
++            this.id = BlockStateRegistry.getId(this);
 +        }
 +    }
 +    // TacoSpigot end
  
      protected BlockState(String s, Class<T> oclass) {
          this.a = oclass;
-         this.b = s;
-+        // TacoSpigot start
-+        id = nextId++;
-+        if (id >= byId.length) byId = Arrays.copyOf(byId, id + 1);
-+        byId[id] = this;
-+        // TacoSpigot end
-     }
- 
-     public String a() {
 diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
 index c3c94cb..d6d9a22 100644
 --- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
@@ -167,18 +166,17 @@ index a492201..13b7d37 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 7e91392..9505316 100644
+index 7e91392..3db2c29 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
-@@ -21,6 +21,16 @@ import java.util.LinkedHashMap;
+@@ -21,6 +21,15 @@ import java.util.LinkedHashMap;
  import java.util.List;
  import java.util.Map;
  
 +// TacoSpigot start
 +import com.google.common.collect.Table;
 +
-+import java.util.function.ToIntBiFunction;
-+
++import net.techcable.tacospigot.BlockStateRegistry;
 +import net.techcable.tacospigot.ImmutableArrayMap;
 +import net.techcable.tacospigot.ImmutableArrayTable;
 +import net.techcable.tacospigot.TacoSpigotConfig;
@@ -187,6 +185,14 @@ index 7e91392..9505316 100644
  public class BlockStateList {
  
      private static final Joiner a = Joiner.on(", ");
+@@ -48,6 +57,7 @@ public class BlockStateList {
+                 return this.a((IBlockState) object, (IBlockState) object1);
+             }
+         });
++        for (IBlockState state : aiblockstate) state.tryInitId(); // TacoSpigot
+         this.d = ImmutableList.copyOf(aiblockstate);
+         LinkedHashMap linkedhashmap = Maps.newLinkedHashMap();
+         ArrayList arraylist = Lists.newArrayList();
 @@ -107,12 +117,22 @@ public class BlockStateList {
      static class BlockData extends BlockDataAbstract {
  
@@ -205,7 +211,7 @@ index 7e91392..9505316 100644
 +            // TacoSpigot start
 +            this.bAsImmutableMap = immutablemap;
 +            if (TacoSpigotConfig.useArraysForBlockStates) {
-+                b = new ImmutableArrayMap<>(IBlockState.INDEXER, BlockState::getById, immutablemap);
++                b = new ImmutableArrayMap<>(IBlockState.INDEXER, BlockStateRegistry::getById, immutablemap);
 +            } else {
 +                b = immutablemap;
 +            }
@@ -272,7 +278,7 @@ index 7e91392..9505316 100644
 +                if (TacoSpigotConfig.useArraysForBlockStates) {
 +                    this.c = new ImmutableArrayTable<IBlockState, Comparable, IBlockData> (
 +                            IBlockState.INDEXER,
-+                            BlockState::getById,
++                            BlockStateRegistry::getById,
 +                            (IBlockState state, Comparable value) -> state.getValueId(value),
 +                            IBlockState::getByValueId,
 +                            hashbasedtable
@@ -292,7 +298,7 @@ index 7e91392..9505316 100644
              return hashmap;
          }
 diff --git a/src/main/java/net/minecraft/server/IBlockState.java b/src/main/java/net/minecraft/server/IBlockState.java
-index 7e35d33..791d1c6 100644
+index 7e35d33..fdb0cf8 100644
 --- a/src/main/java/net/minecraft/server/IBlockState.java
 +++ b/src/main/java/net/minecraft/server/IBlockState.java
 @@ -2,6 +2,10 @@ package net.minecraft.server;
@@ -306,7 +312,7 @@ index 7e35d33..791d1c6 100644
  public interface IBlockState<T extends Comparable<T>> {
  
      String a();
-@@ -11,4 +15,20 @@ public interface IBlockState<T extends Comparable<T>> {
+@@ -11,4 +15,22 @@ public interface IBlockState<T extends Comparable<T>> {
      Class<T> b();
  
      String a(T t0);
@@ -320,6 +326,8 @@ index 7e35d33..791d1c6 100644
 +        }
 +    };
 +
++    public default void tryInitId() {}
++
 +    public int getId();
 +
 +    public int getValueId(T value);
@@ -327,6 +335,53 @@ index 7e35d33..791d1c6 100644
 +    public T getByValueId(int id);
 +    // TacoSpigot end
  }
+diff --git a/src/main/java/net/techcable/tacospigot/BlockStateRegistry.java b/src/main/java/net/techcable/tacospigot/BlockStateRegistry.java
+new file mode 100644
+index 0000000..5678ed3
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/BlockStateRegistry.java
+@@ -0,0 +1,41 @@
++package net.techcable.tacospigot;
++
++import gnu.trove.map.TObjectIntMap;
++import gnu.trove.map.hash.TObjectIntHashMap;
++
++import java.util.Arrays;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.ConcurrentMap;
++import java.util.concurrent.atomic.AtomicInteger;
++
++import net.minecraft.server.IBlockState;
++
++public class BlockStateRegistry {
++    private BlockStateRegistry() {} // Utility class
++    private static final ConcurrentMap<IBlockState<?>, Integer> idsByObj = new ConcurrentHashMap<>();
++    private static volatile IBlockState[] byId = new IBlockState[0];
++    private static final AtomicInteger nextId = new AtomicInteger();
++
++    public static int getId(IBlockState s) {
++        return idsByObj.computeIfAbsent(s, (state) -> {
++            int id = nextId.getAndIncrement();
++            synchronized (BlockStateRegistry.class) {
++                if (id >= byId.length) {
++                    byId = Arrays.copyOf(byId, id + 1);
++                }
++                byId[id] = state;
++            }
++            return id;
++        });
++    }
++
++    public static IBlockState getById(int id) {
++        if (id < 0) {
++            throw new IllegalArgumentException("Negative id: " + id);
++        } else if (id < byId.length) {
++            return byId[id];
++        } else {
++            return null;
++        }
++    }
++}
 diff --git a/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
 new file mode 100644
 index 0000000..b62beb3
