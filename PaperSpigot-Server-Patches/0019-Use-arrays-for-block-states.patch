@@ -1,4 +1,4 @@
-From f96e8128a50bf32243b3dbc295c8ffc317498055 Mon Sep 17 00:00:00 2001
+From ecc3cca4e84d190b2488a54fc79dacb7d736ca17 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Tue, 5 Apr 2016 09:36:24 -0700
 Subject: [PATCH] Use arrays for block states
@@ -167,18 +167,10 @@ index a492201..13b7d37 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 7e91392..8e60e84 100644
+index 7e91392..9505316 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
-@@ -3,6 +3,7 @@ package net.minecraft.server;
- import com.google.common.base.Function;
- import com.google.common.base.Joiner;
- import com.google.common.base.Objects;
-+import com.google.common.base.Preconditions;
- import com.google.common.collect.HashBasedTable;
- import com.google.common.collect.ImmutableList;
- import com.google.common.collect.ImmutableMap;
-@@ -21,6 +22,16 @@ import java.util.LinkedHashMap;
+@@ -21,6 +21,16 @@ import java.util.LinkedHashMap;
  import java.util.List;
  import java.util.Map;
  
@@ -195,7 +187,7 @@ index 7e91392..8e60e84 100644
  public class BlockStateList {
  
      private static final Joiner a = Joiner.on(", ");
-@@ -107,12 +118,22 @@ public class BlockStateList {
+@@ -107,12 +117,22 @@ public class BlockStateList {
      static class BlockData extends BlockDataAbstract {
  
          private final Block a;
@@ -221,7 +213,7 @@ index 7e91392..8e60e84 100644
          }
  
          public Collection<IBlockState> a() {
-@@ -120,25 +141,29 @@ public class BlockStateList {
+@@ -120,25 +140,29 @@ public class BlockStateList {
          }
  
          public <T extends Comparable<T>> T get(IBlockState<T> iblockstate) {
@@ -247,13 +239,13 @@ index 7e91392..8e60e84 100644
 -            } else {
 -                return (IBlockData) (this.b.get(iblockstate) == v0 ? this : (IBlockData) this.c.get(iblockstate, v0));
 -            }
-+            // TacoSpigot start - cleanup checks
-+            Preconditions.checkNotNull(iblockstate, "Null block state");
-+            Preconditions.checkNotNull(v0, "Null value for block state %s", iblockstate);
-+            Preconditions.checkArgument(this.b.containsKey(iblockstate), "Cannot set property %s as it does not exist in %s on block %s", iblockstate, b.keySet(), getBlock().getName());
-+            Preconditions.checkArgument(iblockstate.c().contains(v0), "Cannot set property %s to %s on block %s, it is not an allowed value", iblockstate, v0, getBlock().getName());
++            // TacoSpigot start - runtime check -> assertion
++            assert iblockstate != null : "Null block state";
++            assert v0 != null : "Null value for block state " + iblockstate;
++            assert this.b.containsKey(iblockstate) : "Cannot set property " + iblockstate + " as it does not exist in " + this.a.P();
++            assert  iblockstate.c().contains(v0) : "Cannot set property " + iblockstate + " to " + v0 + " on block " + Block.REGISTRY.c(this.a) + ", it is not an allowed value";
 +            IBlockData data = (IBlockData) (this.b.get(iblockstate) == v0 ? this : (IBlockData) this.c.get(iblockstate, v0));
-+            Preconditions.checkState(data != null, "No block data with property %s and value %s for block %s ", iblockstate, v0, getBlock().getName());
++            assert data != null : "No block data with property " + iblockstate + " and value " + v0 + " for block data " + this;
 +            return data;
 +            // TacoSpigot end
          }
@@ -264,7 +256,7 @@ index 7e91392..8e60e84 100644
          }
  
          public Block getBlock() {
-@@ -167,19 +192,32 @@ public class BlockStateList {
+@@ -167,19 +191,32 @@ public class BlockStateList {
                      while (iterator1.hasNext()) {
                          Comparable comparable = (Comparable) iterator1.next();
  
