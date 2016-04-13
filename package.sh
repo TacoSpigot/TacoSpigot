@@ -1,7 +1,7 @@
 #!/bin/bash
 
 pushd Paper
-MINECRAFT_VERSION=$(cat BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
+MINECRAFT_VERSION=$(cat work/BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
 popd
 VANILLA_JAR=Paper/work/$MINECRAFT_VERSION/$MINECRAFT_VERSION.jar
 
@@ -23,4 +23,4 @@ fi;
 
 mkdir -p build
 
-cp Paper/work/Paperclip/TacoSpigot.jar build/TacoSpigot.jar
+cp work/Paperclip/TacoSpigot.jar build/TacoSpigot.jar
