@@ -1,4 +1,4 @@
-From 558dfd2a806aec4bcfa22dba7bf8ead69511cae7 Mon Sep 17 00:00:00 2001
+From 165c3197c41cb09cff952004c8558fbb0f1b077a Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Tue, 5 Apr 2016 09:36:24 -0700
 Subject: [PATCH] Use arrays for block states
@@ -166,7 +166,7 @@ index a492201..13b7d37 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 7e91392..3db2c29 100644
+index 7e91392..b4b36ed 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
 @@ -21,6 +21,15 @@ import java.util.LinkedHashMap;
@@ -262,14 +262,7 @@ index 7e91392..3db2c29 100644
          }
  
          public Block getBlock() {
-@@ -167,19 +191,32 @@ public class BlockStateList {
-                     while (iterator1.hasNext()) {
-                         Comparable comparable = (Comparable) iterator1.next();
- 
--                        if (comparable != this.b.get(iblockstate)) {
-+                        if (true) { // TacoSpigot - include everything in the table
-                             hashbasedtable.put(iblockstate, comparable, map.get(this.b(iblockstate, comparable)));
-                         }
+@@ -173,13 +197,26 @@ public class BlockStateList {
                      }
                  }
  
