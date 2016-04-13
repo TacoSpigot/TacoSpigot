@@ -1,4 +1,4 @@
-From a8ab226afb8aa00303c463f4b7ce9352e986793b Mon Sep 17 00:00:00 2001
+From 97d8b11777dacfff51b6ab5316bfd5f54329d9f5 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Tue, 5 Apr 2016 09:36:24 -0700
 Subject: [PATCH] Use arrays for block states
@@ -166,7 +166,7 @@ index a492201..13b7d37 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 7e91392..5bb8792 100644
+index 7e91392..fda9640 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
 @@ -21,6 +21,15 @@ import java.util.LinkedHashMap;
@@ -263,7 +263,7 @@ index 7e91392..5bb8792 100644
          }
  
          public Block getBlock() {
-@@ -167,13 +192,26 @@ public class BlockStateList {
+@@ -167,13 +192,24 @@ public class BlockStateList {
                      while (iterator1.hasNext()) {
                          Comparable comparable = (Comparable) iterator1.next();
  
@@ -280,9 +280,7 @@ index 7e91392..5bb8792 100644
 +                if (TacoSpigotConfig.useArraysForBlockStates) {
 +                    this.c = new ImmutableArrayTable<IBlockState, Comparable, IBlockData> (
 +                            IBlockState.INDEXER,
-+                            BlockStateRegistry::getById,
 +                            (IBlockState state, Comparable value) -> state.getValueId(value),
-+                            IBlockState::getByValueId,
 +                            hashbasedtable
 +                    );
 +                } else {
