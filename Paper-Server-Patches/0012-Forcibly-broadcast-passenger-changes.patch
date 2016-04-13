@@ -1,0 +1,62 @@
+From 39178a732143539e265d33acf7d0f1742892a890 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Wed, 13 Apr 2016 15:38:38 -0700
+Subject: [PATCH] Forcibly broadcast passenger changes
+
+Sometimes players don't get sent packets when a plugin causes a mount or dismount.
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index fb5d84f..4970b6a 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -1660,6 +1660,12 @@ public abstract class Entity implements ICommandListener {
+ 
+             this.as = entity;
+             this.as.o(this);
++            // Paper start - tell everyone about the passenger
++            net.minecraft.server.Packet packet = new net.minecraft.server.PacketPlayOutMount(this);
++            for (EntityHuman player : world.players) {
++                ((EntityPlayer) player).playerConnection.sendPacket(packet);
++            }
++            // Paper end
+             return true;
+         }
+     }
+@@ -1748,6 +1754,12 @@ public abstract class Entity implements ICommandListener {
+             // Paper end
+             this.passengers.remove(entity);
+             entity.j = 60;
++            // Paper start - tell everyone we don't have a passenger
++            net.minecraft.server.Packet packet = new net.minecraft.server.PacketPlayOutMount(this);
++            for (EntityHuman player : world.players) {
++                ((EntityPlayer) player).playerConnection.sendPacket(packet);
++            }
++            // Paper end
+         }
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 3d85214..0e723e5 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -570,17 +570,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         return true;
+     }
+ 
+-    // Paper start - Ugly workaround for SPIGOT-1915 & GH-114
+-    @Override
+-    public boolean setPassenger(org.bukkit.entity.Entity passenger) {
+-        boolean wasSet = super.setPassenger(passenger);
+-        if (wasSet) {
+-            this.getHandle().playerConnection.sendPacket(new net.minecraft.server.PacketPlayOutMount(this.getHandle()));
+-        }
+-        return wasSet;
+-    }
+-    // Paper end
+-
+     @Override
+     public void setSneaking(boolean sneak) {
+         getHandle().setSneaking(sneak);
+-- 
+2.8.0
+
