@@ -1,4 +1,4 @@
-From 75cbed23370226c02232598670b920014ce35609 Mon Sep 17 00:00:00 2001
+From f345ce20fae8e0c1e3dde9569945fc94e70a7044 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
@@ -207,7 +207,7 @@ index 0000000..2bc5877
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 831ef84..582fb4a 100644
+index 54c27c3..090cc7f 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -712,6 +712,7 @@ public final class CraftServer implements Server {
@@ -226,7 +226,7 @@ index 831ef84..582fb4a 100644
          }
  
          // Paper start
-@@ -1419,7 +1421,7 @@ public final class CraftServer implements Server {
+@@ -1415,7 +1417,7 @@ public final class CraftServer implements Server {
  
          for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
              result.add(getOfflinePlayer((GameProfile) entry.getKey()));
