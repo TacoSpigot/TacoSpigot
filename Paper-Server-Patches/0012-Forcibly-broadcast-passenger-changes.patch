@@ -1,4 +1,4 @@
-From a297ed637da9410023001b229acf6bd0e01f33af Mon Sep 17 00:00:00 2001
+From fc9893af8f551b0259a8d8fbad5f85f9cf1ff135 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Wed, 13 Apr 2016 15:38:38 -0700
 Subject: [PATCH] Forcibly broadcast passenger changes
@@ -36,10 +36,10 @@ index fb5d84f..4970b6a 100644
      }
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 4378795..0a3dc16 100644
+index b0e4800..eb88228 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -571,17 +571,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -564,17 +564,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
          return true;
      }
  
