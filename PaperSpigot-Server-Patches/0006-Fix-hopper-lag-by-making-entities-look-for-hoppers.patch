@@ -1,4 +1,4 @@
-From 4a6d6477b06025f0094684fb8c0d2b13d452a529 Mon Sep 17 00:00:00 2001
+From 4892bcee27b585e5679d4ff99b5af9cfbc6ada03 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -191,15 +191,16 @@ index 760a076..3fdc15d 100644
      }
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
 new file mode 100644
-index 0000000..e3d952e
+index 0000000..58b3b72
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,35 @@
 +package net.techcable.tacospigot;
 +
 +import net.minecraft.server.Block;
 +import net.minecraft.server.BlockChest;
 +import net.minecraft.server.BlockPosition;
++import net.minecraft.server.Blocks;
 +import net.minecraft.server.IInventory;
 +import net.minecraft.server.TileEntity;
 +import net.minecraft.server.TileEntityHopper;
@@ -208,6 +209,7 @@ index 0000000..e3d952e
 +public class HopperHelper {
 +
 +    public static TileEntityHopper getHopper(World world, BlockPosition pos) {
++        if (world.getType(pos).getBlock() != Blocks.HOPPER) return null;
 +        TileEntity tileEntity = world.getTileEntity(pos);
 +        if (tileEntity instanceof TileEntityHopper) {
 +            return (TileEntityHopper) tileEntity;
@@ -315,5 +317,5 @@ index 456aee9..4319a61 100644
 +
  }
 -- 
-2.7.1
+2.8.0
 

@@ -1,4 +1,4 @@
-From 15bc21a6def240743e74296247ca67967774fdd2 Mon Sep 17 00:00:00 2001
+From bed48efee0725a313f0e3a5aec1bc1d1ef3d148f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 3 Feb 2016 11:27:34 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -87,13 +87,13 @@ index 3fdc15d..4d7f160 100644
                  } else {
                      iinventory.setItem(i, itemstack1);
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-index e3d952e..5163f48 100644
+index 58b3b72..630a81b 100644
 --- a/src/main/java/net/techcable/tacospigot/HopperHelper.java
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -3,11 +3,14 @@ package net.techcable.tacospigot;
- import net.minecraft.server.Block;
+@@ -4,11 +4,14 @@ import net.minecraft.server.Block;
  import net.minecraft.server.BlockChest;
  import net.minecraft.server.BlockPosition;
+ import net.minecraft.server.Blocks;
 +import net.minecraft.server.IHopper;
  import net.minecraft.server.IInventory;
  import net.minecraft.server.TileEntity;
@@ -105,7 +105,7 @@ index e3d952e..5163f48 100644
  public class HopperHelper {
  
      public static TileEntityHopper getHopper(World world, BlockPosition pos) {
-@@ -30,4 +33,7 @@ public class HopperHelper {
+@@ -32,4 +35,7 @@ public class HopperHelper {
          return null;
      }
  
@@ -130,5 +130,5 @@ index c012c8d..c1f297c 100644
      private void isArmorStandMoveWithoutGravity() {
          optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
 -- 
-2.7.1
+2.8.0
 
