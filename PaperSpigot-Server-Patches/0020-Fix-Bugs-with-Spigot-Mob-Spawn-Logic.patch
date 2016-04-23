@@ -1,4 +1,4 @@
-From a752b28860de9ac9c40908d1bec6ae0137c1f56e Mon Sep 17 00:00:00 2001
+From 2f1d2a1063c839eccc6a2842287f3189bf6b1663 Mon Sep 17 00:00:00 2001
 From: Aikar <aikar@aikar.co>
 Date: Sat, 23 Apr 2016 14:26:38 -0700
 Subject: [PATCH] Fix Bugs with Spigot Mob Spawn Logic
@@ -12,23 +12,36 @@ Specially with servers using smaller mob spawn ranges than view distance, as wel
 
 This patch returns mob counting to use all loaded chunks, and 17x17 division.
 
+diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
+index aa555f5..590fab6 100644
+--- a/src/main/java/net/minecraft/server/Chunk.java
++++ b/src/main/java/net/minecraft/server/Chunk.java
+@@ -778,7 +778,7 @@ public class Chunk {
+             i = this.entitySlices.length - 1;
+         }
+ 
+-        this.entitySlices[i].remove(entity);
++        if (!this.entitySlices[i].remove(entity)) return; // TacoSpigot
+         // PaperSpigot start - update counts
+         if (entity instanceof EntityItem) {
+             itemCounts[i]--;
 diff --git a/src/main/java/net/minecraft/server/SpawnerCreature.java b/src/main/java/net/minecraft/server/SpawnerCreature.java
-index 611b8fd..2fdc446 100644
+index 611b8fd..ea17d7e 100644
 --- a/src/main/java/net/minecraft/server/SpawnerCreature.java
 +++ b/src/main/java/net/minecraft/server/SpawnerCreature.java
 @@ -22,6 +22,15 @@ public final class SpawnerCreature {
      // Spigot start - get entity count only from chunks being processed in b
      private int getEntityCount(WorldServer server, Class oClass)
      {
-+        // Paper start - use entire world, not just active chunks. Spigot broke vanilla expectations.
++        // TacoSpigot start - use entire world, not just active chunks. Spigot broke vanilla expectations.
 +        if (true) {
 +            return server
-+                    .getChunkProviderServer()
++                    .chunkProviderServer
 +                    .chunks.values()
 +                    .stream()
 +                    .collect(java.util.stream.Collectors.summingInt(c -> c.entityCount.get(oClass)));
 +        }
-+        // Paper end
++        // TacoSpigot end
          int i = 0;
          Iterator<Long> it = this.b.iterator();
          while ( it.hasNext() )
@@ -37,7 +50,7 @@ index 611b8fd..2fdc446 100644
                      int l1 = limit * i / a; // CraftBukkit - use per-world limits
  
 -                    if ((mobcnt = getEntityCount(worldserver, enumcreaturetype.a())) <= limit * i / 256) {
-+                    if ((mobcnt = getEntityCount(worldserver, enumcreaturetype.a())) <= limit * i / 289) { // Paper - use 17x17 like vanilla (a at top of file)
++                    if ((mobcnt = getEntityCount(worldserver, enumcreaturetype.a())) <= limit * i / 289) { // TacoSpigot - use 17x17 like vanilla (a at top of file)
                          Iterator iterator1 = this.b.iterator();
  
                          int moblimit = (limit * i / 256) - mobcnt + 1; // Spigot - up to 1 more than limit
