@@ -1,4 +1,4 @@
-From 2cda5c230d33bf22dc5e1fffd14203ecb0852ea1 Mon Sep 17 00:00:00 2001
+From 299d0800f9ae40f9cc8b2a37abbf0c49d988555f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Fri, 18 Mar 2016 13:56:01 -0700
 Subject: [PATCH] Better AsyncCatcher
@@ -6,7 +6,7 @@ Subject: [PATCH] Better AsyncCatcher
 Async catching for PlayerChunkMap
 
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index 7100710..bd68a02 100644
+index 17d0c81..4391618 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
 @@ -15,6 +15,9 @@ import java.util.Set;
@@ -36,7 +36,7 @@ index 7100710..bd68a02 100644
 +    private final List<PlayerChunk> h = AsyncCatcher.catchAsyncUsage(Lists.newLinkedList(), "list access PlayerChunkMap.h");
 +    private final List<PlayerChunk> i = AsyncCatcher.catchAsyncUsage(Lists.newArrayList(), "list access PlayerChunkMap.i");
 +    // TacoSpigot end
-     private int j;
+     private int j;public int getViewDistance() { return j; } // Paper OBFHELPER
      private long k;
      private boolean l = true;
 diff --git a/src/main/java/org/spigotmc/AsyncCatcher.java b/src/main/java/org/spigotmc/AsyncCatcher.java
@@ -107,5 +107,5 @@ index 429c258..86c8bf6 100644
          {
              if ( script.isFile() )
 -- 
-2.8.0
+2.8.2
 

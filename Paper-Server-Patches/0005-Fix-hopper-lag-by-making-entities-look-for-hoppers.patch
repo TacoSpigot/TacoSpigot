@@ -1,4 +1,4 @@
-From f57cceb99a5ad3ca19945ad09c7025f8bcd5d97c Mon Sep 17 00:00:00 2001
+From 3c8a46560f4ed2bddcb100f8020503cf83aadf32 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -50,18 +50,18 @@ index 5b9ddcf..1126782 100644
          int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
          if (this.pickupDelay != 32767) this.pickupDelay -= elapsedTicks;
 diff --git a/src/main/java/net/minecraft/server/EntityMinecartContainer.java b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
-index 56e7de8..b81b94d 100644
+index 92f92b8..3377027 100644
 --- a/src/main/java/net/minecraft/server/EntityMinecartContainer.java
 +++ b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
-@@ -7,8 +7,27 @@ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+@@ -11,8 +11,27 @@ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
  import org.bukkit.entity.HumanEntity;
  import org.bukkit.inventory.InventoryHolder;
  // CraftBukkit end
 +import net.techcable.tacospigot.HopperPusher; // TacoSpigot
  
--public abstract class EntityMinecartContainer extends EntityMinecartAbstract implements ITileInventory, ILootable {
+-public abstract class EntityMinecartContainer extends EntityMinecartAbstract implements ITileInventory, ILootable, CraftLootableInventory { // Paper
 +// TacoSpigot start - push into hoppers
-+public abstract class EntityMinecartContainer extends EntityMinecartAbstract implements ITileInventory, ILootable, HopperPusher {
++public abstract class EntityMinecartContainer extends EntityMinecartAbstract implements ITileInventory, ILootable, CraftLootableInventory, HopperPusher { // Paper - CraftLootableInventory
 +    @Override
 +    public boolean acceptItem(TileEntityHopper hopper) {
 +        return TileEntityHopper.acceptItem(hopper, this);
@@ -83,7 +83,7 @@ index 56e7de8..b81b94d 100644
      private ItemStack[] items = new ItemStack[27]; // CraftBukkit - 36 -> 27
      private boolean b = true;
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index 243da36..f824c6c 100644
+index 68d096f..6015706 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -11,6 +11,9 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
@@ -105,20 +105,22 @@ index 243da36..f824c6c 100644
                      this.setCooldown(world.spigotConfig.hopperCheck);
                  }
                  // Paper end
-@@ -191,6 +194,12 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -193,7 +196,14 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
          }
      }
  
 +    // TacoSpigot start
 +    public boolean canAcceptItems() {
-+        return !this.o() && !this.q() && BlockHopper.f(this.u());
++        return !this.o() && !this.isFull() && BlockHopper.f(this.u());
 +    }
 +    // TacoSpigot end
++
+     boolean isFull() { return q(); } // Paper // OBFHELPER
 +
      private boolean q() {
          ItemStack[] aitemstack = this.items;
          int i = aitemstack.length;
-@@ -222,7 +231,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -225,7 +235,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
      }
  
      private boolean H() {
@@ -127,7 +129,7 @@ index 243da36..f824c6c 100644
  
          if (iinventory == null) {
              return false;
-@@ -327,8 +336,20 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -330,8 +340,20 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
          return true;
      }
  
@@ -149,7 +151,7 @@ index 243da36..f824c6c 100644
  
          if (iinventory != null) {
              EnumDirection enumdirection = EnumDirection.DOWN;
-@@ -355,7 +376,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -358,7 +380,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                      }
                  }
              }
@@ -158,7 +160,7 @@ index 243da36..f824c6c 100644
              Iterator iterator = a(ihopper.getWorld(), ihopper.E(), ihopper.F(), ihopper.G()).iterator();
  
              while (iterator.hasNext()) {
-@@ -529,6 +550,18 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -534,6 +556,18 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
          return world.a(EntityItem.class, new AxisAlignedBB(d0 - 0.5D, d1, d2 - 0.5D, d0 + 0.5D, d1 + 1.5D, d2 + 0.5D), IEntitySelector.a);
      }
  
@@ -302,5 +304,5 @@ index 2bc5877..d431d3b 100644
 +    }
  }
 -- 
-2.8.0
+2.8.2
 
