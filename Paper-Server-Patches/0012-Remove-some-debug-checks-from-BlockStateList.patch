@@ -1,0 +1,138 @@
+From f443e2640dc74ec0d0839ae4de568a6354902ae0 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Sat, 14 May 2016 15:43:31 -0700
+Subject: [PATCH] Remove some debug checks from BlockStateList
+
+This doesn't make the code any less safe since the resulting code will error anyways
+
+diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
+index 874592b..64229ee 100644
+--- a/src/main/java/net/minecraft/server/BlockStateList.java
++++ b/src/main/java/net/minecraft/server/BlockStateList.java
+@@ -23,16 +23,6 @@ import java.util.Map.Entry;
+ import java.util.regex.Pattern;
+ import javax.annotation.Nullable;
+ 
+-// TacoSpigot start
+-import com.google.common.collect.Table;
+-
+-import java.util.function.ToIntBiFunction;
+-
+-import net.techcable.tacospigot.ImmutableArrayMap;
+-import net.techcable.tacospigot.ImmutableArrayTable;
+-import net.techcable.tacospigot.TacoSpigotConfig;
+-// TacoSpigot end
+-
+ public class BlockStateList {
+ 
+     private static final Pattern a = Pattern.compile("^[a-z0-9_]+$");
+@@ -150,22 +140,12 @@ public class BlockStateList {
+     static class BlockData extends BlockDataAbstract {
+ 
+         private final Block a;
+-        // TacoSpigot start
+-        private final ImmutableMap<IBlockState<?>, Comparable<?>> bAsImmutableMap;
+-        private final Map<IBlockState<?>, Comparable<?>> b;
+-        private Table<IBlockState<?>, Comparable<?>, IBlockData> c;
+-        // TacoSpigot end
++        private final ImmutableMap<IBlockState<?>, Comparable<?>> b;
++        private ImmutableTable<IBlockState<?>, Comparable<?>, IBlockData> c;
+ 
+         private BlockData(Block block, ImmutableMap<IBlockState<?>, Comparable<?>> immutablemap) {
+             this.a = block;
+-            // TacoSpigot start
+-            this.bAsImmutableMap = immutablemap;
+-            if (TacoSpigotConfig.useArraysForBlockStates) {
+-                b = new ImmutableArrayMap<>(IBlockState.INDEXER, BlockState::getById, immutablemap);
+-            } else {
+-                b = immutablemap;
+-            }
+-            // TacoSpigot end
++            this.b = immutablemap;
+         }
+ 
+         public Collection<IBlockState<?>> r() {
+@@ -175,33 +155,42 @@ public class BlockStateList {
+         public <T extends Comparable<T>> T get(IBlockState<T> iblockstate) {
+             Comparable comparable = (Comparable) this.b.get(iblockstate);
+ 
++            // TacoSpigot - remove unneeded reflective cast and null check. These are development checks, and the calling code will error anyway if the type is unexpected or the result is null.
++            /*
+             if (comparable == null) {
+                 throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.t());
+             } else {
+                 return iblockstate.b().cast(comparable); // TacoSpigot - fix fernflower error
+             }
++            */
++            return (T) comparable;
++            // TacoSpigot end
+         }
+ 
+         public <T extends Comparable<T>, V extends T> IBlockData set(IBlockState<T> iblockstate, V v0) {
+             Comparable comparable = (Comparable) this.b.get(iblockstate);
+ 
+-            if (comparable == null) {
++            if (false) { // TacoSpigot - remove null check
+                 throw new IllegalArgumentException("Cannot set property " + iblockstate + " as it does not exist in " + this.a.t());
+             } else if (comparable == v0) {
+                 return this;
+             } else {
+                 IBlockData iblockdata = (IBlockData) this.c.get(iblockstate, v0);
+ 
++                // TacoSpigot - remove null check since calling code will error anyways
++                /*
+                 if (iblockdata == null) {
+                     throw new IllegalArgumentException("Cannot set property " + iblockstate + " to " + v0 + " on block " + Block.REGISTRY.b(this.a) + ", it is not an allowed value");
+                 } else {
+                     return iblockdata;
+                 }
++                */
++                return iblockdata;
+             }
+         }
+ 
+         public ImmutableMap<IBlockState<?>, Comparable<?>> s() {
+-            return this.bAsImmutableMap; // TacoSpigot
++            return this.b;
+         }
+ 
+         public Block getBlock() {
+@@ -231,33 +220,19 @@ public class BlockStateList {
+                     while (iterator1.hasNext()) {
+                         Comparable comparable = (Comparable) iterator1.next();
+ 
+-                        if (true) { // TacoSpigot - include everything in the table
++                        if (comparable != entry.getValue()) {
+                             hashbasedtable.put(iblockstate, comparable, map.get(this.b(iblockstate, comparable)));
+                         }
+                     }
+                 }
+ 
+-                // TacoSpigot start
+-                if (TacoSpigotConfig.useArraysForBlockStates) {
+-                    // I had some 'fun' getting this to work >:(
+-                    this.c = new ImmutableArrayTable<IBlockState<?>, Comparable<?>, IBlockData> (
+-                            IBlockState.INDEXER,
+-                            BlockState::getById,
+-                            (ToIntBiFunction) ((ToIntBiFunction<IBlockState, Comparable>) ((IBlockState state, Comparable value) -> state.getValueId(value))),
+-                            IBlockState::getByValueId,
+-                            hashbasedtable
+-                    );
+-                } else {
+-                    this.c = ImmutableTable.copyOf(hashbasedtable);
+-                }
+-                // TacoSpigot end
++                this.c = ImmutableTable.copyOf(hashbasedtable);
+             }
+         }
+ 
+         private Map<IBlockState<?>, Comparable<?>> b(IBlockState<?> iblockstate, Comparable<?> comparable) {
+             HashMap hashmap = Maps.newHashMap(this.b);
+ 
+-
+             hashmap.put(iblockstate, comparable);
+             return hashmap;
+         }
+-- 
+2.8.2
+
