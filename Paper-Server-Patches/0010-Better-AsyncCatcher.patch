@@ -1,4 +1,4 @@
-From 299d0800f9ae40f9cc8b2a37abbf0c49d988555f Mon Sep 17 00:00:00 2001
+From 8789a1b9ef181cf19062df52ca34bbad981cd5c5 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Fri, 18 Mar 2016 13:56:01 -0700
 Subject: [PATCH] Better AsyncCatcher
@@ -6,10 +6,10 @@ Subject: [PATCH] Better AsyncCatcher
 Async catching for PlayerChunkMap
 
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index 17d0c81..4391618 100644
+index 6c95e50..eb111bf 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-@@ -15,6 +15,9 @@ import java.util.Set;
+@@ -18,6 +18,9 @@ import javax.annotation.Nullable;
  // CraftBukkit start
  import java.util.LinkedList;
  // CraftBukkit end
@@ -19,14 +19,14 @@ index 17d0c81..4391618 100644
  
  public class PlayerChunkMap {
  
-@@ -37,12 +40,14 @@ public class PlayerChunkMap {
+@@ -40,12 +43,14 @@ public class PlayerChunkMap {
          }
      };
      private final WorldServer world;
 -    private final List<EntityPlayer> managedPlayers = Lists.newArrayList();
 +    // TacoSpigot start - catch async access
 +    private final List<EntityPlayer> managedPlayers = AsyncCatcher.catchAsyncUsage(Lists.newArrayList(), "list access PlayerChunkMap.managedPlayers");
-     private final LongHashMap<PlayerChunk> e = new LongHashMap();
+     private final Long2ObjectMap<PlayerChunk> e = new Long2ObjectOpenHashMap(4096);
 -    private final Set<PlayerChunk> f = Sets.newHashSet();
 -    private final List<PlayerChunk> g = Lists.newLinkedList();
 -    private final List<PlayerChunk> h = Lists.newLinkedList();

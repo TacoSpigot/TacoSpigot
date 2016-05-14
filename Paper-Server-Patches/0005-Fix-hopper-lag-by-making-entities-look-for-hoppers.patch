@@ -1,4 +1,4 @@
-From 3c8a46560f4ed2bddcb100f8020503cf83aadf32 Mon Sep 17 00:00:00 2001
+From 869b9cda7b7de4a6ee10afba5439b90f784ed922 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Fri, 24 Jul 2015 16:20:18 -0700
 Subject: [PATCH] Fix hopper lag by making entities look for hoppers.
@@ -13,10 +13,10 @@ Pushing out of hoppers causes a bouding box lookup, which this patch replaces wi
 This patch may causes a decrease in the performance of dropped items, which is why it can be disabled in the configuration.
 
 diff --git a/src/main/java/net/minecraft/server/EntityItem.java b/src/main/java/net/minecraft/server/EntityItem.java
-index 5b9ddcf..1126782 100644
+index 9618eaf..1bbdfab 100644
 --- a/src/main/java/net/minecraft/server/EntityItem.java
 +++ b/src/main/java/net/minecraft/server/EntityItem.java
-@@ -5,8 +5,15 @@ import java.util.Iterator;
+@@ -6,8 +6,15 @@ import javax.annotation.Nullable;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
  import org.bukkit.event.player.PlayerPickupItemEvent; // CraftBukkit
@@ -33,7 +33,7 @@ index 5b9ddcf..1126782 100644
  
      private static final Logger b = LogManager.getLogger();
      private static final DataWatcherObject<Optional<ItemStack>> c = DataWatcher.a(EntityItem.class, DataWatcherRegistry.f);
-@@ -61,6 +68,7 @@ public class EntityItem extends Entity {
+@@ -62,6 +69,7 @@ public class EntityItem extends Entity {
              this.die();
          } else {
              super.m();
@@ -41,7 +41,7 @@ index 5b9ddcf..1126782 100644
              // CraftBukkit start - Use wall time for pickup and despawn timers
              int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
              if (this.pickupDelay != 32767) this.pickupDelay -= elapsedTicks;
-@@ -125,6 +133,7 @@ public class EntityItem extends Entity {
+@@ -126,6 +134,7 @@ public class EntityItem extends Entity {
      // Spigot start - copied from above
      @Override
      public void inactiveTick() {
@@ -50,10 +50,10 @@ index 5b9ddcf..1126782 100644
          int elapsedTicks = MinecraftServer.currentTick - this.lastTick;
          if (this.pickupDelay != 32767) this.pickupDelay -= elapsedTicks;
 diff --git a/src/main/java/net/minecraft/server/EntityMinecartContainer.java b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
-index 92f92b8..3377027 100644
+index 7216fa5..717cf21 100644
 --- a/src/main/java/net/minecraft/server/EntityMinecartContainer.java
 +++ b/src/main/java/net/minecraft/server/EntityMinecartContainer.java
-@@ -11,8 +11,27 @@ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+@@ -13,8 +13,27 @@ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
  import org.bukkit.entity.HumanEntity;
  import org.bukkit.inventory.InventoryHolder;
  // CraftBukkit end
@@ -83,10 +83,10 @@ index 92f92b8..3377027 100644
      private ItemStack[] items = new ItemStack[27]; // CraftBukkit - 36 -> 27
      private boolean b = true;
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index 68d096f..6015706 100644
+index ec0b1ca..c8f7202 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
-@@ -11,6 +11,9 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
+@@ -12,6 +12,9 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
  import org.bukkit.event.inventory.InventoryPickupItemEvent;
  import org.bukkit.inventory.Inventory;
  // CraftBukkit end
@@ -96,7 +96,7 @@ index 68d096f..6015706 100644
  
  public class TileEntityHopper extends TileEntityLootable implements IHopper, ITickable {
  
-@@ -180,7 +183,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -185,7 +188,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                  }
  
                  // Paper start
@@ -105,7 +105,7 @@ index 68d096f..6015706 100644
                      this.setCooldown(world.spigotConfig.hopperCheck);
                  }
                  // Paper end
-@@ -193,7 +196,14 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -198,7 +201,14 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
          }
      }
  
@@ -120,7 +120,7 @@ index 68d096f..6015706 100644
      private boolean q() {
          ItemStack[] aitemstack = this.items;
          int i = aitemstack.length;
-@@ -225,7 +235,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -230,7 +240,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
      }
  
      private boolean H() {
@@ -129,7 +129,7 @@ index 68d096f..6015706 100644
  
          if (iinventory == null) {
              return false;
-@@ -330,8 +340,20 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -335,8 +345,20 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
          return true;
      }
  
@@ -151,7 +151,7 @@ index 68d096f..6015706 100644
  
          if (iinventory != null) {
              EnumDirection enumdirection = EnumDirection.DOWN;
-@@ -358,7 +380,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -363,7 +385,7 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                      }
                  }
              }
@@ -160,7 +160,7 @@ index 68d096f..6015706 100644
              Iterator iterator = a(ihopper.getWorld(), ihopper.E(), ihopper.F(), ihopper.G()).iterator();
  
              while (iterator.hasNext()) {
-@@ -534,6 +556,18 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -539,6 +561,18 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
          return world.a(EntityItem.class, new AxisAlignedBB(d0 - 0.5D, d1, d2 - 0.5D, d0 + 0.5D, d1 + 1.5D, d2 + 0.5D), IEntitySelector.a);
      }
  

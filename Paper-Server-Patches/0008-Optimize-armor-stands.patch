@@ -1,4 +1,4 @@
-From cc4f495ed4c472163415afc63484aba2a6e6ef93 Mon Sep 17 00:00:00 2001
+From 8ebadac763897769af44ec9b8accbae058744bb7 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 19:10:21 -0700
 Subject: [PATCH] Optimize armor stands
@@ -9,10 +9,10 @@ This patch also avoids armor stands looking up entities, which provides
 most of the benefits of avoiding move() while keeping gravity.
 
 diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
-index 04161e7..e686c24 100644
+index fcd73e1..1691841 100644
 --- a/src/main/java/net/minecraft/server/EntityArmorStand.java
 +++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
-@@ -747,6 +747,14 @@ public class EntityArmorStand extends EntityLiving {
+@@ -751,6 +751,14 @@ public class EntityArmorStand extends EntityLiving {
          return false;
      }
  
@@ -28,10 +28,10 @@ index 04161e7..e686c24 100644
  
          static final int[] a = new int[EnumItemSlot.Function.values().length];
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index f6b2d12..62c9282 100644
+index b827872..03bd51e 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -1251,6 +1251,7 @@ public abstract class World implements IBlockAccess {
+@@ -1250,6 +1250,7 @@ public abstract class World implements IBlockAccess {
  
          blockposition_pooledblockposition.t();
          if (entity != null) {

@@ -1,11 +1,11 @@
-From 2fc4c22b46547deaaec635d92349972d6d11530a Mon Sep 17 00:00:00 2001
+From 3de208e50acb6a516cce0ee1808b2e53eed2d1b7 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 8bc1a26..704881d 100644
+index c31ee8f..5fc848d 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -17,10 +17,9 @@ index 8bc1a26..704881d 100644
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>server</artifactId>
      <packaging>jar</packaging>
--    <version>1.9.2-R0.1-SNAPSHOT</version>
+     <version>1.9.4-R0.1-SNAPSHOT</version>
 -    <name>Paper</name>
 -    <url>https://github.com/PaperSpigot/Paper</url>
-+    <version>1.9.2-R0.1</version>
 +    <name>TacoSpigot</name>
 +    <url>https://github.com/TacoSpigot/TacoSpigot</url>
  
@@ -43,7 +42,7 @@ index 8bc1a26..704881d 100644
 -            <groupId>com.destroystokyo.paper</groupId>
 -            <artifactId>paper-api</artifactId>
 +            <groupId>net.techcable.tacospigot</groupId>
-+            <artifactId>api</artifactId>
++            <artifactId>tacospigot-api</artifactId>
              <version>${project.version}</version>
              <scope>compile</scope>
          </dependency>
@@ -66,7 +65,7 @@ index 8bc1a26..704881d 100644
                  <groupId>org.apache.maven.plugins</groupId>
                  <artifactId>maven-jar-plugin</artifactId>
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-index 674096c..3bcb8bf 100644
+index 674096c..4135e72 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 @@ -11,7 +11,7 @@ public final class Versioning {
@@ -74,7 +73,7 @@ index 674096c..3bcb8bf 100644
          String result = "Unknown-Version";
  
 -        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/com.destroystokyo.paper/paper-api/pom.properties");
-+        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/net.techcable.tacospigot/api/pom.properties"); // TacoSpigot - fix pom location
++        InputStream stream = Bukkit.class.getClassLoader().getResourceAsStream("META-INF/maven/net.techcable.tacospigot/tacospigot-api/pom.properties"); // TacoSpigot - fix pom location
          Properties properties = new Properties();
  
          if (stream != null) {

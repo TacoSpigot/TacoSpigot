@@ -37,6 +37,7 @@ import BlockState
 import BlockStateBoolean
 import BlockStateEnum
 import BlockStateInteger
+import BlockStateList
 
 (
 	cd Paper/Paper-Server/

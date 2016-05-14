@@ -1,4 +1,4 @@
-From 8eeb4bb7a34c7c45f4f54422dc04b0d849c1c296 Mon Sep 17 00:00:00 2001
+From d72f177dc176d256a453a0fb5421e6a2997381e0 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Sun, 3 Apr 2016 14:05:27 -0700
 Subject: [PATCH] MC-Dev Fixes
@@ -18,6 +18,37 @@ index d708a7e..6aa06b2 100644
              String s1 = ((INamable) oenum).getName();
  
              if (this.b.containsKey(s1)) {
+diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
+index 4082cff..7816e56 100644
+--- a/src/main/java/net/minecraft/server/BlockStateList.java
++++ b/src/main/java/net/minecraft/server/BlockStateList.java
+@@ -85,7 +85,7 @@ public class BlockStateList {
+         if (!BlockStateList.a.matcher(s).matches()) {
+             throw new IllegalArgumentException("Block: " + block.getClass() + " has invalidly named property: " + s);
+         } else {
+-            Iterator iterator = iblockstate.c().iterator();
++            Iterator<T> iterator = iblockstate.c().iterator(); // TacoSpigot - generic iterator
+ 
+             String s1;
+ 
+@@ -94,7 +94,7 @@ public class BlockStateList {
+                     return s;
+                 }
+ 
+-                Comparable comparable = (Comparable) iterator.next();
++                T comparable = iterator.next(); // TacoSpigot - fix fernflower error
+ 
+                 s1 = iblockstate.a(comparable);
+             } while (BlockStateList.a.matcher(s1).matches());
+@@ -158,7 +158,7 @@ public class BlockStateList {
+             if (comparable == null) {
+                 throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.t());
+             } else {
+-                return (Comparable) iblockstate.b().cast(comparable);
++                return iblockstate.b().cast(comparable); // TacoSpigot - fix fernflower error
+             }
+         }
+ 
 -- 
-2.8.0
+2.8.2
 
