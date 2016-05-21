@@ -1,5 +1,5 @@
-TacoSpigot[![Build Status](https://travis-ci.org/TacoSpigot/TacoSpigot.svg?branch=master)](https://travis-ci.org/TacoSpigot/TacoSpigot)
-
+TacoSpigot [![Build Status](https://ci.techcable.net/job/TacoSpigot/badge/icon)](https://ci.techcable.net/job/TacoSpigot/)
+===============================
 A even-higher higher performance PaperSpigot fork that adds new features.
 
 [IRC Support and Project Discussion](http://irc.spi.gt/iris/?channels=techcable)
