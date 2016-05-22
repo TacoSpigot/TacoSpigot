@@ -1,0 +1,72 @@
+From 00f08f5b92b5148571e79570f614825fd2445713 Mon Sep 17 00:00:00 2001
+From: Jedediah Smith <jedediah@silencegreys.com>
+Date: Tue, 19 Apr 2016 20:30:55 -0400
+Subject: [PATCH] Use client ticks to make attack speed more accurate
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
+index 696f21f..e24c2c5 100644
+--- a/src/main/java/net/minecraft/server/EntityHuman.java
++++ b/src/main/java/net/minecraft/server/EntityHuman.java
+@@ -24,6 +24,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
+ import org.bukkit.util.Vector;
+ // CraftBukkit end
+ 
++import static net.techcable.tacospigot.TacoSpigotConfig.betterPvp; // TacoSpigot
++
+ public abstract class EntityHuman extends EntityLiving {
+ 
+     private static final DataWatcherObject<Float> a = DataWatcher.a(EntityHuman.class, DataWatcherRegistry.c);
+@@ -67,6 +69,8 @@ public abstract class EntityHuman extends EntityLiving {
+     private final ItemCooldown bV = this.l();
+     public EntityFishingHook hookedFish;
+ 
++    public int clientTicksSinceLastAttack; // TacoSpigot
++
+     // Paper start - affectsSpawning API
+     public boolean affectsSpawning = true;
+ 
+@@ -1897,11 +1901,12 @@ public abstract class EntityHuman extends EntityLiving {
+     }
+ 
+     public float o(float f) {
+-        return MathHelper.a(((float) this.aE + f) / this.cZ(), 0.0F, 1.0F);
++        return MathHelper.a(((float) (betterPvp ? Math.max(this.aE, this.clientTicksSinceLastAttack) : this.aE) + f) / this.cZ(), 0.0F, 1.0F); // TacoSpigot - check client and server ticks
+     }
+ 
+     public void da() {
+         this.aE = 0;
++        this.clientTicksSinceLastAttack = 0; // TacoSpigot
+     }
+ 
+     public ItemCooldown db() {
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 8f846ec..1e1c8a6 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -459,6 +459,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+                     this.d();
+                 }
+ 
++                this.player.clientTicksSinceLastAttack++; // TacoSpigot
++
+                 if (this.teleportPos != null) {
+                     if (this.e - this.A > 20) {
+                         this.A = this.e;
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
+index b7699d8..22c6009 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
+@@ -107,4 +107,9 @@ public class TacoSpigotConfig {
+     private static void useArraysForBlockStates() {
+         useArraysForBlockStates = getBoolean("useArraysForBlockStates", false);
+     }
++
++    public static boolean betterPvp;
++    private static void betterPvp() {
++        betterPvp = getBoolean("betterPvp", false);
++    }
+ }
+-- 
+2.8.2
+
