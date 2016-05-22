@@ -1,0 +1,22 @@
+From 2bcbb978dc9809ad48f881e7c8bcbb62cf52c675 Mon Sep 17 00:00:00 2001
+From: Jedediah Smith <jedediah@silencegreys.com>
+Date: Mon, 4 Apr 2016 01:45:23 -0400
+Subject: [PATCH] Fix armor toughness being ignored
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 129bca8..2848def 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -1131,7 +1131,7 @@ public abstract class EntityLiving extends Entity {
+     protected float applyArmorModifier(DamageSource damagesource, float f) {
+         if (!damagesource.ignoresArmor()) {
+             // this.damageArmor(f); // CraftBukkit - Moved into damageEntity0(DamageSource, float)
+-            f = CombatMath.a(f, (float) this.getArmorStrength());
++            f = CombatMath.a(f, (float) this.getArmorStrength(), (float) this.getAttributeInstance(GenericAttributes.h).getValue()); // TacoSpigot - take armor toughness into account
+         }
+ 
+         return f;
+-- 
+2.8.2
+
