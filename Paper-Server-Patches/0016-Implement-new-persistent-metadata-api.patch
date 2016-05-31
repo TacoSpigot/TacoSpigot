@@ -1,0 +1,1830 @@
+From 56c595d190259796a671e25c3472bbd5bc468acd Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Fri, 27 May 2016 17:52:24 -0600
+Subject: [PATCH] Implement new persistent metadata api
+
+
+diff --git a/src/main/java/co/aikar/timings/MinecraftTimings.java b/src/main/java/co/aikar/timings/MinecraftTimings.java
+index 0f8315c..611606e 100644
+--- a/src/main/java/co/aikar/timings/MinecraftTimings.java
++++ b/src/main/java/co/aikar/timings/MinecraftTimings.java
+@@ -30,6 +30,8 @@ public final class MinecraftTimings {
+     public static final Timing antiXrayUpdateTimer = Timings.ofSafe("anti-xray - update");
+     public static final Timing antiXrayObfuscateTimer = Timings.ofSafe("anti-xray - obfuscate");
+ 
++    public static final Timing offlinePlayerPersistentMetadataIOTimer = Timings.ofSafe("OfflinePlayer persistent metadata IO"); // TacoSpigot
++
+     private MinecraftTimings() {}
+ 
+     /**
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 9a08388..f75d6be 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -39,6 +39,9 @@ import org.bukkit.event.entity.EntityCombustEvent;
+ import org.bukkit.event.entity.EntityPortalEvent;
+ import org.bukkit.plugin.PluginManager;
+ // CraftBukkit end
++// TacoSpigot start
++import net.techcable.tacospigot.metadata.NBTMetadataHolder;
++// TacoSpigot end
+ 
+ public abstract class Entity implements ICommandListener {
+ 
+@@ -59,6 +62,7 @@ public abstract class Entity implements ICommandListener {
+         return bukkitEntity;
+     }
+     // CraftBukikt end
++    public final NBTMetadataHolder metadataHolder = new NBTMetadataHolder(getWorld().getServer().getMetadataFactory()); // TacoSpigot
+ 
+     private static final Logger a = LogManager.getLogger();
+     private static final AxisAlignedBB b = new AxisAlignedBB(0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+@@ -1345,6 +1349,10 @@ public abstract class Entity implements ICommandListener {
+             nbttagcompound.setInt("Bukkit.updateLevel", CURRENT_LEVEL);
+             nbttagcompound.setInt("Spigot.ticksLived", this.ticksLived);
+             // CraftBukkit end
++            // TacoSpigot start
++            nbttagcompound.set("TacoSpigot.metadata.metadata", metadataHolder.serializeMetadata());
++            nbttagcompound.set("TacoSpigot.metadata", metadataHolder.serialize());
++            // TacoSpigot end
+             if (this.getCustomName() != null && !this.getCustomName().isEmpty()) {
+                 nbttagcompound.setString("CustomName", this.getCustomName());
+             }
+@@ -1509,6 +1517,11 @@ public abstract class Entity implements ICommandListener {
+                 }
+             }
+             // CraftBukkit end
++            // TacoSpigot start
++            NBTTagCompound metadataMetadata = nbttagcompound.getCompound("TacoSpigot.metadata.metadata");
++            NBTTagCompound metadata = nbttagcompound.getCompound("TacoSpigot.metadata");
++            metadataHolder.load(metadata, metadataMetadata);
++            // TacoSpigot
+ 
+             // CraftBukkit start - Exempt Vehicles from notch's sanity check
+             if (!(getBukkitEntity() instanceof Vehicle)) {
+diff --git a/src/main/java/net/minecraft/server/NBTBase.java b/src/main/java/net/minecraft/server/NBTBase.java
+index dfe695a..dcdc048 100644
+--- a/src/main/java/net/minecraft/server/NBTBase.java
++++ b/src/main/java/net/minecraft/server/NBTBase.java
+@@ -8,17 +8,17 @@ public abstract class NBTBase {
+ 
+     public static final String[] a = new String[] { "END", "BYTE", "SHORT", "INT", "LONG", "FLOAT", "DOUBLE", "BYTE[]", "STRING", "LIST", "COMPOUND", "INT[]"};
+ 
+-    abstract void write(DataOutput dataoutput) throws IOException;
++    abstract void write(DataOutput dataoutput) throws IOException; public final long asLong() { return c(); } // TacoSpigot - obfuscation helper
+ 
+-    abstract void load(DataInput datainput, int i, NBTReadLimiter nbtreadlimiter) throws IOException;
++    abstract void load(DataInput datainput, int i, NBTReadLimiter nbtreadlimiter) throws IOException; public final int asInt() { return d(); } // TacoSpigot - obfuscation helper
+ 
+-    public abstract String toString();
++    public abstract String toString(); public final short asShort() { return e(); } // TacoSpigot - obfuscation helper
+ 
+-    public abstract byte getTypeId();
++    public abstract byte getTypeId(); public final byte asByte() { return f(); } // TacoSpigot - obfuscation helper
+ 
+-    protected NBTBase() {}
++    protected NBTBase() {} public final double asDouble() { return g(); } // TacoSpigot - obfuscation helper
+ 
+-    protected static NBTBase createTag(byte b0) {
++    protected static NBTBase createTag(byte b0) { public final float asFloat() { return h(); } // TacoSpigot - obfuscation helper
+         switch (b0) {
+         case 0:
+             return new NBTTagEnd();
+diff --git a/src/main/java/net/minecraft/server/NBTCompressedStreamTools.java b/src/main/java/net/minecraft/server/NBTCompressedStreamTools.java
+index b2d5254..0543419 100644
+--- a/src/main/java/net/minecraft/server/NBTCompressedStreamTools.java
++++ b/src/main/java/net/minecraft/server/NBTCompressedStreamTools.java
+@@ -59,11 +59,21 @@ public class NBTCompressedStreamTools {
+         }
+     }
+ 
++    // TacoSpigot start
+     public static void a(NBTTagCompound nbttagcompound, DataOutput dataoutput) throws IOException {
+-        a((NBTBase) nbttagcompound, dataoutput);
++        a((NBTBase) nbttagcompound, dataoutput, false);
+     }
+ 
+-    private static void a(NBTBase nbtbase, DataOutput dataoutput) throws IOException {
++    public static void a(NBTTagCompound nbttagcompound, DataOutput dataoutput, boolean hidePersistentMetadata) throws IOException {
++        a((NBTBase) nbttagcompound, dataoutput, hidePersistentMetadata);
++    }
++
++    private static void a(NBTBase nbtbase, DataOutput dataoutput, boolean hidePersistentMetadata) throws IOException {
++        if (nbtbase instanceof NBTTagCompound) {
++            nbtbase = nbtbase.clone(); // Copy
++            NBTTagCompound compound = (NBTTagCompound) nbtbase;;
++        }
++        // TacoSpigot end
+         dataoutput.writeByte(nbtbase.getTypeId());
+         if (nbtbase.getTypeId() != 0) {
+             dataoutput.writeUTF("");
+diff --git a/src/main/java/net/minecraft/server/PacketDataSerializer.java b/src/main/java/net/minecraft/server/PacketDataSerializer.java
+index b056457..7dd6947 100644
+--- a/src/main/java/net/minecraft/server/PacketDataSerializer.java
++++ b/src/main/java/net/minecraft/server/PacketDataSerializer.java
+@@ -206,7 +206,7 @@ public class PacketDataSerializer extends ByteBuf {
+             this.writeByte(0);
+         } else {
+             try {
+-                NBTCompressedStreamTools.a(nbttagcompound, (DataOutput) (new ByteBufOutputStream(this)));
++                NBTCompressedStreamTools.a(nbttagcompound, (DataOutput) (new ByteBufOutputStream(this)), true); // TacoSpigot - filter out persistent metadata (it could contain sensitive data and is pointless)
+             } catch (Exception ioexception) { // CraftBukkit - IOException -> Exception
+                 throw new EncoderException(ioexception);
+             }
+@@ -226,7 +226,14 @@ public class PacketDataSerializer extends ByteBuf {
+             this.readerIndex(i);
+ 
+             try {
+-                return NBTCompressedStreamTools.a((DataInput) (new ByteBufInputStream(this)), new NBTReadLimiter(2097152L));
++                // TacoSpigot start - filter out metadata for security
++                NBTTagCompound compound = NBTCompressedStreamTools.a((DataInput) (new ByteBufInputStream(this)), new NBTReadLimiter(2097152L));
++                compound.remove("TacoSpigot.metadata");
++                compound.remove("TacoSpigot.metadata.metadata");
++                compound.remove("TacoSpigot.temp-metadata");
++                compound.remove("TacoSpigot.temp-metadata.metadata");
++                return compound;
++                // TacoSpigot end
+             } catch (IOException ioexception) {
+                 throw new EncoderException(ioexception);
+             }
+diff --git a/src/main/java/net/minecraft/server/WorldNBTStorage.java b/src/main/java/net/minecraft/server/WorldNBTStorage.java
+index f077398..05a32bc 100644
+--- a/src/main/java/net/minecraft/server/WorldNBTStorage.java
++++ b/src/main/java/net/minecraft/server/WorldNBTStorage.java
+@@ -140,11 +140,17 @@ public class WorldNBTStorage implements IDataManager, IPlayerFileData {
+         this.saveWorldData(worlddata, (NBTTagCompound) null);
+     }
+ 
++    // TacoSpigot start
+     public void save(EntityHuman entityhuman) {
++        NBTTagCompound nbttagcompound = entityhuman.e(new NBTTagCompound());
++        this.savePlayerData(nbttagcompound, entityhuman.getUniqueID().toString(), entityhuman.getName());
++    }
++
++    public void savePlayerData(NBTTagCompound nbttagcompound, String uuid, String name) {
+         try {
+-            NBTTagCompound nbttagcompound = entityhuman.e(new NBTTagCompound());
+-            File file = new File(this.playerDir, entityhuman.bf() + ".dat.tmp");
+-            File file1 = new File(this.playerDir, entityhuman.bf() + ".dat");
++            File file = new File(this.playerDir, uuid + ".dat.tmp");
++            File file1 = new File(this.playerDir, uuid + ".dat");
++            // TacoSpigot end
+ 
+             NBTCompressedStreamTools.a(nbttagcompound, (OutputStream) (new FileOutputStream(file)));
+             if (file1.exists()) {
+@@ -153,7 +159,7 @@ public class WorldNBTStorage implements IDataManager, IPlayerFileData {
+ 
+             file.renameTo(file1);
+         } catch (Exception exception) {
+-            WorldNBTStorage.b.warn("Failed to save player data for {}", new Object[] { entityhuman.getName()});
++            WorldNBTStorage.b.warn("Failed to save player data for " + name); // entityhuman.getName() -> name
+         }
+ 
+     }
+diff --git a/src/main/java/net/techcable/tacospigot/NBTType.java b/src/main/java/net/techcable/tacospigot/NBTType.java
+new file mode 100644
+index 0000000..e881326
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/NBTType.java
+@@ -0,0 +1,28 @@
++package net.techcable.tacospigot;
++
++import com.google.common.base.Preconditions;
++
++public enum NBTType {
++    TAG_END,
++    TAG_BYTE,
++    TAG_SHORT,
++    TAG_INT,
++    TAG_LONG,
++    TAG_FLOAT,
++    TAG_DOUBLE,
++    TAG_BYTE_ARRAY,
++    TAG_STRING,
++    TAG_LIST,
++    TAG_COMPOUND,
++    TAG_INT_ARRAY;
++
++    public byte getId() {
++        return (byte) ordinal();
++    }
++
++    public static NBTType getById(int id) {
++        NBTType[] values = values();
++        Preconditions.checkElementIndex(id, values.length, "nbt type id");
++        return values[id];
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataDeserializer.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataDeserializer.java
+new file mode 100644
+index 0000000..e3fb16d
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataDeserializer.java
+@@ -0,0 +1,13 @@
++package net.techcable.tacospigot.metadata;
++
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++
++@ParametersAreNonnullByDefault
++public interface MetadataDeserializer<N extends NBTBase> {
++    public NBTMetadata<N, ?> deserialize(NBTMetadataFactory factory, N nbt, @Nullable MetadataType metadataType, ImmutableMap<String, NBTBase> metadata);
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/NBTMetadata.java b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadata.java
+new file mode 100644
+index 0000000..b27baea
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadata.java
+@@ -0,0 +1,45 @@
++package net.techcable.tacospigot.metadata;
++
++import java.util.BitSet;
++
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTTagCompound;
++
++import static com.google.common.base.Preconditions.*;
++
++public abstract class NBTMetadata<N extends NBTBase, T> implements Metadata<T> {
++    private final NBTMetadataFactory factory;
++
++    protected NBTMetadata(NBTMetadataFactory factory) {
++        this.factory = checkNotNull(factory, "Null metadata factory");
++    }
++
++    private volatile N nbt;
++
++    @SuppressWarnings("unchecked") // Cloning is safe.......
++    public N getNbt() {
++        N nbt = this.nbt;
++        if (nbt == null) {
++            synchronized (this) {
++                nbt = this.nbt;
++                if (nbt == null) {
++                    nbt = this.serialize();
++                    this.nbt = nbt;
++                }
++            }
++        }
++        return (N) nbt.clone();
++    }
++
++    protected abstract N serialize();
++
++    public ImmutableMap<String, NBTBase> getMetadata() {
++        return ImmutableMap.of();
++    }
++
++    public NBTMetadataFactory getFactory() {
++        return factory;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataBoolean.java b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataBoolean.java
+new file mode 100644
+index 0000000..edae198
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataBoolean.java
+@@ -0,0 +1,31 @@
++package net.techcable.tacospigot.metadata;
++
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTTagByte;
++import net.techcable.tacospigot.metadata.deserialize.ByteDeserializer;
++
++public class NBTMetadataBoolean extends NBTMetadata<NBTTagByte, Boolean> implements MetadataBoolean {
++    private final boolean value;
++
++    public NBTMetadataBoolean(NBTMetadataFactory factory, boolean b) {
++        super(factory);
++        this.value = b;
++    }
++
++    @Override
++    protected NBTTagByte serialize() {
++        return new NBTTagByte((byte) (value ? 1 : 0));
++    }
++
++    @Override
++    public Boolean getValue() {
++        return value;
++    }
++
++    @Override
++    public ImmutableMap<String, NBTBase> getMetadata() {
++        return ImmutableMap.of(ByteDeserializer.TYPE_ID_METADATA_KEY, new NBTTagByte(ByteDeserializer.BOOLEAN_TYPE_ID));
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataFactory.java b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataFactory.java
+new file mode 100644
+index 0000000..556e88c
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataFactory.java
+@@ -0,0 +1,164 @@
++package net.techcable.tacospigot.metadata;
++
++import java.util.Collection;
++import java.util.List;
++import java.util.Map;
++import java.util.function.BiFunction;
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++import com.google.common.collect.Maps;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTBase.NBTNumber;
++import net.minecraft.server.NBTTagIntArray;
++import net.minecraft.server.NBTTagString;
++import net.techcable.tacospigot.NBTType;
++import net.techcable.tacospigot.metadata.deserialize.ByteArrayDeserializer;
++import net.techcable.tacospigot.metadata.deserialize.ByteDeserializer;
++import net.techcable.tacospigot.metadata.deserialize.CompoundDeserializer;
++import net.techcable.tacospigot.metadata.deserialize.ListDeserializer;
++import net.techcable.tacospigot.metadata.list.BooleanNBTMetadataList;
++import net.techcable.tacospigot.metadata.list.ByteNBTMetadataList;
++import net.techcable.tacospigot.metadata.list.IntegerNBTMetadataList;
++import net.techcable.tacospigot.metadata.list.NBTMetadataList;
++import net.techcable.tacospigot.metadata.list.RegularNBTMetadataList;
++import net.techcable.tacospigot.metadata.number.NBTMetadataByte;
++import net.techcable.tacospigot.metadata.number.NBTMetadataDouble;
++import net.techcable.tacospigot.metadata.number.NBTMetadataFloat;
++import net.techcable.tacospigot.metadata.number.NBTMetadataInteger;
++import net.techcable.tacospigot.metadata.number.NBTMetadataLong;
++import net.techcable.tacospigot.metadata.number.NBTMetadataNumber;
++import net.techcable.tacospigot.metadata.number.NBTMetadataShort;
++
++import static com.google.common.base.Preconditions.*;
++
++@ParametersAreNonnullByDefault
++public class NBTMetadataFactory implements MetadataFactory {
++
++    @Override
++    public NBTMetadataMap createMetadataMap(Map<String, Metadata> map) {
++        ImmutableMap.Builder<String, NBTMetadata<?, ?>> nbtEntriesBuilder = ImmutableMap.builder();
++        map.forEach((name, value) -> {
++            checkNotNull(name, "Null name");
++            checkArgument(MetadataMap.isValidName(name), "Invalid name %s", name);
++            checkNotNull(value, "Null value named %s", name);
++            checkArgument(value instanceof NBTMetadata, "Metadata named %s is %s not NBTMetadata!", name, value.getClass().getTypeName());
++            nbtEntriesBuilder.put(name, (NBTMetadata<?, ?>) value);
++        });
++        return new NBTMetadataMap(this, nbtEntriesBuilder.build());
++    }
++
++    private final RegularNBTMetadataList<?> EMPTY_LIST = new RegularNBTMetadataList<>(this, ImmutableList.of(), null);
++
++    @Override
++    public NBTMetadataMap createMetadataMapFromSimpleMap(Map<String, Object> map) {
++        return (NBTMetadataMap) MetadataFactory.super.createMetadataMapFromSimpleMap(map);
++    }
++
++    @Override
++    @SuppressWarnings("unchecked")
++    public <T> NBTMetadataList<?, T> createMetadataList(List<Metadata<T>> elements, @Nullable MetadataType elementType) {
++        checkNotNull(elements, "Null elements");
++        if (elements.isEmpty()) {
++            checkArgument(elementType == null, "Element type is %s on an empty list!", elements);
++            return (NBTMetadataList<?, T>) EMPTY_LIST;
++        } else {
++            checkNotNull(elementType, "Element type is null on a non-empty list");
++        }
++        switch (elementType) {
++            case BYTE:
++                return (NBTMetadataList<?, T>) new ByteNBTMetadataList(this, ImmutableList.copyOf((Collection<? extends Metadata<Byte>>) elements));
++            case BOOLEAN:
++                return (NBTMetadataList<?, T>) new BooleanNBTMetadataList(this, ImmutableList.copyOf((Collection<? extends Metadata<Boolean>>) elements));
++            case INTEGER:
++                return (NBTMetadataList<?, T>) new IntegerNBTMetadataList(this, ImmutableList.copyOf((Collection<? extends Metadata<Integer>>) elements));
++            default:
++                ImmutableList.Builder<NBTMetadata<?, T>> nbtElementsBuilder = ImmutableList.builder();
++                for (Metadata<T> element : elements) {
++                    checkNotNull(element, "Null element");
++                    checkArgument(element instanceof NBTMetadata, "Metadata is %s not NBTMetadata!", element.getClass().getTypeName());
++                    nbtElementsBuilder.add((NBTMetadata<?, T>) element);
++                }
++                return new RegularNBTMetadataList<>(this, nbtElementsBuilder.build(), elementType);
++        }
++    }
++
++
++    private static final ImmutableMap<Class<? extends Number>, BiFunction<NBTMetadataFactory, ? extends Number, NBTMetadataNumber>> factories = ImmutableMap.<Class<? extends Number>, BiFunction<NBTMetadataFactory, ? extends Number, NBTMetadataNumber>>builder()
++            .put(Byte.class, (BiFunction<NBTMetadataFactory, Byte, NBTMetadataNumber>) NBTMetadataByte::new)
++            .put(Short.class, (BiFunction<NBTMetadataFactory, Short, NBTMetadataNumber>) NBTMetadataShort::new)
++            .put(Integer.class, (BiFunction<NBTMetadataFactory, Integer, NBTMetadataNumber>) NBTMetadataInteger::new)
++            .put(Long.class, (BiFunction<NBTMetadataFactory, Long, NBTMetadataNumber>) NBTMetadataLong::new)
++            .put(Float.class, (BiFunction<NBTMetadataFactory, Float, NBTMetadataNumber>) NBTMetadataFloat::new)
++            .put(Double.class, (BiFunction<NBTMetadataFactory, Double, NBTMetadataNumber>) NBTMetadataDouble::new)
++            .build();
++
++
++    @Override
++    public <T extends Number> MetadataNumber<T> createMetadataNumber(T value) {
++        checkNotNull(value, "Null value");
++        @SuppressWarnings("unchecked")
++        BiFunction<NBTMetadataFactory, T, NBTMetadataNumber<?, T>> factory = (BiFunction) factories.get(value.getClass());
++        if (factory == null) {
++            throw new IllegalArgumentException("Unknown numeric type " + value.getClass().getTypeName());
++        } else {
++            return factory.apply(this, value);
++        }
++    }
++
++    @Override
++    public MetadataString createMetadataString(String value) {
++        return new NBTMetadataString(this, value);
++    }
++
++    @Override
++    public MetadataBoolean createMetadataBoolean(boolean value) {
++        return new NBTMetadataBoolean(this, value);
++    }
++
++    private final ImmutableMap<NBTType, MetadataDeserializer> deserializers = Maps.immutableEnumMap(ImmutableMap.<NBTType, MetadataDeserializer>builder()
++            .put(NBTType.TAG_BYTE, new ByteDeserializer())
++            .put(NBTType.TAG_SHORT, (factory, nbt, metadataType, meta) -> new NBTMetadataShort(factory, ((NBTNumber) nbt).asShort()))
++            .put(NBTType.TAG_INT, (factory, nbt, metadataType, meta) -> new NBTMetadataInteger(factory, ((NBTNumber) nbt).asInt()))
++            .put(NBTType.TAG_LONG, ((factory, nbt, metadataType, metadata) -> new NBTMetadataLong(factory, ((NBTNumber) nbt).asLong())))
++            .put(NBTType.TAG_FLOAT, (factory, nbt, metadataType, metadata) -> new NBTMetadataFloat(factory, ((NBTNumber) nbt).asFloat()))
++            .put(NBTType.TAG_DOUBLE, (factory, nbt, metadataType, metadata) -> new NBTMetadataDouble(factory, ((NBTNumber) nbt).asDouble()))
++            .put(NBTType.TAG_BYTE_ARRAY, new ByteArrayDeserializer())
++            .put(NBTType.TAG_STRING, (factory, nbt, metadataType, metadata) -> new NBTMetadataString(factory, ((NBTTagString) nbt).a_()))
++            .put(NBTType.TAG_LIST, new ListDeserializer())
++            .put(NBTType.TAG_COMPOUND, new CompoundDeserializer())
++            .put(NBTType.TAG_INT_ARRAY, (factory, nbt, metadataType, metadata) -> new IntegerNBTMetadataList(factory, ((NBTTagIntArray) nbt).c()))
++            .build());
++
++    public <N extends NBTBase> NBTMetadata<N, ?> fromNBT(N nbt, @Nullable MetadataType metadataType, ImmutableMap<String, NBTBase> metadata) {
++        checkNotNull(nbt, "Null nbt");
++        checkNotNull(metadata, "Null metadata");
++        NBTType nbtType = NBTType.getById(nbt.getTypeId());
++        @SuppressWarnings("unchecked")
++        MetadataDeserializer<N> deserializer = deserializers.get(nbtType);
++        checkArgument(deserializer != null, "Unable to deserialize nbt of type %s", nbtType);
++        NBTMetadata<N, ?> result;
++        result = deserializer.deserialize(this, nbt, metadataType, metadata);
++        checkNotNull(result, "Deserializer %s returned null result for nbt %s and metadata %s", deserializer, nbt, metadata);
++        return result;
++    }
++
++    @SuppressWarnings("unchecked") // We do a runtime cast so we know this is safe
++    public <N extends NBTBase, T> NBTMetadata<N, T> fromNBT(N nbt, @Nullable MetadataType metadataType, ImmutableMap<String, NBTBase> metadata, Class<T> clazz) {
++        checkNotNull(clazz, "Null class");
++        NBTMetadata<N, ?> meta = fromNBT(nbt, metadataType, metadata);
++        clazz.cast(meta.getValue());
++        return (NBTMetadata<N, T>) meta;
++    }
++
++    public NBTMetadataMap build(NBTMetadataMap.Builder builder) {
++        return (NBTMetadataMap) checkNotNull(builder).build(this);
++    }
++
++    public <T> NBTMetadataList<?, T> build(NBTMetadataList.Builder<T> builder) {
++        return (NBTMetadataList<?, T>) checkNotNull(builder).build(this);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataHolder.java b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataHolder.java
+new file mode 100644
+index 0000000..557df1c
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataHolder.java
+@@ -0,0 +1,104 @@
++package net.techcable.tacospigot.metadata;
++
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTTagCompound;
++
++import static com.google.common.base.Preconditions.*;
++
++@ParametersAreNonnullByDefault
++public class NBTMetadataHolder {
++    private final NBTMetadataFactory factory;
++    private NBTMetadataMap baseTemporary, basePersistent;
++
++    public NBTMetadataHolder(NBTMetadataFactory factory) {
++        this.factory = checkNotNull(factory, "Null factory");
++        baseTemporary = factory.createMetadataMap(ImmutableMap.of());
++        basePersistent = factory.createMetadataMap(ImmutableMap.of());
++    }
++
++    public void setTemporary(String name, Metadata value) {
++        MetadataMap.Builder builder = baseTemporary.asBuilder();
++        builder.putRecursively(name, value);
++        baseTemporary = factory.build(builder);
++    }
++
++    public NBTMetadataFactory getFactory() {
++        return factory;
++    }
++
++    public void setPersistent(String name, Metadata value) {
++        MetadataMap.Builder builder = basePersistent.asBuilder();
++        builder.putRecursively(name, value);
++        basePersistent = factory.build(builder);
++    }
++
++    public void removeMetadata(String name) {
++        MetadataMap.Builder persistentBuilder = basePersistent.asBuilder();
++        MetadataMap.Builder temporaryBuilder = baseTemporary.asBuilder();
++        persistentBuilder.remove(name);
++        temporaryBuilder.remove(name);
++        basePersistent = factory.build(persistentBuilder);
++        baseTemporary = factory.build(temporaryBuilder);
++
++    }
++
++    public Metadata get(String name) {
++        checkNotNull(name, "Null name");
++        Metadata meta;
++        if ((meta = baseTemporary.get(name)) != null) {
++            return meta;
++        } else {
++            return basePersistent.get(name);
++        }
++    }
++
++    public NBTTagCompound serialize() {
++        return basePersistent.serialize();
++    }
++
++    public NBTTagCompound serializeTemporary() {
++        return baseTemporary.serialize();
++    }
++
++    public NBTTagCompound serializeMetadata() {
++        NBTTagCompound compound = new NBTTagCompound();
++        compound.map = basePersistent.getMetadata();
++        return compound;
++    }
++
++    public NBTTagCompound serializeTemporaryMetadata() {
++        NBTTagCompound compound = new NBTTagCompound();
++        compound.map = baseTemporary.getMetadata();
++        return compound;
++    }
++
++    public void load(NBTTagCompound metadata, @Nullable NBTTagCompound metadataMetadata) {
++        basePersistent = (NBTMetadataMap) factory.fromNBT(metadata, MetadataType.MAP, metadataMetadata == null ? ImmutableMap.of() : ImmutableMap.copyOf(metadataMetadata.map));
++    }
++
++    public void loadTemporary(NBTTagCompound metadata, @Nullable NBTTagCompound metadataMetadata) {
++        baseTemporary = (NBTMetadataMap) factory.fromNBT(metadata, MetadataType.MAP, metadataMetadata == null ? ImmutableMap.of() : ImmutableMap.copyOf(metadataMetadata.map));
++    }
++
++    public void clear() {
++        baseTemporary = factory.createMetadataMap(ImmutableMap.of());
++        basePersistent = factory.createMetadataMap(ImmutableMap.of());
++    }
++
++    public void copyFrom(NBTMetadataHolder other) {
++        this.basePersistent = other.basePersistent;
++        this.baseTemporary = other.baseTemporary;
++    }
++
++    public void setBaseTemporary(NBTMetadataMap temporaryBase) {
++        this.baseTemporary = checkNotNull(temporaryBase);
++    }
++
++    public void setBasePersistent(NBTMetadataMap temporaryBase) {
++        this.basePersistent = checkNotNull(temporaryBase);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataMap.java b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataMap.java
+new file mode 100644
+index 0000000..25475a3
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataMap.java
+@@ -0,0 +1,50 @@
++package net.techcable.tacospigot.metadata;
++
++import java.util.function.BiConsumer;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTTagCompound;
++import net.techcable.tacospigot.metadata.deserialize.CompoundDeserializer;
++
++public final class NBTMetadataMap extends NBTMetadata<NBTTagCompound, ImmutableMap<String, Metadata>> implements MetadataMap {
++    private final ImmutableMap<String, NBTMetadata<?, ?>> map;
++
++    public NBTMetadataMap(NBTMetadataFactory factory, ImmutableMap<String, NBTMetadata<?, ?>> values) {
++        super(factory);
++        this.map = Preconditions.checkNotNull(values, "Null map");
++    }
++
++    @Override
++    public MetadataType getType() {
++        return MetadataType.MAP;
++    }
++
++    @Override
++    @SuppressWarnings("unchecked") // Safe because it's immutable
++    public ImmutableMap<String, Metadata> getValue() {
++        return (ImmutableMap) map;
++    }
++
++    @Override
++    public ImmutableMap<String, NBTBase> getMetadata() {
++        NBTTagCompound entryMetadata = new NBTTagCompound();
++        map.forEach((name, value) -> {
++            NBTTagCompound nbtMetadata = new NBTTagCompound();
++            nbtMetadata.map = value.getMetadata();
++            if (!nbtMetadata.isEmpty()) {
++                entryMetadata.set(name, nbtMetadata);
++            }
++        });
++        return entryMetadata.isEmpty() ? ImmutableMap.of() : ImmutableMap.of(CompoundDeserializer.ENTRY_METADATA_METADATA_KEY, entryMetadata);
++    }
++
++    @Override
++    protected NBTTagCompound serialize() {
++        NBTTagCompound compound = new NBTTagCompound();
++        map.forEach((name, value) -> compound.set(name, value.getNbt()));
++        return compound;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataString.java b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataString.java
+new file mode 100644
+index 0000000..286d9c0
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/NBTMetadataString.java
+@@ -0,0 +1,27 @@
++package net.techcable.tacospigot.metadata;
++
++import net.minecraft.server.NBTTagString;
++
++public class NBTMetadataString extends NBTMetadata<NBTTagString, String> implements MetadataString {
++    private final String value;
++
++    public NBTMetadataString(NBTMetadataFactory factory, String value) {
++        super(factory);
++        this.value = value;
++    }
++
++    @Override
++    protected NBTTagString serialize() {
++        return new NBTTagString();
++    }
++
++    @Override
++    public MetadataType getType() {
++        return MetadataType.STRING;
++    }
++
++    @Override
++    public String getValue() {
++        return value;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/deserialize/ByteArrayDeserializer.java b/src/main/java/net/techcable/tacospigot/metadata/deserialize/ByteArrayDeserializer.java
+new file mode 100644
+index 0000000..3d5b7db
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/deserialize/ByteArrayDeserializer.java
+@@ -0,0 +1,42 @@
++package net.techcable.tacospigot.metadata.deserialize;
++
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTTagByte;
++import net.minecraft.server.NBTTagByteArray;
++import net.techcable.tacospigot.metadata.list.BooleanNBTMetadataList;
++import net.techcable.tacospigot.metadata.list.ByteNBTMetadataList;
++import net.techcable.tacospigot.metadata.MetadataDeserializer;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++import static net.techcable.tacospigot.metadata.deserialize.ByteDeserializer.*;
++
++@ParametersAreNonnullByDefault
++public class ByteArrayDeserializer implements MetadataDeserializer<NBTTagByteArray> {
++    private static final String TYPE_ID_METADATA_KEY = "type";
++    private static final NBTTagByte DEFAULT_TYPE_ID_METADATA = new NBTTagByte(DEFAULT_TYPE_ID);
++
++    @Override
++    public NBTMetadata<NBTTagByteArray, ?> deserialize(NBTMetadataFactory factory, NBTTagByteArray nbt, @Nullable MetadataType metadataType, ImmutableMap<String, NBTBase> metadata) {
++        int typeId = ((NBTBase.NBTNumber) metadata.getOrDefault(TYPE_ID_METADATA_KEY, DEFAULT_TYPE_ID_METADATA)).asInt();
++        byte[] value = (nbt).c();
++        switch (typeId) {
++            case BYTE_TYPE_ID:
++                return new ByteNBTMetadataList(factory, value);
++            case BOOLEAN_TYPE_ID:
++                boolean[] booleans = new boolean[value.length];
++                for (int i = 0; i < value.length; i++) {
++                    booleans[i] = value[i] != 0;
++                }
++                return new BooleanNBTMetadataList(factory, booleans);
++            default:
++                throw new IllegalArgumentException("Invalid typeId: " + typeId);
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/deserialize/ByteDeserializer.java b/src/main/java/net/techcable/tacospigot/metadata/deserialize/ByteDeserializer.java
+new file mode 100644
+index 0000000..bca3309
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/deserialize/ByteDeserializer.java
+@@ -0,0 +1,50 @@
++package net.techcable.tacospigot.metadata.deserialize;
++
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTTagByte;
++import net.techcable.tacospigot.metadata.MetadataDeserializer;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataBoolean;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++import net.techcable.tacospigot.metadata.number.NBTMetadataByte;
++
++@ParametersAreNonnullByDefault
++public class ByteDeserializer implements MetadataDeserializer<NBTTagByte> {
++    public static final byte BYTE_TYPE_ID = 0;
++    public static final byte BOOLEAN_TYPE_ID = 1;
++    public static final byte DEFAULT_TYPE_ID = BYTE_TYPE_ID;
++    public static final String TYPE_ID_METADATA_KEY = "type";
++    private static final NBTTagByte DEFAULT_TYPE_ID_METADATA = new NBTTagByte(DEFAULT_TYPE_ID);
++
++    @Override
++    public NBTMetadata<NBTTagByte, ?> deserialize(NBTMetadataFactory factory, NBTTagByte nbt, @Nullable MetadataType metadataType, ImmutableMap<String, NBTBase> metadata) {
++        if (metadataType == null) {
++            int typeId = ((NBTBase.NBTNumber) metadata.getOrDefault(TYPE_ID_METADATA_KEY, DEFAULT_TYPE_ID_METADATA)).asInt();
++            switch (typeId) {
++                case BYTE_TYPE_ID:
++                    metadataType = MetadataType.BYTE;
++                    break;
++                case BOOLEAN_TYPE_ID:
++                    metadataType = MetadataType.BOOLEAN;
++                    break;
++                default:
++                    throw new IllegalArgumentException("Invalid typeId: " + typeId);
++            }
++        }
++        byte value = nbt.asByte();
++        switch (metadataType) {
++            case BYTE:
++                return new NBTMetadataByte(factory, value);
++            case BOOLEAN:
++                return new NBTMetadataBoolean(factory, value != 0);
++            default:
++                throw new IllegalArgumentException("Invalid metadata type for byte: " + metadataType);
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/deserialize/CompoundDeserializer.java b/src/main/java/net/techcable/tacospigot/metadata/deserialize/CompoundDeserializer.java
+new file mode 100644
+index 0000000..7bbdaca
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/deserialize/CompoundDeserializer.java
+@@ -0,0 +1,31 @@
++package net.techcable.tacospigot.metadata.deserialize;
++
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTTagCompound;
++import net.techcable.tacospigot.metadata.MetadataDeserializer;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++import net.techcable.tacospigot.metadata.NBTMetadataMap;
++
++@ParametersAreNonnullByDefault
++public class CompoundDeserializer implements MetadataDeserializer<NBTTagCompound> {
++    public static final String ENTRY_METADATA_METADATA_KEY = "entry-metadata";
++    private static final NBTTagCompound EMPTY_COMPOUND = new NBTTagCompound();
++
++    @Override
++    public NBTMetadata<NBTTagCompound, ?> deserialize(NBTMetadataFactory factory, NBTTagCompound nbt, @Nullable MetadataType metadataType, ImmutableMap<String, NBTBase> metadata) {
++        ImmutableMap.Builder<String, NBTMetadata<?, ?>> builder = ImmutableMap.builder();
++        NBTTagCompound entryMetadataNBT = (NBTTagCompound) metadata.getOrDefault(ENTRY_METADATA_METADATA_KEY, EMPTY_COMPOUND);
++        nbt.map.forEach((name, value) -> {
++            ImmutableMap<String, NBTBase> entryMetadata = ImmutableMap.copyOf(((NBTTagCompound) entryMetadataNBT.map.getOrDefault(name, EMPTY_COMPOUND)).map);
++            builder.put(name, factory.fromNBT(value, null, entryMetadata));
++        });
++        return new NBTMetadataMap(factory, builder.build());
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/deserialize/ListDeserializer.java b/src/main/java/net/techcable/tacospigot/metadata/deserialize/ListDeserializer.java
+new file mode 100644
+index 0000000..84ae8d4
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/deserialize/ListDeserializer.java
+@@ -0,0 +1,44 @@
++package net.techcable.tacospigot.metadata.deserialize;
++
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTTagList;
++import net.techcable.tacospigot.NBTType;
++import net.techcable.tacospigot.metadata.MetadataDeserializer;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++import net.techcable.tacospigot.metadata.list.RegularNBTMetadataList;
++
++import static com.google.common.base.Preconditions.*;
++
++@ParametersAreNonnullByDefault
++public class ListDeserializer implements MetadataDeserializer<NBTTagList> {
++    public static final String ELEMENT_METADATA_METADATA_KEY = "element-metadata";
++
++    @SuppressWarnings("unchecked")
++    @Override
++    public NBTMetadata<NBTTagList, ?> deserialize(NBTMetadataFactory factory, NBTTagList nbt, @Nullable MetadataType metadataType, ImmutableMap<String, NBTBase> metadata) {
++        NBTTagList elementMetadataNBT = (NBTTagList) metadata.get(ELEMENT_METADATA_METADATA_KEY);
++        checkArgument(metadataType == null || metadataType == MetadataType.LIST, "Metadata type %s isn't a list", metadataType);
++        if (elementMetadataNBT != null) {
++            checkArgument(elementMetadataNBT.size() == nbt.size(), "Element metadata size %s doesn't equal value size %s", elementMetadataNBT.size(), nbt.size());
++            NBTType elementNbtType = NBTType.getById(elementMetadataNBT.getTypeId());
++            checkArgument(elementNbtType == NBTType.TAG_COMPOUND, "Element nbt type %s isn't a COMPOUND", elementNbtType);
++        }
++        ImmutableList.Builder<NBTMetadata<?, ?>> listBuilder = ImmutableList.builder();
++        for (int i = 0; i < nbt.list.size(); i++) {
++            ImmutableMap<String, NBTBase> elementMetadata = elementMetadataNBT == null ? ImmutableMap.of() : ImmutableMap.copyOf(elementMetadataNBT.get(i).map);
++            NBTBase elementNbt = nbt.list.get(i);
++            NBTMetadata<?, ?> element = factory.fromNBT(elementNbt, null, elementMetadata);
++            listBuilder.add(element);
++        }
++        ImmutableList<NBTMetadata<?, ?>> list = listBuilder.build();
++        return new RegularNBTMetadataList(factory, list, list.isEmpty() ? MetadataType.NULL : list.get(0).getType());
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/list/BooleanNBTMetadataList.java b/src/main/java/net/techcable/tacospigot/metadata/list/BooleanNBTMetadataList.java
+new file mode 100644
+index 0000000..782b0ef
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/list/BooleanNBTMetadataList.java
+@@ -0,0 +1,75 @@
++package net.techcable.tacospigot.metadata.list;
++
++import java.util.function.Consumer;
++
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.ImmutableList;
++
++import net.minecraft.server.NBTTagByteArray;
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataList;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataBoolean;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++import static com.google.common.base.Preconditions.*;
++
++@ParametersAreNonnullByDefault
++public class BooleanNBTMetadataList extends NBTMetadataList<NBTTagByteArray, Boolean> {
++    private final boolean[] booleans;
++
++    public BooleanNBTMetadataList(NBTMetadataFactory factory, ImmutableList<Metadata<Boolean>> booleanMetadata) {
++        super(factory);
++        checkNotNull(booleanMetadata, "Null boolean metadata");
++        this.booleans = new boolean[booleanMetadata.size()];
++        for (int i = 0; i < booleanMetadata.size(); i++) {
++            booleans[i] = booleanMetadata.get(i).getValue();
++        }
++    }
++
++    public BooleanNBTMetadataList(NBTMetadataFactory factory, boolean[] bytes) {
++        super(factory);
++        this.booleans = checkNotNull(bytes, "Null booleans");
++    }
++
++    @Override
++    protected NBTTagByteArray serialize() {
++        byte[] bytes = new byte[booleans.length];
++        for (int i = 0; i < booleans.length; i++) {
++            bytes[i] = (byte) (booleans[i] ? 1 : 0);
++        }
++        return new NBTTagByteArray(bytes);
++    }
++
++    @Override
++    public MetadataType getElementType() {
++        return MetadataType.BOOLEAN;
++    }
++
++    @Override
++    public Boolean getValue(int index) {
++        Preconditions.checkElementIndex(index, booleans.length);
++        return booleans[index];
++    }
++
++    @Override
++    public void forEachValue(Consumer<? super Boolean> action) {
++        for (boolean b : booleans) {
++            action.accept(b);
++        }
++    }
++
++    @Override
++    public ImmutableList<Metadata<Boolean>> getValue() {
++        @SuppressWarnings("unchecked") // Tell me when you have generic arrays :)
++        Metadata<Boolean>[] result = new Metadata[booleans.length];
++        for (int i = 0; i < booleans.length; i++) {
++            boolean b = booleans[i];
++            result[i] = new NBTMetadataBoolean(getFactory(), b);
++        }
++        return ImmutableList.copyOf(result);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/list/ByteNBTMetadataList.java b/src/main/java/net/techcable/tacospigot/metadata/list/ByteNBTMetadataList.java
+new file mode 100644
+index 0000000..91d1fbd
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/list/ByteNBTMetadataList.java
+@@ -0,0 +1,68 @@
++package net.techcable.tacospigot.metadata.list;
++
++import java.util.function.Consumer;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.ImmutableList;
++
++import net.minecraft.server.NBTTagByteArray;
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++import net.techcable.tacospigot.metadata.number.NBTMetadataByte;
++
++import static com.google.common.base.Preconditions.*;
++
++@ParametersAreNonnullByDefault
++public class ByteNBTMetadataList extends NBTMetadataList<NBTTagByteArray, Byte> {
++    private final byte[] bytes;
++
++    public ByteNBTMetadataList(NBTMetadataFactory factory, ImmutableList<Metadata<Byte>> byteMetadata) {
++        super(factory);
++        checkNotNull(byteMetadata, "Null byte metadata");
++        this.bytes = new byte[byteMetadata.size()];
++        for (int i = 0; i < byteMetadata.size(); i++) {
++            bytes[i] = byteMetadata.get(i).getValue();
++        }
++    }
++
++    public ByteNBTMetadataList(NBTMetadataFactory factory, byte[] bytes) {
++        super(factory);
++        this.bytes = checkNotNull(bytes, "Null bytes");
++    }
++
++    @Override
++    protected NBTTagByteArray serialize() {
++        return new NBTTagByteArray(bytes.clone());
++    }
++
++    @Override
++    public MetadataType getElementType() {
++        return MetadataType.BYTE;
++    }
++
++    @Override
++    public Byte getValue(int index) {
++        Preconditions.checkElementIndex(index, bytes.length);
++        return bytes[index];
++    }
++
++    @Override
++    public void forEachValue(Consumer<? super Byte> action) {
++        for (byte b : bytes) {
++            action.accept(b);
++        }
++    }
++
++    @Override
++    @SuppressWarnings("unchecked") // Tell me when you have generic arrays :)
++    public ImmutableList<Metadata<Byte>> getValue() {
++        Metadata<Byte>[] result = new Metadata[bytes.length];
++        for (int i = 0; i < bytes.length; i++) {
++            byte b = bytes[i];
++            result[i] = new NBTMetadataByte(getFactory(), b);
++        }
++        return ImmutableList.copyOf(result);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/list/IntegerNBTMetadataList.java b/src/main/java/net/techcable/tacospigot/metadata/list/IntegerNBTMetadataList.java
+new file mode 100644
+index 0000000..7b80577
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/list/IntegerNBTMetadataList.java
+@@ -0,0 +1,68 @@
++package net.techcable.tacospigot.metadata.list;
++
++import java.util.function.Consumer;
++
++import com.google.common.base.Preconditions;
++import com.google.common.collect.ImmutableList;
++
++import net.minecraft.server.NBTTagIntArray;
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataList;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++import net.techcable.tacospigot.metadata.number.NBTMetadataInteger;
++
++import static com.google.common.base.Preconditions.*;
++
++public class IntegerNBTMetadataList extends NBTMetadataList<NBTTagIntArray, Integer> {
++    private final int[] ints;
++
++    public IntegerNBTMetadataList(NBTMetadataFactory factory, ImmutableList<Metadata<Integer>> integerMetadata) {
++        super(factory);
++        checkNotNull(integerMetadata, "Null int metadata");
++        this.ints = new int[integerMetadata.size()];
++        for (int i = 0; i < integerMetadata.size(); i++) {
++            ints[i] = integerMetadata.get(i).getValue();
++        }
++    }
++
++    public IntegerNBTMetadataList(NBTMetadataFactory factory, int[] ints) {
++        super(factory);
++        this.ints = checkNotNull(ints, "Null ints");
++    }
++
++    @Override
++    protected NBTTagIntArray serialize() {
++        return new NBTTagIntArray(ints.clone());
++    }
++
++    @Override
++    public MetadataType getElementType() {
++        return MetadataType.INTEGER;
++    }
++
++    @Override
++    public Integer getValue(int index) {
++        Preconditions.checkElementIndex(index, ints.length);
++        return ints[index];
++    }
++
++    @Override
++    public void forEachValue(Consumer<? super Integer> action) {
++        for (int i : ints) {
++            action.accept(i);
++        }
++    }
++
++    @Override
++    public ImmutableList<Metadata<Integer>> getValue() {
++        @SuppressWarnings("unchecked") // Tell me when you have generic arrays :)
++        Metadata<Integer>[] result = new Metadata[ints.length];
++        for (int index = 0; index < ints.length; index++) {
++            int value = ints[index];
++            result[index] = new NBTMetadataInteger(getFactory(), value);
++        }
++        return ImmutableList.copyOf(result);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/list/NBTMetadataList.java b/src/main/java/net/techcable/tacospigot/metadata/list/NBTMetadataList.java
+new file mode 100644
+index 0000000..01b4a46
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/list/NBTMetadataList.java
+@@ -0,0 +1,16 @@
++package net.techcable.tacospigot.metadata.list;
++
++import com.google.common.collect.ImmutableList;
++
++import net.minecraft.server.NBTBase;
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataList;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++public abstract class NBTMetadataList<N extends NBTBase, T> extends NBTMetadata<N, ImmutableList<Metadata<T>>> implements MetadataList<T> {
++
++    protected NBTMetadataList(NBTMetadataFactory factory) {
++        super(factory);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/list/RegularNBTMetadataList.java b/src/main/java/net/techcable/tacospigot/metadata/list/RegularNBTMetadataList.java
+new file mode 100644
+index 0000000..edeb486
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/list/RegularNBTMetadataList.java
+@@ -0,0 +1,80 @@
++package net.techcable.tacospigot.metadata.list;
++
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.minecraft.server.NBTTagCompound;
++import net.minecraft.server.NBTTagList;
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++import net.techcable.tacospigot.metadata.deserialize.ListDeserializer;
++
++import static com.google.common.base.Preconditions.*;
++
++@ParametersAreNonnullByDefault
++public class RegularNBTMetadataList<T> extends NBTMetadataList<NBTTagList, T> {
++    private final MetadataType elementType;
++    private final ImmutableList<NBTMetadata<?, T>> values;
++
++    public RegularNBTMetadataList(NBTMetadataFactory factory, ImmutableList<NBTMetadata<?, T>> values, @Nullable MetadataType elementType) {
++        super(factory);
++        if (values.isEmpty()) {
++            checkArgument(elementType == null, "Element type should be null for an empty list, not %s", elementType);
++        } else {
++            checkNotNull(elementType, "Element type can only be null for an empty list");
++        }
++        this.elementType = elementType;
++        this.values = checkNotNull(values, "Null list");
++        for (NBTMetadata<?, T> value : values) {
++            MetadataType valueType = value.getType();
++            checkArgument(valueType == elementType, "Type %s doesnt match the element type %s", valueType, elementType);
++        }
++    }
++
++    @Override
++    protected NBTTagList serialize() {
++        NBTTagList list = new NBTTagList();
++        values.stream()
++                .map(NBTMetadata.class::cast)
++                .map(NBTMetadata::getNbt)
++                .forEach(list::add);
++        return list;
++    }
++
++    @Override
++    public ImmutableMap<String, NBTBase> getMetadata() {
++        ImmutableList.Builder<NBTBase> elementMetadataBuilder = ImmutableList.builder();
++        boolean elementMetadataNeeded = false;
++        for (NBTMetadata<?, T> value : values) {
++            NBTTagCompound elementMetadata = new NBTTagCompound();
++            elementMetadata.map = value.getMetadata();;
++            elementMetadataBuilder.add(elementMetadata);
++            elementMetadataNeeded |= !elementMetadata.isEmpty();
++        }if (elementMetadataNeeded) {
++            NBTTagList elementMetadataNBT = new NBTTagList();
++            elementMetadataNBT.list = elementMetadataBuilder.build();
++            return ImmutableMap.of(
++                    ListDeserializer.ELEMENT_METADATA_METADATA_KEY, elementMetadataNBT
++            );
++        } else {
++            return ImmutableMap.of();
++        }
++    }
++
++    @Override
++    public MetadataType getElementType() {
++        return elementType;
++    }
++
++    @Override
++    @SuppressWarnings("unchecked") // It is safe since the list is immutable
++    public ImmutableList<Metadata<T>> getValue() {
++        return (ImmutableList) values;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataByte.java b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataByte.java
+new file mode 100644
+index 0000000..f889b26
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataByte.java
+@@ -0,0 +1,39 @@
++package net.techcable.tacospigot.metadata.number;
++
++import net.minecraft.server.NBTTagByte;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++public class NBTMetadataByte extends NBTMetadataNumber<NBTTagByte, Byte> {
++    private final byte value;
++
++    public NBTMetadataByte(NBTMetadataFactory factory, byte value) {
++        super(factory);
++        this.value = value;
++    }
++
++    @Override
++    public Byte getValue() {
++        return value;
++    }
++
++    @Override
++    public double asDouble() {
++        return value;
++    }
++
++    @Override
++    public long asLong() {
++        return value;
++    }
++
++    @Override
++    protected NBTTagByte serialize() {
++        return new NBTTagByte(value);
++    }
++
++    @Override
++    public MetadataType getType() {
++        return MetadataType.BYTE;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataDouble.java b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataDouble.java
+new file mode 100644
+index 0000000..00fd007
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataDouble.java
+@@ -0,0 +1,40 @@
++package net.techcable.tacospigot.metadata.number;
++
++import net.minecraft.server.NBTTagDouble;
++import net.minecraft.server.NBTTagLong;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++public class NBTMetadataDouble extends NBTMetadataNumber<NBTTagDouble, Double> {
++    private final double value;
++
++    public NBTMetadataDouble(NBTMetadataFactory factory, double value) {
++        super(factory);
++        this.value = value;
++    }
++
++    @Override
++    public Double getValue() {
++        return value;
++    }
++
++    @Override
++    public double asDouble() {
++        return value;
++    }
++
++    @Override
++    public long asLong() {
++        return (long) value;
++    }
++
++    @Override
++    protected NBTTagDouble serialize() {
++        return new NBTTagDouble(value);
++    }
++
++    @Override
++    public MetadataType getType() {
++        return MetadataType.DOUBLE;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataFloat.java b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataFloat.java
+new file mode 100644
+index 0000000..6d8796e
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataFloat.java
+@@ -0,0 +1,45 @@
++package net.techcable.tacospigot.metadata.number;
++
++import net.minecraft.server.NBTTagDouble;
++import net.minecraft.server.NBTTagFloat;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++public class NBTMetadataFloat extends NBTMetadataNumber<NBTTagFloat, Float> {
++    private final float value;
++
++    public NBTMetadataFloat(NBTMetadataFactory factory, float value) {
++        super(factory);
++        this.value = value;
++    }
++
++    @Override
++    public Float getValue() {
++        return value;
++    }
++
++    @Override
++    public float asFloat() {
++        return value;
++    }
++
++    @Override
++    public double asDouble() {
++        return value;
++    }
++
++    @Override
++    public long asLong() {
++        return (long) value;
++    }
++
++    @Override
++    protected NBTTagFloat serialize() {
++        return new NBTTagFloat(value);
++    }
++
++    @Override
++    public MetadataType getType() {
++        return MetadataType.DOUBLE;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataInteger.java b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataInteger.java
+new file mode 100644
+index 0000000..b4af07d
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataInteger.java
+@@ -0,0 +1,45 @@
++package net.techcable.tacospigot.metadata.number;
++
++import net.minecraft.server.NBTTagInt;
++import net.minecraft.server.NBTTagShort;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++public class NBTMetadataInteger extends NBTMetadataNumber<NBTTagInt, Integer> {
++    private final int value;
++
++    public NBTMetadataInteger(NBTMetadataFactory factory, int value) {
++        super(factory);
++        this.value = value;
++    }
++
++    @Override
++    public Integer getValue() {
++        return value;
++    }
++
++    @Override
++    public int asInt() {
++        return value;
++    }
++
++    @Override
++    public double asDouble() {
++        return value;
++    }
++
++    @Override
++    public long asLong() {
++        return value;
++    }
++
++    @Override
++    protected NBTTagInt serialize() {
++        return new NBTTagInt(value);
++    }
++
++    @Override
++    public MetadataType getType() {
++        return MetadataType.INTEGER;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataLong.java b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataLong.java
+new file mode 100644
+index 0000000..e31cb72
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataLong.java
+@@ -0,0 +1,40 @@
++package net.techcable.tacospigot.metadata.number;
++
++import net.minecraft.server.NBTTagInt;
++import net.minecraft.server.NBTTagLong;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++public class NBTMetadataLong extends NBTMetadataNumber<NBTTagLong, Long> {
++    private final long value;
++
++    public NBTMetadataLong(NBTMetadataFactory factory, long value) {
++        super(factory);
++        this.value = value;
++    }
++
++    @Override
++    public Long getValue() {
++        return value;
++    }
++
++    @Override
++    public double asDouble() {
++        return value;
++    }
++
++    @Override
++    public long asLong() {
++        return value;
++    }
++
++    @Override
++    protected NBTTagLong serialize() {
++        return new NBTTagLong(value);
++    }
++
++    @Override
++    public MetadataType getType() {
++        return MetadataType.LONG;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataNumber.java b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataNumber.java
+new file mode 100644
+index 0000000..637c6df
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataNumber.java
+@@ -0,0 +1,33 @@
++package net.techcable.tacospigot.metadata.number;
++
++import java.util.function.BiFunction;
++import java.util.function.Function;
++
++import com.google.common.collect.ImmutableMap;
++
++import net.minecraft.server.NBTBase;
++import net.techcable.tacospigot.metadata.MetadataNumber;
++import net.techcable.tacospigot.metadata.NBTMetadata;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++public abstract class NBTMetadataNumber<N extends NBTBase.NBTNumber, T extends Number> extends NBTMetadata<N, T> implements MetadataNumber<T> {
++    protected NBTMetadataNumber(NBTMetadataFactory factory) {
++        super(factory);
++    }
++
++    @Override
++    public int asInt() {
++        return (int) asLong();
++    }
++
++    @Override
++    public float asFloat() {
++        return (float) asDouble();
++    }
++
++    @Override
++    public abstract double asDouble();
++
++    @Override
++    public abstract long asLong();
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataShort.java b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataShort.java
+new file mode 100644
+index 0000000..cb9c96b
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/number/NBTMetadataShort.java
+@@ -0,0 +1,44 @@
++package net.techcable.tacospigot.metadata.number;
++
++import net.minecraft.server.NBTTagShort;
++import net.techcable.tacospigot.metadata.MetadataType;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++
++public class NBTMetadataShort extends NBTMetadataNumber<NBTTagShort, Short> {
++    private final short value;
++
++    public NBTMetadataShort(NBTMetadataFactory factory, short value) {
++        super(factory);
++        this.value = value;
++    }
++
++    @Override
++    public Short getValue() {
++        return value;
++    }
++
++    @Override
++    public int asInt() {
++        return value;
++    }
++
++    @Override
++    public double asDouble() {
++        return value;
++    }
++
++    @Override
++    public long asLong() {
++        return value;
++    }
++
++    @Override
++    protected NBTTagShort serialize() {
++        return new NBTTagShort(value);
++    }
++
++    @Override
++    public MetadataType getType() {
++        return MetadataType.SHORT;
++    }
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
+index 4521786..5e00f01 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftOfflinePlayer.java
+@@ -21,6 +21,14 @@ import org.bukkit.configuration.serialization.SerializableAs;
+ import org.bukkit.entity.Player;
+ import org.bukkit.metadata.MetadataValue;
+ import org.bukkit.plugin.Plugin;
++// TacoSpigot start
++import co.aikar.timings.MinecraftTimings;
++
++import com.google.common.base.Preconditions;
++
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.NBTMetadataHolder;
++// TacoSpigot end
+ 
+ @SerializableAs("Player")
+ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializable {
+@@ -32,7 +40,7 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+         this.server = server;
+         this.profile = profile;
+         this.storage = (WorldNBTStorage) (server.console.worlds.get(0).getDataManager());
+-
++        this.metadataHolder =  new NBTMetadataHolder(server.getMetadataFactory()); // TacoSpigot
+     }
+ 
+     public GameProfile getProfile() {
+@@ -258,4 +266,52 @@ public class CraftOfflinePlayer implements OfflinePlayer, ConfigurationSerializa
+     public void removeMetadata(String metadataKey, Plugin plugin) {
+         server.getPlayerMetadata().removeMetadata(this, metadataKey, plugin);
+     }
++
++    // TacoSpigot start
++    private final NBTMetadataHolder metadataHolder;
++
++    @Override
++    public void setPersistentMetadata(String name, Metadata value) {
++        loadMetadata(true);
++        metadataHolder.setPersistent(name, value);
++        save();
++    }
++
++    @Override
++    public Metadata getMeta(String name) {
++        loadMetadata(false);
++        return metadataHolder.get(name);
++    }
++
++    @Override
++    public void removeMetadata(String name) {
++        loadMetadata(true);
++        metadataHolder.removeMetadata(name);
++        save();
++    }
++
++    private boolean loaded;
++
++    private void loadMetadata(boolean force) {
++        if (!loaded || force) {
++            MinecraftTimings.offlinePlayerPersistentMetadataIOTimer.startTiming();
++            Preconditions.checkState(Bukkit.isPrimaryThread(), "Can only load on main thread");
++            NBTTagCompound metadataMetadata = getData().getCompound("TacoSpigot.metadata.metadata");
++            NBTTagCompound metadata = getData().getCompound("TacoSpigot.metadata");
++            metadataHolder.load(metadata, metadataMetadata);
++            loaded = true;
++            MinecraftTimings.offlinePlayerPersistentMetadataIOTimer.stopTiming();
++        }
++    }
++
++    private void save() {
++        MinecraftTimings.offlinePlayerPersistentMetadataIOTimer.startTiming();
++        Preconditions.checkState(Bukkit.isPrimaryThread(), "Can only save on main thread");
++        NBTTagCompound nbt = getData();
++        nbt.set("TacoSpigot.metadata.metadata", metadataHolder.serializeMetadata());
++        nbt.set("TacoSpigot.metadata", metadataHolder.serialize());
++        storage.savePlayerData(nbt, getUniqueId().toString(), getName());
++        MinecraftTimings.offlinePlayerPersistentMetadataIOTimer.stopTiming();
++    }
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index e7a5a09..a223c8e 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -123,6 +123,9 @@ import io.netty.handler.codec.base64.Base64;
+ import jline.console.ConsoleReader;
+ import org.bukkit.event.server.TabCompleteEvent;
+ import net.md_5.bungee.api.chat.BaseComponent;
++// TacoSpigot start
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++// TacoSpigot end
+ 
+ public final class CraftServer implements Server {
+     private static final Player[] EMPTY_PLAYER_ARRAY = new Player[0];
+@@ -1878,4 +1881,13 @@ public final class CraftServer implements Server {
+         return entity.getBukkitEntity();
+     }
+     // Paper end
++
++    // TacoSpigot start
++    private final NBTMetadataFactory metadataFactory = new NBTMetadataFactory();
++
++    @Override
++    public NBTMetadataFactory getMetadataFactory() {
++        return metadataFactory;
++    }
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+index 43f2c68..5d31180 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
+@@ -6,6 +6,7 @@ import java.util.Set;
+ import java.util.UUID;
+ 
+ import net.minecraft.server.*;
++import net.techcable.tacospigot.metadata.Metadata;
+ 
+ import org.bukkit.EntityEffect;
+ import org.bukkit.Location;
+@@ -639,4 +640,26 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+         return origin == null ? null : origin.clone();
+     }
+     // Paper end
++
++    // TacoSpigot start
++    @Override
++    public void setTemporaryMetadata(String name, Metadata metadata) {
++        getHandle().metadataHolder.setTemporary(name, metadata);
++    }
++
++    @Override
++    public void setPersistentMetadata(String name, Metadata metadata) {
++        getHandle().metadataHolder.setPersistent(name, metadata);
++    }
++
++    @Override
++    public Metadata getMeta(String name) {
++        return getHandle().metadataHolder.get(name);
++    }
++
++    @Override
++    public void removeMetadata(String name) {
++        getHandle().metadataHolder.removeMetadata(name);
++    }
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+index 94f2ba0..320c3b7 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+@@ -54,6 +54,13 @@ import static org.spigotmc.ValidateUtils.*;
+ import net.minecraft.server.GenericAttributes;
+ import net.minecraft.server.IAttribute;
+ // Spigot end
++// TacoSpigot start
++import org.bukkit.Bukkit;
++
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.NBTMetadataFactory;
++import net.techcable.tacospigot.metadata.NBTMetadataHolder;
++// TacoSpigot end
+ 
+ /**
+  * Children must include the following:
+@@ -221,6 +228,16 @@ class CraftMetaItem implements ItemMeta, Repairable {
+     static final ItemMetaKey HIDEFLAGS = new ItemMetaKey("HideFlags", "ItemFlags");
+     @Specific(Specific.To.NBT)
+     static final ItemMetaKey UNBREAKABLE = new ItemMetaKey("Unbreakable"); // Spigot
++    // TacoSpigot start
++    @Specific(Specific.To.NBT)
++    static final ItemMetaKey TEMPORARY_METADATA = new ItemMetaKey("TacoSpigot.temp-metadata");
++    @Specific(Specific.To.NBT)
++    static final ItemMetaKey TEMPORARY_METADATA_METADATA = new ItemMetaKey("TacoSpigot.temp-metadata.metadata");
++    @Specific(Specific.To.NBT)
++    static final ItemMetaKey PERSISTENT_METADATA = new ItemMetaKey("TacoSpigot.metadata");
++    @Specific(Specific.To.NBT)
++    static final ItemMetaKey PERSISTENT_METADATA_METADATA = new ItemMetaKey("TacoSpigot.metadata.metadata");
++    // TacoSpigot end
+ 
+     private String displayName;
+     private List<String> lore;
+@@ -251,6 +268,7 @@ class CraftMetaItem implements ItemMeta, Repairable {
+         this.hideFlag = meta.hideFlag;
+         this.unhandledTags.putAll(meta.unhandledTags);
+         spigot.setUnbreakable( meta.spigot.isUnbreakable() ); // Spigot
++        this.metadataHolder.copyFrom(meta.metadataHolder); // TacoSpigot
+     }
+ 
+     CraftMetaItem(NBTTagCompound tag) {
+@@ -457,6 +475,15 @@ class CraftMetaItem implements ItemMeta, Repairable {
+             spigot.setUnbreakable( tag.getBoolean( UNBREAKABLE.NBT ) );
+         }
+         // Spigot end
++
++        // TacoSpigot start
++        if (tag.hasKey(PERSISTENT_METADATA.NBT)) {
++            metadataHolder.load(tag.getCompound(PERSISTENT_METADATA.NBT), tag.getCompound(PERSISTENT_METADATA_METADATA.NBT));
++        }
++        if (tag.hasKey(TEMPORARY_METADATA.NBT)) {
++            metadataHolder.loadTemporary(tag.getCompound(TEMPORARY_METADATA.NBT), tag.getCompound(TEMPORARY_METADATA_METADATA.NBT));
++        }
++        // TacoSpigot end
+     }
+ 
+     static EnchantmentMap buildEnchantments(NBTTagCompound tag, ItemMetaKey key) { // Paper
+@@ -517,6 +544,15 @@ class CraftMetaItem implements ItemMeta, Repairable {
+         }
+         // Spigot end
+ 
++        // TacoSpigot start
++        Map<String, Object> temporaryMetadataMap = SerializableMeta.getObject(Map.class, map, TEMPORARY_METADATA.BUKKIT, true);
++        Map<String, Object> persistentMetadataMap = SerializableMeta.getObject(Map.class, map, PERSISTENT_METADATA.BUKKIT, true);
++        if (temporaryMetadataMap == null) temporaryMetadataMap = ImmutableMap.of();
++        if (persistentMetadataMap == null) persistentMetadataMap = ImmutableMap.of();
++        metadataHolder.setBaseTemporary(metadataHolder.getFactory().createMetadataMapFromSimpleMap(temporaryMetadataMap));
++        metadataHolder.setBasePersistent(metadataHolder.getFactory().createMetadataMapFromSimpleMap(persistentMetadataMap));
++        // TacoSpigot end
++
+         String internal = SerializableMeta.getString(map, "internal", true);
+         if (internal != null) {
+             ByteArrayInputStream buf = new ByteArrayInputStream(Base64.decodeBase64(internal));
+@@ -579,6 +615,12 @@ class CraftMetaItem implements ItemMeta, Repairable {
+         }
+         // Spigot end
+ 
++        // TacoSpigot start
++        itemTag.set(PERSISTENT_METADATA.NBT, metadataHolder.serialize());
++        itemTag.set(PERSISTENT_METADATA_METADATA.NBT, metadataHolder.serializeMetadata());
++        itemTag.set(TEMPORARY_METADATA.NBT, metadataHolder.serializeTemporary());
++        itemTag.set(TEMPORARY_METADATA_METADATA.NBT, metadataHolder.serializeTemporaryMetadata());
++        // TacoSpigot end
+ 
+         if (hasRepairCost()) {
+             itemTag.setInt(REPAIR.NBT, repairCost);
+@@ -967,6 +1009,12 @@ class CraftMetaItem implements ItemMeta, Repairable {
+         synchronized (HANDLED_TAGS) {
+             if (HANDLED_TAGS.isEmpty()) {
+                 HANDLED_TAGS.addAll(Arrays.asList(
++                        // TacoSpigot start
++                        TEMPORARY_METADATA.NBT,
++                        TEMPORARY_METADATA_METADATA.NBT,
++                        PERSISTENT_METADATA.NBT,
++                        PERSISTENT_METADATA_METADATA.NBT,
++                        // TacoSpigot end
+                         UNBREAKABLE.NBT, // Spigot
+                         DISPLAY.NBT,
+                         REPAIR.NBT,
+@@ -1039,4 +1087,28 @@ class CraftMetaItem implements ItemMeta, Repairable {
+         return spigot;
+     }
+     // Spigot end
++
++    // TacoSpigot start
++    private static final NBTMetadataHolder metadataHolder = new NBTMetadataHolder((NBTMetadataFactory) Bukkit.getMetadataFactory());
++
++    @Override
++    public void setTemporaryMetadata(String name, Metadata metadata) {
++        metadataHolder.setTemporary(name, metadata);
++    }
++
++    @Override
++    public void setPersistentMetadata(String name, Metadata metadata) {
++        metadataHolder.setPersistent(name, metadata);
++    }
++
++    @Override
++    public Metadata getMetadata(String name) {
++        return metadataHolder.get(name);
++    }
++
++    @Override
++    public void removeMetadata(String name) {
++        metadataHolder.removeMetadata(name);
++    }
++    // TacoSpigot end
+ }
+-- 
+2.8.3
+

@@ -39,6 +39,7 @@ import BlockStateEnum
 import BlockStateInteger
 import BlockStateList
 import PacketEncoder
+import NBTNumber
 
 (
 	cd Paper/Paper-Server/

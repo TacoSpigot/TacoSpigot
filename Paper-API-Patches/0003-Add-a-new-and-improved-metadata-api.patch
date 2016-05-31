@@ -1,0 +1,1638 @@
+From cc7c90382778f1c3dc3e795f5a9fa8d0fcb98eda Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Fri, 27 May 2016 17:51:50 -0600
+Subject: [PATCH] Add a new and improved metadata api
+
+
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/Metadata.java b/src/main/java/net/techcable/tacospigot/metadata/Metadata.java
+new file mode 100644
+index 0000000..14e01dc
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/Metadata.java
+@@ -0,0 +1,30 @@
++package net.techcable.tacospigot.metadata;
++
++import static com.google.common.base.Preconditions.*;
++
++/**
++ * An immutable piece of metadata
++ */
++public interface Metadata<T> {
++
++    /**
++     * Get the type of the metadata
++     *
++     * @return the type of the metadata
++     */
++    public MetadataType getType();
++
++    /**
++     * Get the value of the metadata as a plain object
++     *
++     * @return the value
++     */
++    public T getValue();
++
++    /**
++     * Get the metadata factory where the metadata was constructed
++     *
++     * @return the factory
++     */
++    public MetadataFactory getFactory();
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataBoolean.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataBoolean.java
+new file mode 100644
+index 0000000..4270b46
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataBoolean.java
+@@ -0,0 +1,28 @@
++package net.techcable.tacospigot.metadata;
++
++import org.bukkit.Bukkit;
++
++/**
++ * A metadata boolean.
++ */
++public interface MetadataBoolean extends MetadataPrimitive<Boolean> {
++    public static final MetadataType TYPE = MetadataType.BOOLEAN;
++    public static final MetadataBoolean TRUE = Bukkit.getMetadataFactory().createMetadataBoolean(true);
++    public static final MetadataBoolean FALSE = Bukkit.getMetadataFactory().createMetadataBoolean(false);
++
++    /**
++     * {@inheritDoc}
++     * <p>Always returns {@link MetadataType#BOOLEAN}</p>
++     *
++     * @return {@link MetadataType#BOOLEAN}
++     */
++    public default MetadataType getType() {
++        return TYPE;
++    }
++
++    public Boolean getValue();
++
++    public static MetadataBoolean create(boolean b) {
++        return b ? TRUE : FALSE;
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataFactory.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataFactory.java
+new file mode 100644
+index 0000000..a2b1625
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataFactory.java
+@@ -0,0 +1,191 @@
++package net.techcable.tacospigot.metadata;
++
++import java.util.List;
++import java.util.Map;
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableList;
++
++import static com.google.common.base.Preconditions.*;
++
++/**
++ * A factory to create {@link Metadata}
++ */
++@ParametersAreNonnullByDefault
++public interface MetadataFactory {
++
++    /**
++     * Create a {@link MetadataMap} with the given mappings
++     *
++     * @param map        the map to copy mappings from
++     * @return a new metadata map with the given elements
++     * @throws NullPointerException     if the map is null, contains null keys, or contains null values
++     * @throws IllegalArgumentException if any of the keys in the map have invalid names
++     */
++    public MetadataMap createMetadataMap(Map<String, Metadata> map);
++
++    /**
++     * Create a {@link MetadataMap} with the given mappings
++     *
++     * @param map        the map to copy mappings from
++     * @return a new metadata map with the given elements
++     * @throws NullPointerException     if the map is null, contains null keys, or contains null values
++     * @throws IllegalArgumentException if any of the keys in the map have invalid names
++     * @throws IllegalArgumentException if unable to deserialize the map
++     */
++    public default MetadataMap createMetadataMapFromSimpleMap(Map<String, Object> map) {
++        MetadataMap.Builder builder = MetadataMap.builder();
++        map.forEach((name, value) -> {
++            checkNotNull(name, "Null name");
++            checkArgument(MetadataMap.isValidName(name), "Invalid name '%s'", name);
++            checkNotNull(value, "Null value for name %s", name);
++            final Metadata elementMetadata;
++            if (value instanceof String) {
++                elementMetadata = createMetadataString((String) value);
++            } else if (value instanceof List) {
++                MetadataType elementType;
++                if (((List) value).isEmpty()) {
++                    String elementTypeName = (String) map.get(name + ".element-type");
++                    elementType = MetadataType.valueOf(elementTypeName);
++                } else {
++                    elementType = MetadataType.getMetadataType((Class<?>) ((List) value).get(0));
++                    if (elementType == null) throw new IllegalArgumentException("Can't handle class " + ((List) value).get(0).getClass() + " in list " + name);
++                }
++                elementMetadata = createMetadataListFromSimpleValues((List<?>) value, elementType);
++            } else if (value instanceof Number) {
++                elementMetadata = createMetadataNumber((Number) value);
++            } else if (value instanceof Boolean) {
++                elementMetadata = createMetadataBoolean((Boolean) value);
++            } else if (value instanceof Map) {
++                elementMetadata = createMetadataMapFromSimpleMap(map);
++            } else {
++                throw new IllegalArgumentException("Invalid simple value class " + value.getClass().getTypeName());
++            }
++            builder.put(name, elementMetadata);
++        });
++        return builder.build(this);
++    }
++
++    /**
++     * Create a {@link MetadataList} with the given elements
++     * <p>Infers the element type</p>
++     *
++     * @param elements   the collection to copy elements from
++     * @return a new metadata list with the given elements
++     * @throws NullPointerException     if the collection is null, or the collection contains null values
++     * @throws IllegalArgumentException if any of the elements in the map aren't of the specified element type
++     */
++    public default <T> MetadataList<T> createMetadataList(List<Metadata<T>> elements) {
++        final MetadataType elementType;
++        if (elements.isEmpty()) {
++            elementType = null;
++        } else {
++            elementType = MetadataType.getMetadataType(elements.get(0).getClass());
++            if (elementType == null) throw new IllegalArgumentException("Invalid simple value with class " + elements.get(0).getClass());
++        }
++        return createMetadataList(elements, elementType);
++    }
++
++    /**
++     * Create a {@link MetadataList} with the given elements
++     * <p>The element type must be null for an empty list.</p>
++     *
++     * @param elements   the list to copy elements from
++     * @param elementType the type of the elements in the list
++     * @return a new metadata list with the given elements
++     * @throws IllegalArgumentException if the element type is non-null for an empty list
++     * @throws NullPointerException     if the collection is null, the element type is null when the list isn't empty, or the collection contains null values
++     * @throws IllegalArgumentException if any of the elements in the map aren't of the specified element type
++     */
++    public <T> MetadataList<T> createMetadataList(List<Metadata<T>> elements, @Nullable MetadataType elementType);
++
++    /**
++     * Create a {@link MetadataList} with the given simple values
++     *
++     * @param elements   the collection of simple values
++     * @param elementType the type of the elements in the list
++     * @return a new metadata list with metadata equivelant to the passed values
++     * @throws NullPointerException     if the collection is null, the element type is null, or the collection contains null values
++     * @throws IllegalArgumentException if any of the elements in the map aren't of the specified element type
++     */
++    @SuppressWarnings("unchecked")
++    public default <T> MetadataList<T> createMetadataListFromSimpleValues(List<T> elements, @Nullable MetadataType elementType) {
++        ImmutableList.Builder<Metadata<T>> builder = ImmutableList.builder();
++        if (elements.isEmpty()) {
++            checkArgument(elementType == null, "Element type should be null for empty list, not %s", elementType);
++            return createMetadataList(ImmutableList.of(), null);
++        } else {
++            checkNotNull(elementType, "Null element type for non-empty list!");
++        }
++        checkNotNull(elements, "Null elements").forEach((element) -> {
++            checkNotNull(element, "Null element");
++            checkArgument(MetadataType.getMetadataType(element.getClass()) != null, "Invalid simple value with class %s", element.getClass().getTypeName());
++            final Metadata<T> metadata;
++            switch (elementType) {
++                case MAP:
++                    metadata = (Metadata<T>) createMetadataMapFromSimpleMap((Map<String, Object>) element);
++                    break;
++                case LIST:
++                    MetadataType subListElementType;
++                    if (((List<T>) element).isEmpty()) {
++                        subListElementType = null;
++                    } else {
++                        Class<T> c = (Class<T>) ((List<T>) element).get(0).getClass();
++                        subListElementType = MetadataType.getMetadataType(c);
++                        if (subListElementType == null) throw new IllegalArgumentException("Illegal element class " + c);
++                    }
++                    metadata = (Metadata<T>) createMetadataListFromSimpleValues((List<T>) element, subListElementType);
++                    break;
++                case BOOLEAN:
++                    metadata = (Metadata<T>) createMetadataBoolean((Boolean) element);
++                    break;
++                case BYTE:
++                case SHORT:
++                case INTEGER:
++                case LONG:
++                case FLOAT:
++                case DOUBLE:
++                    metadata = (Metadata<T>) createMetadataNumber((Number) element);
++                    break;
++                case STRING:
++                    metadata = (Metadata<T>) createMetadataString((String) element);
++                    break;
++                default:
++                    throw new AssertionError("Can't handle metadata type " + elementType);
++            }
++            builder.add(metadata);
++        });
++        return createMetadataList(builder.build(), elementType);
++    }
++
++    /**
++     * Create a {@link MetadataNumber} with the given value
++     * <p>The Number <b>must</b> be a primitive wrapper type.</p>
++     *
++     * @param value      the value of the number
++     * @return a new metadata value with the given elements
++     * @throws NullPointerException     if the number is null
++     * @throws IllegalArgumentException if the number isn't a primitive wrapper type
++     */
++    public <T extends Number> MetadataNumber<T> createMetadataNumber(T value);
++
++    /**
++     * Create a {@link MetadataString} with the given value
++     * <p>The Number <b>must</b> be a primitive wrapper type.</p>
++     *
++     * @param value      the value of the string
++     * @return a metadata string with the given elements
++     * @throws NullPointerException     if the string is null
++     */
++    public MetadataString createMetadataString(String value);
++
++
++    /**
++     * Create a {@link MetadataBoolean} with the given value
++     *
++     * @param value      the value of the boolean
++     * @return a metadata boolean with the given elements
++     */
++    public MetadataBoolean createMetadataBoolean(boolean value);
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataList.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataList.java
+new file mode 100644
+index 0000000..df82fc3
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataList.java
+@@ -0,0 +1,345 @@
++package net.techcable.tacospigot.metadata;
++
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.Iterator;
++import java.util.List;
++import java.util.NoSuchElementException;
++import java.util.Objects;
++import java.util.RandomAccess;
++import java.util.function.Consumer;
++
++import javax.annotation.Nullable;
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.base.Preconditions;
++import com.google.common.base.Verify;
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++import com.google.common.primitives.Primitives;
++
++import org.bukkit.Bukkit;
++
++import static com.google.common.base.Preconditions.*;
++
++/**
++ * A list of metadata
++ * <p>The list implementation is random access, so its fast to get something by its index.</p>
++ * <p>The static constructors use the the metadata factory returned by {@link Bukkit#getMetadataFactory()}</p>
++ */
++@ParametersAreNonnullByDefault
++public interface MetadataList<T> extends Metadata<ImmutableList<Metadata<T>>>, RandomAccess, Iterable<Metadata<T>> {
++    public static final MetadataType TYPE = MetadataType.LIST;
++
++    /**
++     * {@inheritDoc}
++     * <p>
++     * Guaranteed to always return {@link MetadataType#LIST}
++     */
++    @Override
++    public default MetadataType getType() {
++        return TYPE;
++    }
++
++    /**
++     * Get the type of the elements in this list, or null if the list is empty
++     * <p>All metadata in this list is <b>guaranteed</b> to be of the given type</p>
++     *
++     * @return the type of the elements or null if empty
++     */
++    @Nullable
++    public MetadataType getElementType();
++
++    /**
++     * Get the size of this list
++     *
++     * @return the size
++     */
++    public default int size() {
++        return getValue().size();
++    }
++
++    @Override
++    public ImmutableList<Metadata<T>> getValue();
++
++    /**
++     * Get the metadata at the given index
++     *
++     * @param index the index of the metadata to get
++     * @return the metadata at the index
++     * @throws IndexOutOfBoundsException if the index is out
++     */
++    public default Metadata<T> get(int index) {
++        return getValue().get(index);
++    }
++
++    /**
++     * Get the value of the metadata at the given index
++     *
++     * @param index the index of the metadata to get
++     * @return the metadata at the index
++     * @throws IndexOutOfBoundsException if the index is invalid
++     */
++    public default T getValue(int index) {
++        return getValue().get(index).getValue();
++    }
++
++    /**
++     * Performs the given action for each entry in this list until all entries
++     * have been processed or the action throws an exception.
++     *
++     * @param action the action to do
++     * @throws NullPointerException if the action is null
++     */
++    @Override
++    public default void forEach(Consumer<? super Metadata<T>> action) {
++        checkNotNull(action, "Null action");
++        for (int i = 0; i < size(); i++) {
++            Metadata element = this.get(i);
++            action.accept(element);
++        }
++    }
++
++
++    /**
++     * Performs the given action for each entry in this list until all entries
++     * have been processed or the action throws an exception.
++     *
++     * @param action the action to do
++     * @throws NullPointerException if the action is null
++     */
++    public default void forEachValue(Consumer<? super T> action) {
++        checkNotNull(action, "Null action");
++        for (int i = 0; i < size(); i++) {
++            T value = this.getValue(i);
++            action.accept(value);
++        }
++    }
++
++    /**
++     * Return a new iterator over the elements in this list
++     *
++     * @return a new iterator
++     */
++    @Override
++    public default Iterator<Metadata<T>> iterator() {
++        return new Iterator<Metadata<T>>() {
++            private int index = 0;
++
++            @Override
++            public boolean hasNext() {
++                return index < size();
++            }
++
++            @Override
++            public Metadata<T> next() {
++                if (index >= size()) throw new NoSuchElementException();
++                return get(index++);
++            }
++
++            @Override
++            public void forEachRemaining(Consumer<? super Metadata<T>> action) {
++                for (int i = index; i < size(); i++) {
++                    Metadata element = get(i);
++                    action.accept(element);
++                }
++                index = size(); // We're done
++            }
++        };
++    }
++
++    /**
++     * Create a {@link MetadataList} with the given elements
++     *
++     * @param collection the map to copy elements from
++     * @throws NullPointerException     if the collection is null, the elementType is null, or the collection contains null values
++     * @throws IllegalArgumentException if the types of any of the metadata in the collection don't match the given elementType
++     */
++    public static <T> MetadataList<T> create(MetadataType metadataType, Collection<Metadata<T>> collection) {
++        return Bukkit.getMetadataFactory().createMetadataList(collection, metadataType);
++    }
++
++    /**
++     * Return a new builder starting with this metadata
++     *
++     * @throws IllegalStateException if the list is empty
++     * @return a new builder with our contents
++     */
++    public default Builder<T> asBuilder() {
++        checkState(getElementType() != null, "List is empty!");
++        return builder(getElementType(), this.getValue());
++    }
++
++    /**
++     * Create a new MetadataList builder with nothing in it
++     *
++     * @param elementType the type of the  elements the builder will contain
++     * @return a new metadata list builder
++     * @throws NullPointerException if the element type is null
++     */
++    public static Builder builder(MetadataType elementType) {
++        return new Builder(elementType);
++    }
++
++    /**
++     * Create a new MetadataList builder with nothing in it
++     *
++     * @param elementType the type of the  elements the builder will contain
++     * @return a new metadata list builder
++     * @throws NullPointerException if the element type or elementClass is null
++     * @throws IllegalArgumentException if the elementClass doesn't match the elementType
++     */
++    public static <T> Builder<T> builder(MetadataType elementType, Class<T> elementClass) {
++        checkNotNull(elementType, "Null element type");
++        checkNotNull(elementClass, "Null element class");
++        if (elementClass.isPrimitive()) elementClass = Primitives.wrap(elementClass); // Use the wrapper type
++        checkArgument(elementClass.isAssignableFrom(elementType.getValueClass()), "Element class %s isn't applicable to element type %s", elementClass.getTypeName(), elementType);
++        return new Builder<>(elementType);
++    }
++
++    /**
++     * Create a new metadata list builder with the specified initial values
++     *
++     * @param initialValues the initial values of the builder
++     * @return a new builder
++     * @throws NullPointerException     if the element type, the initial values collection, or any of the initial values are null
++     * @throws IllegalArgumentException if the types of any of the metadata in the collection don't match the builder's elementType
++     */
++    public static <T> Builder<T> builder(MetadataType elementType, Collection<Metadata<T>> initialValues) {
++        return new Builder<>(elementType, initialValues);
++    }
++
++    @ParametersAreNonnullByDefault
++
++    public static final class Builder<T> {
++        private final MetadataType elementType;
++        private final ArrayList<Metadata<T>> backing;
++
++        private Builder(MetadataType elementType, Collection<Metadata<T>> collection) {
++            this.elementType = checkNotNull(elementType, "Null element type");
++            this.backing = new ArrayList<>(collection);
++            backing.forEach(this::checkType);
++        }
++
++        private Builder(MetadataType elementType) {
++            this(elementType, new ArrayList<>(0));
++        }
++
++        /**
++         * Get the size of this builder
++         *
++         * @return the size
++         */
++        public int size() {
++            return backing.size();
++        }
++
++        /**
++         * Append the metadata to this builder's list
++         *
++         * @param element the element to set
++         * @throws IllegalArgumentException if any of the metadata's type doesn't match the our element type
++         * @throws NullPointerException     if the element is null
++         */
++        public Builder add(Metadata<T> element) {
++            this.checkType(element); // Also checks null
++            backing.add(element);
++            return this;
++        }
++
++        /**
++         * Copies all the elements from the specified collection to this builder
++         *
++         * @param collection the collection to copy from
++         * @throws NullPointerException     if the collection is null, or contains null values
++         * @throws IllegalArgumentException if the types of any of the metadata in the collection don't match this builder's elementType
++         */
++        public Builder addAll(Collection<Metadata<T>> collection) {
++            checkNotNull(collection, "Null collection");
++            backing.ensureCapacity(collection.size());
++            collection.forEach(this::add);
++            return this;
++        }
++
++        /**
++         * Copies all the mappings from the specified map to this map
++         *
++         * @param list the list to copy from
++         * @throws NullPointerException     if the list is null
++         * @throws IllegalArgumentException if the list's element type doesn't match this builder's element type
++         */
++        public void addAll(MetadataList<T> list) {
++            checkNotNull(list, "Null list");
++            checkArgument(list.getElementType() != this.elementType, "The list's element type %s isn't the same as the builder's element type %s", list.getElementType(), this.elementType);
++            /*
++             * Its safe to add the list's contents directly to the backing store, s
++             */
++            backing.addAll(list.getValue());
++        }
++
++        /**
++         * Remove the element from the specified index.
++         * Shifts any subsequent elements to the left (subtracts one from their indices).
++         *
++         * @param index the index to remove the mapping from
++         * @throws IndexOutOfBoundsException if the index is greater than {@link #size()} or is negative
++         */
++        public Builder remove(int index) {
++            backing.remove(index);
++            return this;
++        }
++
++        /**
++         * Get the metadata at the specified index
++         *
++         * @param index the index to get the mapping from
++         * @throws IndexOutOfBoundsException if the index is greater than {@link #size()} or is negative
++         */
++        public Metadata get(int index) {
++            return backing.get(index);
++        }
++
++        /**
++         * Convert this builder into a list of metadata
++         *
++         * @return this builder as an {@link ImmutableMap}
++         */
++        public ImmutableList<Metadata<T>> asList() {
++            return ImmutableList.copyOf(backing);
++        }
++
++        /**
++         * Build a {@link MetadataList} from this builder's values
++         *
++         * @param factory the factory to use
++         * @return a new metadata map from the contents of this builder
++         */
++        public MetadataList<T> build(MetadataFactory factory) {
++            return checkNotNull(factory, "Null factory").createMetadataList(this.asList(), elementType);
++        }
++
++        private void checkType(Metadata metadata) {
++            checkNotNull(metadata, "Null metadata");
++            MetadataType metadataType = metadata.getType();
++            checkArgument(metadataType == this.elementType, "Metadata of type %s can't be added to builder of type %s", metadataType, this.elementType);
++        }
++
++        /**
++         * Build a {@link MetadataList} from this builder's values
++         *
++         * @return a new metadata map from the contents of this builder
++         */
++        public MetadataList build() {
++            return build(Bukkit.getMetadataFactory());
++        }
++
++        /**
++         * Get the element type of this builder
++         *
++         * @return the element type
++         */
++        public MetadataType getElementType() {
++            return elementType;
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataMap.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataMap.java
+new file mode 100644
+index 0000000..4f6657d
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataMap.java
+@@ -0,0 +1,305 @@
++package net.techcable.tacospigot.metadata;
++
++import java.util.HashMap;
++import java.util.Map;
++import java.util.function.BiConsumer;
++
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import com.google.common.collect.ImmutableMap;
++
++import org.bukkit.Bukkit;
++
++import static com.google.common.base.Preconditions.*;
++
++/**
++ * A map of names to metadata values
++ * <p>Names must all be valid metadata names as determined by {@link MetadataMap#isValidName}</p>
++ * <p>The static constructors use the the metadata factory returned by {@link Bukkit#getMetadataFactory()}</p>
++ */
++@ParametersAreNonnullByDefault
++public interface MetadataMap extends Metadata<ImmutableMap<String, Metadata>> {
++    public static final MetadataType TYPE = MetadataType.MAP;
++
++    /**
++     * Returns if the name is valid
++     * <p>Names must be-non empty and only contain ASCII letters, the digits '0' through '9', '_', or '-'</p>
++     *
++     * @param name the name to check
++     * @return if valid
++     */
++    static boolean isValidName(String name) {
++        int length = checkNotNull(name, "Null name").length();
++        if (length == 0) return false;
++        for (int i = 0; i < length; i++) {
++            char c = name.charAt(i);
++            if ((c > '9' || c < '0') && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z' || c == '_' || c == '-'))
++                return false;
++        }
++        return true;
++    }
++
++    /**
++     * {@inheritDoc}
++     * <p>
++     * Guaranteed to always return {@link MetadataType#MAP}
++     */
++    @Override
++    public default MetadataType getType() {
++        return TYPE;
++    }
++
++    @Override
++    public ImmutableMap<String, Metadata> getValue();
++
++    /**
++     * Get the metadata with the given name, or null if not present
++     *
++     * @param name the name of the metadata to get
++     * @return the metadata
++     * @throws NullPointerException     if name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public default Metadata get(String name) {
++        checkNotNull(name, "Null name");
++        checkArgument(isValidName(name), "Invalid name '%s'", name);
++        return getValue().get(name);
++    }
++
++    public default Metadata getRecursively(String name) {
++        checkNotNull(name, "Null name");
++        checkArgument(!name.isEmpty(), "Empty name!");
++        Metadata meta = this;
++        for (String section : name.split("\\.")) {
++            checkArgument(isValidName(section), "Invalid name %s", name);
++            if (meta != null && meta instanceof MetadataMap) {
++                meta = ((MetadataMap) meta).get(section);
++            } else {
++                return null;
++            }
++        }
++        return meta;
++    }
++
++    /**
++     * Get the metadata with the given name, or throw {@link IllegalStateException} if not present
++     *
++     * @param name the name of the metadata to get
++     * @return the metadata
++     * @throws NullPointerException     if name is null
++     * @throws IllegalArgumentException if the name is invalid
++     * @throws IllegalStateException    if the metadata isn't present
++     */
++    public default Metadata getOptimistically(String name) {
++        Metadata metadata = get(name);
++        if (metadata == null) throw new IllegalStateException("No metadata named " + name);
++        return metadata;
++    }
++
++    /**
++     * Performs the given action for each entry in this map until all entries
++     * have been processed or the action throws an exception.
++     *
++     * @param action the action to do
++     * @throws NullPointerException if the action is null
++     */
++    public default void forEach(BiConsumer<String, Metadata> action) {
++        checkNotNull(action, "Null action");
++        getValue().forEach(action);
++    }
++
++    /**
++     * Create a {@link MetadataMap} with the given mappings
++     *
++     * @param map the map to copy mappings from
++     * @throws NullPointerException     if the map is null, contains null keys, or contains null values
++     * @throws IllegalArgumentException if any of the keys in the map have invalid names
++     */
++    public static MetadataMap create(Map<String, Metadata> map) {
++        return Bukkit.getMetadataFactory().createMetadataMap(map);
++    }
++
++    /**
++     * Return a new builder starting with this metadata
++     *
++     * @return a new builder with our contents
++     */
++    public default Builder asBuilder() {
++        return builder(this.getValue());
++    }
++
++    /**
++     * Create a new MetadataMap builder with nothing in it
++     *
++     * @return a new metadata map builder
++     */
++    public static Builder builder() {
++        return new Builder();
++    }
++
++    /**
++     * Create a new metadata map builder with the specified initial values
++     *
++     * @param initialValues the initial values of the builder
++     * @return a new builder
++     */
++    public static Builder builder(Map<String, Metadata> initialValues) {
++        return new Builder(initialValues);
++    }
++
++    public static final class Builder {
++        private final Map<String, Metadata> backing;
++
++        private Builder() {
++            this.backing = new HashMap<>();
++        }
++
++        /**
++         * Set the metadata with the given name to the given value
++         *
++         * @param name  the name to set the metadata for
++         * @param value the metadata to set
++         * @throws NullPointerException     if either the name or value are null
++         * @throws IllegalArgumentException if the name is invalid
++         */
++        public void put(String name, Metadata value) {
++            checkNotNull(name, "Null key");
++            checkNotNull(value, "Null value");
++            checkArgument(isValidName(name), "Invalid name '%s'", name);
++            backing.put(name, value);
++        }
++
++        public void putRecursively(String name, Metadata value) {
++            checkNotNull(name, "Null name");
++            checkNotNull(value, "Null value");
++            checkArgument(!name.isEmpty(), "Empty name!");
++            putRecursively0(name, value, name);
++        }
++
++        private void putRecursively0(String name, Metadata value, String fullName) {
++            int index = name.indexOf('.');
++            if (index < 0) {
++                put(name, value);
++            } else {
++                String part = name.substring(0, index - 1);
++                String remaining = name.substring(index);
++                checkArgument(isValidName(part), "Invalid name %s", fullName);
++                Metadata meta = get(part);
++                checkArgument(meta != null, "No map for part %s in name %s", part, fullName);
++                checkArgument(meta.getType() == MetadataType.MAP, "Part %s in name %s is a %s instead of a map", part, fullName, meta.getType());
++                Builder builder = ((MetadataMap) meta).asBuilder();
++                builder.putRecursively0(remaining, value, fullName);
++                put(part, builder.build());
++            }
++        }
++
++        /**
++         * Copies all the mappings from the specified map to this map
++         *
++         * @param map the map to copy from
++         * @throws NullPointerException     if the map is null, contains null keys, or contains null values
++         * @throws IllegalArgumentException if any of the keys in the map have invalid names
++         */
++        public void putAll(Map<String, Metadata> map) {
++            checkNotNull(map, "Null map").forEach((name, value) -> {
++                checkNotNull(name, "Null name in map!");
++                checkNotNull(value, "Null value for name '%s'");
++                checkArgument(isValidName(name), "Invalid name '%s'", name);
++                backing.put(name, value);
++            });
++        }
++
++        /**
++         * Copies all the mappings from the specified map to this map
++         *
++         * @param map the map to copy from
++         * @throws NullPointerException if the map is null
++         */
++        public void putAll(MetadataMap map) {
++            putAll(checkNotNull(map, "Null map").getValue());
++        }
++
++        /**
++         * Remove the mapping with the specified name if present
++         *
++         * @param name the name to remove the mapping from
++         */
++        public void remove(String name) {
++            checkNotNull(name, "Null name");
++            checkArgument(isValidName(name), "Invalid name '%s'", name);
++            backing.remove(name);
++        }
++
++        public void removeRecursively(String name) {
++            checkNotNull(name, "Null name");
++            checkArgument(!name.isEmpty(), "Empty name!");
++            removeRecursively0(name, name);
++        }
++
++        private void removeRecursively0(String name, String fullName) {
++            int index = name.indexOf('.');
++            if (index < 0) {
++                remove(name);
++            } else {
++                String part = name.substring(0, index - 1);
++                String remaining = name.substring(index);
++                checkArgument(isValidName(part), "Invalid name %s", fullName);
++                Metadata meta = get(part);
++                checkArgument(meta != null, "No map for part %s in name %s", part, fullName);
++                checkArgument(meta.getType() == MetadataType.MAP, "Part %s in name %s is a %s instead of a map", part, fullName, meta.getType());
++                Builder builder = ((MetadataMap) meta).asBuilder();
++                builder.removeRecursively0(remaining, fullName);
++                if (builder.backing.isEmpty()) {
++                    remove(part);
++                } else {
++                    put(part, builder.build());
++                }
++            }
++        }
++
++        /**
++         * Get the metadata with the specified name, or null if not present
++         *
++         * @return name the name to get the metadata for
++         * @throws NullPointerException     if name is null
++         * @throws IllegalArgumentException if the name is invalid
++         */
++        public Metadata get(String name) {
++            checkNotNull(name, "Null name");
++            checkArgument(isValidName(name), "Invalid name '%s'", name);
++            return backing.get(name);
++        }
++
++        /**
++         * Convert this builder into a mapping of names to metadata
++         *
++         * @return this builder as an {@link ImmutableMap}
++         */
++        public ImmutableMap<String, Metadata> asMap() {
++            return ImmutableMap.copyOf(backing);
++        }
++
++        /**
++         * Build a {@link MetadataMap} from this builder's values
++         *
++         * @param factory the factory to use
++         * @return a new metadata map from the contents of this builder
++         */
++        public MetadataMap build(MetadataFactory factory) {
++            return checkNotNull(factory, "Null factory").createMetadataMap(this.asMap());
++        }
++
++        /**
++         * Build a persistent {@link MetadataMap} from this builder's values
++         *
++         * @return a new metadata map from the contents of this builder
++         */
++        public MetadataMap build() {
++            return build(Bukkit.getMetadataFactory());
++        }
++
++        private Builder(Map<String, Metadata> initial) {
++            this.backing = new HashMap<>(initial);
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataNumber.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataNumber.java
+new file mode 100644
+index 0000000..b28db19
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataNumber.java
+@@ -0,0 +1,49 @@
++package net.techcable.tacospigot.metadata;
++
++import org.bukkit.Bukkit;
++
++public interface MetadataNumber<T extends Number> extends MetadataPrimitive<T> {
++    @Override
++    public T getValue();
++
++    @Override
++    public default boolean isNumeric() {
++        return true;
++    }
++
++    @Override
++    public default double asDouble() {
++        return getValue().doubleValue();
++    }
++
++    @Override
++    public default float asFloat() {
++        return getValue().floatValue();
++    }
++
++    @Override
++    public default long asLong() {
++        return getValue().longValue();
++    }
++
++    @Override
++    public default int asInt() {
++        return getValue().intValue();
++    }
++
++    public static MetadataNumber<Double> create(double d) {
++        return Bukkit.getMetadataFactory().createMetadataNumber(d);
++    }
++
++    public static MetadataNumber<Float> create(float f) {
++        return Bukkit.getMetadataFactory().createMetadataNumber(f);
++    }
++
++    public static MetadataNumber<Integer> create(int i) {
++        return Bukkit.getMetadataFactory().createMetadataNumber(i);
++    }
++
++    public static MetadataNumber<Long> create(long l) {
++        return Bukkit.getMetadataFactory().createMetadataNumber(l);
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataPrimitive.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataPrimitive.java
+new file mode 100644
+index 0000000..a565853
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataPrimitive.java
+@@ -0,0 +1,134 @@
++package net.techcable.tacospigot.metadata;
++
++import com.google.common.base.Preconditions;
++import com.google.common.base.Verify;
++import com.google.common.primitives.Booleans;
++
++/**
++ * A class representing a metadata primitive value.
++ * A primitive value is either a String, or a Java primitive (but not a character).
++ */
++public interface MetadataPrimitive<T> extends Metadata<T> {
++
++    /**
++     * If the primitive is a number.
++     *
++     * @return if the primitive is a number.
++     */
++    public default boolean isNumeric() {
++        return getValue() instanceof Number;
++    }
++
++    /**
++     * Return if the primitive is a boolean.
++     *
++     * @return if it is a boolean.
++     */
++    public default boolean isBoolean() {
++        return getValue() instanceof Boolean;
++    }
++
++    /**
++     * Return if the primitive is a string.
++     *
++     * @return if it is a string.
++     */
++    public default boolean isString() {
++        return getValue() instanceof String;
++    }
++
++    /**
++     * Get this primitive as a string if it is one.
++     *
++     * @return the primitive as a string.
++     * @throws IllegalStateException if the object isn't a string
++     */
++    public default String asString() {
++        Object value = getValue();
++        if (value instanceof String) {
++            return (String) value;
++        } else {
++            throw new IllegalStateException("Metadata is a " + getType() + ", not a String");
++        }
++    }
++
++    /**
++     * Get this primitive as a boolean if it is one.
++     *
++     * @return the primitive as a string.
++     * @throws IllegalStateException if the object isn't a string
++     */
++    public default boolean asBoolean() {
++        Object value = getValue();
++        if (value instanceof Boolean) {
++            return (Boolean) value;
++        } else {
++            throw new IllegalStateException("Metadata is a " + getType() + ", not a Boolean");
++        }
++    }
++    /**
++     * Get this primitive as a double if it is a number that will fit in a double
++     *
++     * @return the primitive as a double.
++     * @throws IllegalStateException if the primitive isn't a number
++     */
++    public default double asDouble() {
++        Object value = getValue();
++        if (value instanceof Number) {
++            return ((Number) value).doubleValue();
++        } else {
++            throw new IllegalStateException("Metadata is a " + getType() + ", not a number");
++        }
++    }
++
++    /**
++        Preconditions.checkArgument
++    }
++
++    /**
++     * Get this primitive as a float if it is a number that will fit in a float
++     *
++     * @return the primitive as a float.
++     * @throws IllegalStateException if the primitive isn't a number
++     */
++    public default float asFloat() {
++        Object value = getValue();
++        if (value instanceof Number) {
++            return ((Number) value).floatValue();
++        } else {
++            throw new IllegalStateException("Metadata is a " + getType() + ", not a number");
++        }
++    }
++
++    /**
++     * Get this primitive as a long if it is a whole number.
++     *
++     * @return the primitive as a long.
++     * @throws IllegalStateException if the primitive isn't a number
++     */
++    public default long asLong() {
++        Object value = getValue();
++        if (value instanceof Number) {
++            return ((Number) value).longValue();
++        } else {
++            throw new IllegalStateException("Metadata is a " + getType() + ", not a number");
++        }
++    }
++
++
++    /**
++     * Get this primitive as an integer if it is a whole number that can fit in an integer.
++     *
++     * @return the primitive as a string.
++     * @throws IllegalStateException if the primitive isn't a number
++     */
++    public default int asInt() {
++        Object value = getValue();
++        if (value instanceof Number) {
++            return ((Number) value).intValue();
++        } else {
++            throw new IllegalStateException("Metadata is a " + getType() + ", not a number");
++        }
++    }
++
++}
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataString.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataString.java
+new file mode 100644
+index 0000000..1dcc2cc
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataString.java
+@@ -0,0 +1,47 @@
++package net.techcable.tacospigot.metadata;
++
++import com.google.common.base.Preconditions;
++
++import org.bukkit.Bukkit;
++
++/**
++ * A metadata string.
++ */
++public interface MetadataString extends MetadataPrimitive<String> {
++    public static final MetadataType TYPE = MetadataType.STRING;
++    public static final MetadataString EMPTY = Bukkit.getMetadataFactory().createMetadataString("");
++
++    /**
++     * {@inheritDoc}
++     * <p>Always returns {@link MetadataType#STRING}</p>
++     *
++     * @return {@link MetadataType#STRING}
++     */
++    public default MetadataType getType() {
++        return TYPE;
++    }
++
++
++    public String getValue();
++
++    @Override
++    public default String asString() {
++        return getValue();
++    }
++
++    /**
++     * {@inheritDoc}
++     * <p>Always returns true.</p>
++     *
++     * @return true
++     */
++    @Override
++    public default boolean isString() {
++        return true;
++    }
++
++    public static MetadataString create(String s) {
++        Preconditions.checkNotNull(s, "Null string");
++        return s.isEmpty() ? EMPTY : Bukkit.getMetadataFactory().createMetadataString(s);
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/net/techcable/tacospigot/metadata/MetadataType.java b/src/main/java/net/techcable/tacospigot/metadata/MetadataType.java
+new file mode 100644
+index 0000000..7395063
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/metadata/MetadataType.java
+@@ -0,0 +1,77 @@
++package net.techcable.tacospigot.metadata;
++
++import javax.annotation.Nullable;
++
++import com.google.common.base.Preconditions;
++import com.google.common.base.Verify;
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++
++import static com.google.common.base.Preconditions.checkNotNull;
++
++public enum MetadataType {
++    MAP(ImmutableMap.class, MetadataMap.class),
++    LIST(ImmutableList.class, MetadataList.class),
++    BOOLEAN(Boolean.class, MetadataBoolean.class),
++    BYTE(Byte.class, MetadataNumber.class),
++    SHORT(Short.class, MetadataNumber.class),
++    INTEGER(Integer.class, MetadataNumber.class),
++    LONG(Long.class, MetadataNumber.class),
++    FLOAT(Float.class, MetadataNumber.class),
++    DOUBLE(Double.class, MetadataNumber.class),
++    STRING(String.class, MetadataString.class);
++
++    private final Class<?> valueClass;
++    private final Class<? extends Metadata> metadataClass;
++
++    private MetadataType(Class<?> valueClass, Class<? extends Metadata> metadataClass) {
++        this.valueClass = checkNotNull(valueClass, "Null value class");
++        this.metadataClass = checkNotNull(metadataClass, "Null metadata class");
++    }
++
++    public Class getValueClass() {
++        return valueClass;
++    }
++
++
++    public Class<? extends Metadata> getMetadataClass() {
++        return metadataClass;
++    }
++
++    /**
++     * If the type is a primitive.
++     *
++     * @return if it is a primitive
++     */
++    public boolean isPrimitive() {
++        return MetadataPrimitive.class.isAssignableFrom(metadataClass);
++    }
++
++    /**
++     * If the type is a number.
++     *
++     * @return if it is a number
++     */
++    public boolean isNumeric() {
++        return Number.class.isAssignableFrom(valueClass);
++    }
++
++    @Override
++    public String toString() {
++        switch (this) {
++            case MAP:
++            case LIST:
++                return metadataClass.getName();
++            default:
++                return valueClass.getName();
++        }
++    }
++
++    public static MetadataType getMetadataType(Class<?> valueClass) {
++        checkNotNull(valueClass, "Null value class");
++        for (MetadataType metadataType : MetadataType.values()) {
++            if (metadataType.getValueClass() == valueClass) return metadataType;
++        }
++        return null;
++    }
++}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 3161b87..5a41d15 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -42,6 +42,9 @@ import org.bukkit.generator.ChunkGenerator;
+ 
+ import org.bukkit.inventory.ItemFactory;
+ import org.bukkit.inventory.meta.ItemMeta;
++// TacoSpigot start
++import net.techcable.tacospigot.metadata.MetadataFactory;
++// TacoSpigot end
+ 
+ /**
+  * Represents the Bukkit core, for version and Server singleton handling
+@@ -1205,4 +1208,15 @@ public final class Bukkit {
+     {
+         return server.spigot();
+     }
++
++    // TacoSpigot start
++    /**
++     * Get the server's metadata factory
++     *
++     * @return the metadata factory
++     */
++    public static MetadataFactory getMetadataFactory() {
++        return server.getMetadataFactory();
++    }
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/OfflinePlayer.java b/src/main/java/org/bukkit/OfflinePlayer.java
+index e98706a..6abef7b 100644
+--- a/src/main/java/org/bukkit/OfflinePlayer.java
++++ b/src/main/java/org/bukkit/OfflinePlayer.java
+@@ -7,6 +7,10 @@ import org.bukkit.configuration.serialization.ConfigurationSerializable;
+ import org.bukkit.entity.AnimalTamer;
+ import org.bukkit.entity.Player;
+ import org.bukkit.permissions.ServerOperator;
++// TacoSpigot start
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataMap;
++// TacoSpigot end
+ 
+ public interface OfflinePlayer extends ServerOperator, AnimalTamer, ConfigurationSerializable {
+ 
+@@ -115,4 +119,41 @@ public interface OfflinePlayer extends ServerOperator, AnimalTamer, Configuratio
+      */
+     public Location getBedSpawnLocation();
+ 
++    // TacoSpigot start
++    /**
++     * Set the persistent metadata with the given name to the the given value
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     * <p>Metadata set here is guaranteed to be visible with {@link Player#getMeta(String)} as long as it's not later changed.</p>
++     *
++     * @param name     the name of the metadata is valid
++     * @param metadata the metadata to set
++     * @throws NullPointerException     if any args are null
++     * @throws IllegalArgumentException if the name is invalid
++     * @throws IllegalStateException    if the metadata already there is temporary
++     */
++    public void setPersistentMetadata(String name, Metadata metadata);
++
++    /**
++     * Get the metadata with the given name, or null if not found
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     * <p>Gives offline access to the metadata set with {@link Player#setPersistentMetadata(String, Metadata)}.</p>
++     *
++     * @param name the name of the metadata to get
++     * @return the metadata if present
++     * @throws NullPointerException     if the name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public Metadata getMeta(String name);
++
++    /**
++     * Remove the metadata with the given name if present
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     * <p>Gives offline access to the metadata set with {@link Player#setPersistentMetadata(String, Metadata)}.</p>
++     *
++     * @param name the name of the metadata to get
++     * @throws NullPointerException     if the name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public void removeMetadata(String name);
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index edf0d04..06630dc 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -43,6 +43,9 @@ import org.bukkit.generator.ChunkGenerator;
+ 
+ import org.bukkit.inventory.ItemFactory;
+ import org.bukkit.inventory.meta.ItemMeta;
++// TacoSpigot start
++import net.techcable.tacospigot.metadata.MetadataFactory;
++// TacoSpigot end
+ 
+ /**
+  * Represents a server implementation.
+@@ -1028,4 +1031,13 @@ public interface Server extends PluginMessageRecipient {
+      * @return The entity that is identified by the given UUID, or null if one isn't found
+      */
+     Entity getEntity(UUID uuid); // Paper
++
++    // TacoSpigot start
++    /**
++     * Get the server's metadata factory
++     *
++     * @return the metadata factory
++     */
++    public MetadataFactory getMetadataFactory();
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/entity/Entity.java b/src/main/java/org/bukkit/entity/Entity.java
+index 434334a..afd6ea7 100644
+--- a/src/main/java/org/bukkit/entity/Entity.java
++++ b/src/main/java/org/bukkit/entity/Entity.java
+@@ -12,6 +12,10 @@ import java.util.List;
+ import java.util.UUID;
+ import org.bukkit.command.CommandSender;
+ import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
++// TacoSpigot start
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataMap;
++// TacoSpigot end
+ 
+ /**
+  * Represents a base entity in the world
+@@ -432,4 +436,51 @@ public interface Entity extends Metadatable, CommandSender {
+      */
+     Location getOrigin();
+     // Paper end
++
++    // TacoSpigot start
++    /**
++     * Set the temporary metadata with the given name to the the given value
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name     the name of the metadata is valid
++     * @param metadata the metadata to set
++     * @throws NullPointerException     if any args are null
++     * @throws IllegalArgumentException if the name is invalid
++     * @throws IllegalStateException    if the metadata already there is temporary
++     */
++    public void setTemporaryMetadata(String name, Metadata metadata);
++
++    /**
++     * Set the persistent metadata with the given name to the the given value
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name     the name of the metadata is valid
++     * @param metadata the metadata to set
++     * @throws NullPointerException     if any args are null
++     * @throws IllegalArgumentException if the name is invalid
++     * @throws IllegalStateException    if the metadata already there is temporary
++     */
++    public void setPersistentMetadata(String name, Metadata metadata);
++
++    /**
++     * Get the metadata with the given name, or null if not found
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name the name of the metadata to get
++     * @return the metadata if present
++     * @throws NullPointerException     if the name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public Metadata getMeta(String name);
++
++    /**
++     * Remove the metadata with the given name if present
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name the name of the metadata to get
++     * @throws NullPointerException     if the name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public void removeMetadata(String name);
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 1498349..9fe7986 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -21,6 +21,10 @@ import org.bukkit.conversations.Conversable;
+ import org.bukkit.map.MapView;
+ import org.bukkit.plugin.messaging.PluginMessageRecipient;
+ import org.bukkit.scoreboard.Scoreboard;
++// TacoSpigot start
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataMap;
++// TacoSpigot end
+ 
+ /**
+  * Represents a player, connected or not
+@@ -1621,4 +1625,51 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+ 
+     Spigot spigot();
+     // Spigot end
++
++    // TacoSpigot start
++    /**
++     * Set the temporary metadata with the given name to the the given value
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name     the name of the metadata is valid
++     * @param metadata the metadata to set
++     * @throws NullPointerException     if any args are null
++     * @throws IllegalArgumentException if the name is invalid
++     * @throws IllegalStateException    if the metadata already there is temporary
++     */
++    public void setTemporaryMetadata(String name, Metadata metadata);
++
++    /**
++     * Set the persistent metadata with the given name to the the given value
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name     the name of the metadata is valid
++     * @param metadata the metadata to set
++     * @throws NullPointerException     if any args are null
++     * @throws IllegalArgumentException if the name is invalid
++     * @throws IllegalStateException    if the metadata already there is temporary
++     */
++    public void setPersistentMetadata(String name, Metadata metadata);
++
++    /**
++     * Get the metadata with the given name, or null if not found
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name the name of the metadata to get
++     * @return the metadata if present
++     * @throws NullPointerException     if the name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public Metadata getMeta(String name);
++
++    /**
++     * Remove the metadata with the given name if present
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name the name of the metadata to get
++     * @throws NullPointerException     if the name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public void removeMetadata(String name);
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/inventory/meta/ItemMeta.java b/src/main/java/org/bukkit/inventory/meta/ItemMeta.java
+index d8cc821..4e4d73f 100644
+--- a/src/main/java/org/bukkit/inventory/meta/ItemMeta.java
++++ b/src/main/java/org/bukkit/inventory/meta/ItemMeta.java
+@@ -8,6 +8,11 @@ import org.bukkit.configuration.serialization.ConfigurationSerializable;
+ import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.inventory.ItemFlag;
+ 
++// TacoSpigot start
++import net.techcable.tacospigot.metadata.Metadata;
++import net.techcable.tacospigot.metadata.MetadataMap;
++// TacoSpigot end
++
+ /**
+  * This type represents the storage mechanism for auxiliary item data.
+  * <p>
+@@ -185,4 +190,52 @@ public interface ItemMeta extends Cloneable, ConfigurationSerializable {
+ 
+     Spigot spigot();
+     // Spigot end
++
++    // TacoSpigot start
++
++    /**
++     * Set the temporary metadata with the given name to the the given value
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name     the name of the metadata is valid
++     * @param metadata the metadata to set
++     * @throws NullPointerException     if any args are null
++     * @throws IllegalArgumentException if the name is invalid
++     * @throws IllegalStateException    if the metadata already there is temporary
++     */
++    public void setTemporaryMetadata(String name, Metadata metadata);
++
++    /**
++     * Set the persistent metadata with the given name to the the given value
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name     the name of the metadata is valid
++     * @param metadata the metadata to set
++     * @throws NullPointerException     if any args are null
++     * @throws IllegalArgumentException if the name is invalid
++     * @throws IllegalStateException    if the metadata already there is temporary
++     */
++    public void setPersistentMetadata(String name, Metadata metadata);
++
++    /**
++     * Get the metadata with the given name, or null if not found
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name the name of the metadata to get
++     * @return the metadata if present
++     * @throws NullPointerException     if the name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public Metadata getMetadata(String name);
++
++    /**
++     * Remove the metadata with the given name if present
++     * <p>Names must be valid per the requirements of {@link MetadataMap#isValidName(String)}.</p>
++     *
++     * @param name the name of the metadata to get
++     * @throws NullPointerException     if the name is null
++     * @throws IllegalArgumentException if the name is invalid
++     */
++    public void removeMetadata(String name);
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/org/bukkit/metadata/Metadatable.java b/src/main/java/org/bukkit/metadata/Metadatable.java
+index b47cf2b..12a13f4 100644
+--- a/src/main/java/org/bukkit/metadata/Metadatable.java
++++ b/src/main/java/org/bukkit/metadata/Metadatable.java
+@@ -14,9 +14,11 @@ public interface Metadatable {
+      *
+      * @param metadataKey A unique key to identify this metadata.
+      * @param newMetadataValue The metadata value to apply.
++     * @deprecated leaks memory
+      * @throws IllegalArgumentException If value is null, or the owning plugin
+      *     is null
+      */
++    @Deprecated // TacoSpigot
+     public void setMetadata(String metadataKey, MetadataValue newMetadataValue);
+ 
+     /**
+@@ -24,9 +26,11 @@ public interface Metadatable {
+      * object's metadata store.
+      *
+      * @param metadataKey the unique metadata key being sought.
++     * @deprecated leaks memory
+      * @return A list of values, one for each plugin that has set the
+      *     requested value.
+      */
++    @Deprecated // TacoSpigot
+     public List<MetadataValue> getMetadata(String metadataKey);
+ 
+     /**
+@@ -34,8 +38,10 @@ public interface Metadatable {
+      * metadata value in its metadata store.
+      *
+      * @param metadataKey the unique metadata key being queried.
++     * @deprecated leaks memory
+      * @return the existence of the metadataKey within subject.
+      */
++    @Deprecated // TacoSpigot
+     public boolean hasMetadata(String metadataKey);
+ 
+     /**
+@@ -46,7 +52,9 @@ public interface Metadatable {
+      *     remove.
+      * @param owningPlugin This plugin's metadata value will be removed. All
+      *     other values will be left untouched.
++     * @deprecated leaks memory
+      * @throws IllegalArgumentException If plugin is null
+      */
++    @Deprecated // TacoSpigot
+     public void removeMetadata(String metadataKey, Plugin owningPlugin);
+ }
+-- 
+2.8.3
+
