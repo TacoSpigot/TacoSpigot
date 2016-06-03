@@ -1,4 +1,4 @@
-From e58cf38c3b73101c25ac6f496ad9fc9e46acd7eb Mon Sep 17 00:00:00 2001
+From 1e912bb04d31ffd7009d517ebc5b11b2fc51e510 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 3 Feb 2016 11:27:34 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -9,7 +9,7 @@ Some plugins offer no way to disable their IMIE listeners. (See WorldGuard-3520)
 This patch adds a per-world flag to disable InventoryMoveItemEvent for hoppers.
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index c8f7202..9aa9e9c 100644
+index a2d953a..39071df 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryPickupItemEvent;
@@ -20,7 +20,7 @@ index c8f7202..9aa9e9c 100644
  import net.techcable.tacospigot.HopperHelper;
  // TacoSpigot end
  
-@@ -257,7 +258,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -269,7 +270,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
  
                          // CraftBukkit start - Call event when pushing items into other inventories
                          CraftItemStack oitemstack = CraftItemStack.asCraftMirror(this.splitStack(i, world.spigotConfig.hopperAmount)); // Spigot
@@ -32,7 +32,7 @@ index c8f7202..9aa9e9c 100644
                          Inventory destinationInventory;
                          // Have to special case large chests as they work oddly
                          if (iinventory instanceof InventoryLargeChest) {
-@@ -273,11 +277,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -285,11 +289,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                              this.setCooldown(world.spigotConfig.hopperTransfer); // Spigot
                              return false;
                          }
@@ -53,7 +53,7 @@ index c8f7202..9aa9e9c 100644
                                  iinventory.update();
                              } else {
                                  this.setItem(i, itemstack);
-@@ -408,6 +418,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -420,6 +430,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
              // ItemStack itemstack2 = addItem(ihopper, iinventory.splitStack(i, 1), (EnumDirection) null);
              // CraftBukkit start - Call event on collection of items from inventories into the hopper
              CraftItemStack oitemstack = CraftItemStack.asCraftMirror(iinventory.splitStack(i, ihopper.getWorld().spigotConfig.hopperAmount)); // Spigot
@@ -64,7 +64,7 @@ index c8f7202..9aa9e9c 100644
  
              Inventory sourceInventory;
              // Have to special case large chests as they work oddly
-@@ -430,11 +444,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -442,11 +456,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                  }
                  return false;
              }
@@ -86,13 +86,13 @@ index c8f7202..9aa9e9c 100644
                  } else {
                      iinventory.setItem(i, itemstack1);
 diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-index c175b7c..b0504c5 100644
+index 1249a71..5dad71c 100644
 --- a/src/main/java/net/techcable/tacospigot/HopperHelper.java
 +++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -3,11 +3,14 @@ package net.techcable.tacospigot;
- import net.minecraft.server.Block;
- import net.minecraft.server.BlockChest;
+@@ -5,11 +5,14 @@ import net.minecraft.server.BlockChest;
  import net.minecraft.server.BlockPosition;
+ import net.minecraft.server.Blocks;
+ import net.minecraft.server.Chunk;
 +import net.minecraft.server.IHopper;
  import net.minecraft.server.IInventory;
  import net.minecraft.server.TileEntity;
@@ -104,7 +104,7 @@ index c175b7c..b0504c5 100644
  public class HopperHelper {
  
      public static TileEntityHopper getHopper(World world, BlockPosition pos) {
-@@ -30,4 +33,7 @@ public class HopperHelper {
+@@ -35,4 +38,7 @@ public class HopperHelper {
          return null;
      }
  
@@ -127,5 +127,5 @@ index 4e2283c..3f18f79 100644
 +    }
  }
 -- 
-2.8.2
+2.8.3
 
