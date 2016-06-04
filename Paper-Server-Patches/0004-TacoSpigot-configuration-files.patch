@@ -1,11 +1,11 @@
-From 5b905843409f0dc587a182948ffd95f7e38fb6a4 Mon Sep 17 00:00:00 2001
+From d596e3a7875c048f4f1b231214a793d492eaeecc Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 0f1ee49..b6967ea 100644
+index e70aa8e..46baa99 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -135,6 +135,7 @@ public abstract class World implements IBlockAccess {
@@ -236,12 +236,12 @@ index 975a036..44acbea 100644
          return result;
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index 979adad..2f7cb20 100644
+index 2aad1e8..2bc89d6 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
-@@ -130,6 +130,14 @@ public class Main {
-                         .defaultsTo(new File("paper.yml"))
-                         .describedAs("Yml file");
+@@ -138,6 +138,14 @@ public class Main {
+                         .defaultsTo("Unknown Server")
+                         .describedAs("Name");
                  // Paper end
 +
 +                // TacoSpigot start
@@ -254,7 +254,7 @@ index 979adad..2f7cb20 100644
              }
          };
  
-@@ -197,6 +205,7 @@ public class Main {
+@@ -205,6 +213,7 @@ public class Main {
                      System.out.println( "Please see http://www.spigotmc.org/wiki/changing-permgen-size/ for more details and more in-depth instructions." );
                  }
                  // Spigot End
@@ -263,5 +263,5 @@ index 979adad..2f7cb20 100644
                  MinecraftServer.main(options);
              } catch (Throwable t) {
 -- 
-2.8.2
+2.8.3
 
