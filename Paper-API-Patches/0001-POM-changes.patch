@@ -1,12 +1,13 @@
-From 623b8c64d841b18882e3302181b5d0a9bf71b01b Mon Sep 17 00:00:00 2001
+From d8c7cd55ebcfa73608167aefd8e6db7f2f1e23df Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
 
 Check our github versioning
+Add a dependency on jsr305 (@Nullable, @NonNull)
 
 diff --git a/pom.xml b/pom.xml
-index d8dc598..f72a324 100644
+index d8dc598..c8d0406 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,18 +4,18 @@
@@ -34,6 +35,19 @@ index d8dc598..f72a324 100644
      <description>An enhanced plugin API for Minecraft servers.</description>
  
      <properties>
+@@ -125,6 +125,12 @@
+             <artifactId>asm-all</artifactId>
+             <version>5.0.4</version>
+         </dependency>
++        <!-- @NonNull, @Nullable -->
++        <dependency>
++            <groupId>com.google.code.findbugs</groupId>
++            <artifactId>jsr305</artifactId>
++            <version>1.3.9</version>
++        </dependency>
+     </dependencies>
+ 
+     <build>
 diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 index 6d32e1d..32177d3 100644
 --- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
@@ -108,5 +122,5 @@ index 6d32e1d..32177d3 100644
              } catch (ParseException | NumberFormatException e) {
                  e.printStackTrace();
 -- 
-2.8.2
+2.8.3
 

@@ -1,0 +1,108 @@
+From 62bae10f951fb673f22f50f323b4790c120c4583 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Sat, 4 Jun 2016 00:04:21 -0600
+Subject: [PATCH] Implement ItemSendEvent
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
+index 8810016..8f529b6 100644
+--- a/src/main/java/net/minecraft/server/EntityPlayer.java
++++ b/src/main/java/net/minecraft/server/EntityPlayer.java
+@@ -779,7 +779,7 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+         MerchantRecipeList merchantrecipelist = imerchant.getOffers(this);
+ 
+         if (merchantrecipelist != null) {
+-            PacketDataSerializer packetdataserializer = new PacketDataSerializer(Unpooled.buffer());
++            PacketDataSerializer packetdataserializer = new PacketDataSerializer(Unpooled.buffer(), this); // TacoSpigot - pass player to PacketDataSerializer
+ 
+             packetdataserializer.writeInt(this.containerCounter);
+             merchantrecipelist.a(packetdataserializer);
+diff --git a/src/main/java/net/minecraft/server/PacketDataSerializer.java b/src/main/java/net/minecraft/server/PacketDataSerializer.java
+index 313375f..2d6c21a 100644
+--- a/src/main/java/net/minecraft/server/PacketDataSerializer.java
++++ b/src/main/java/net/minecraft/server/PacketDataSerializer.java
+@@ -22,12 +22,23 @@ import java.util.UUID;
+ import javax.annotation.Nullable;
+ 
+ import org.bukkit.craftbukkit.inventory.CraftItemStack; // CraftBukkit
++// TacoSpigot start
++import net.techcable.tacospigot.event.item.ItemSendEvent;
++// TacoSpigot end
+ 
+ public class PacketDataSerializer extends ByteBuf {
+ 
+     private final ByteBuf a;
++    // TacoSpigot start - track player
++    private final EntityPlayer player;
+ 
+-    public PacketDataSerializer(ByteBuf bytebuf) {
++    public PacketDataSerializer(ByteBuf buf) {
++        this(buf, null);
++    }
++
++    public PacketDataSerializer(ByteBuf bytebuf, EntityPlayer player) {
++        this.player = player;
++        // TacoSpigot end
+         this.a = bytebuf;
+     }
+ 
+@@ -226,6 +237,13 @@ public class PacketDataSerializer extends ByteBuf {
+     }
+ 
+     public PacketDataSerializer a(@Nullable ItemStack itemstack) {
++        // TacoSpigot start - fire ItemSendEvent
++        if (player == null) throw new UnsupportedOperationException("Can't write an ItemStack when a serializer doesn't know the player");
++        ItemSendEvent event = new ItemSendEvent(player.getBukkitEntity(), itemstack != null ? CraftItemStack.asBukkitCopy(itemstack) : null);
++        event.callEvent();
++        itemstack = CraftItemStack.asNMSCopy(event.getStack());
++        // TacoSpigot end
++
+         if (itemstack == null || itemstack.getItem() == null) { // CraftBukkit - NPE fix itemstack.getItem()
+             this.writeShort(-1);
+         } else {
+diff --git a/src/main/java/net/minecraft/server/PacketEncoder.java b/src/main/java/net/minecraft/server/PacketEncoder.java
+index a21743d..c333f95 100644
+--- a/src/main/java/net/minecraft/server/PacketEncoder.java
++++ b/src/main/java/net/minecraft/server/PacketEncoder.java
+@@ -29,7 +29,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+         if (integer == null) {
+             throw new IOException("Can\'t serialize unregistered packet");
+         } else {
+-            PacketDataSerializer packetdataserializer = new PacketDataSerializer(bytebuf);
++            PacketDataSerializer packetdataserializer = new PacketDataSerializer(bytebuf, channelhandlercontext.channel().attr(PlayerConnection.PLAYER_ATTR_KEY).get()); // TacoSpigot - pass player as argument to PacketDataSerializer
+ 
+             packetdataserializer.d(integer.intValue());
+ 
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 1e1c8a6..6904b56 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -59,6 +59,9 @@ import org.bukkit.inventory.InventoryView;
+ import org.bukkit.util.NumberConversions;
+ import co.aikar.timings.MinecraftTimings; // Paper
+ // CraftBukkit end
++// TacoSpigot start
++import io.netty.util.AttributeKey;
++// TacoSpigot end
+ 
+ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+ 
+@@ -99,6 +102,7 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+     private int F;
+     private int G;
+     private boolean processedDisconnect; // CraftBukkit - Added
++    public static final AttributeKey<EntityPlayer> PLAYER_ATTR_KEY = AttributeKey.valueOf("player"); // TacoSpigot
+ 
+     public PlayerConnection(MinecraftServer minecraftserver, NetworkManager networkmanager, EntityPlayer entityplayer) {
+         this.minecraftServer = minecraftserver;
+@@ -106,6 +110,7 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+         networkmanager.setPacketListener(this);
+         this.player = entityplayer;
+         entityplayer.playerConnection = this;
++        this.networkManager.channel.attr(PLAYER_ATTR_KEY).set(this.player); // TacoSpigot - set the player
+ 
+         // CraftBukkit start - add fields and methods
+         this.server = minecraftserver.server;
+-- 
+2.8.3
+

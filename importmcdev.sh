@@ -38,6 +38,7 @@ import BlockStateBoolean
 import BlockStateEnum
 import BlockStateInteger
 import BlockStateList
+import PacketEncoder
 
 (
 	cd Paper/Paper-Server/

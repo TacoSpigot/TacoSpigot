@@ -1,4 +1,4 @@
-From d72f177dc176d256a453a0fb5421e6a2997381e0 Mon Sep 17 00:00:00 2001
+From 41511514e2937782432e56c900f36831b4c1dc64 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Sun, 3 Apr 2016 14:05:27 -0700
 Subject: [PATCH] MC-Dev Fixes
@@ -49,6 +49,31 @@ index 4082cff..7816e56 100644
              }
          }
  
+diff --git a/src/main/java/net/minecraft/server/PacketEncoder.java b/src/main/java/net/minecraft/server/PacketEncoder.java
+index a79fa01..a21743d 100644
+--- a/src/main/java/net/minecraft/server/PacketEncoder.java
++++ b/src/main/java/net/minecraft/server/PacketEncoder.java
+@@ -19,7 +19,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+         this.c = enumprotocoldirection;
+     }
+ 
+-    protected void a(ChannelHandlerContext channelhandlercontext, Packet<?> packet, ByteBuf bytebuf) throws Exception {
++    protected void encode(ChannelHandlerContext channelhandlercontext, Packet<?> packet, ByteBuf bytebuf) throws Exception { // TacoSpigot - fix decompiler issue
+         Integer integer = ((EnumProtocol) channelhandlercontext.channel().attr(NetworkManager.c).get()).a(this.c, packet);
+ 
+         if (PacketEncoder.a.isDebugEnabled()) {
+@@ -42,7 +42,11 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+         }
+     }
+ 
++    // TacoSpigot start - remove decompiler error
++    /*
+     protected void encode(ChannelHandlerContext channelhandlercontext, Object object, ByteBuf bytebuf) throws Exception {
+         this.a(channelhandlercontext, (Packet) object, bytebuf);
+     }
++    */
++    // TacoSpigot end
+ }
 -- 
-2.8.2
+2.8.3
 

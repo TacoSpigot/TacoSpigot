@@ -1,0 +1,83 @@
+From f267443180721aa20f7ac27577593312396653df Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Fri, 3 Jun 2016 23:37:02 -0600
+Subject: [PATCH] Add a ItemSendEvent to modify outgoing items
+
+This is very useful to add lore to items with certain metadata.
+For example, you could store custom enchantment data using persistent metadadata, then add lore when the item is sent.
+
+diff --git a/src/main/java/net/techcable/tacospigot/event/item/ItemSendEvent.java b/src/main/java/net/techcable/tacospigot/event/item/ItemSendEvent.java
+new file mode 100644
+index 0000000..eec46bb
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/event/item/ItemSendEvent.java
+@@ -0,0 +1,66 @@
++package net.techcable.tacospigot.event.item;
++
++import javax.annotation.Nonnull;
++import javax.annotation.Nullable;
++
++import org.bukkit.entity.Player;
++import org.bukkit.event.Event;
++import org.bukkit.event.HandlerList;
++import org.bukkit.inventory.ItemStack;
++
++import static com.google.common.base.Preconditions.*;
++
++/**
++ * Fired when an item (possibly empty) is sent to a player
++ * <p>Modifying the event's item only changes what the player sees, not what is actually on the server.</p>
++ */
++public class ItemSendEvent extends Event {
++    private final Player player;
++    private ItemStack stack;
++
++    public ItemSendEvent(@Nonnull Player player, @Nullable ItemStack stack) {
++        this.player = checkNotNull(player, "Null player");
++        this.stack = stack;
++    }
++
++    /**
++     * Get the stack that is being sent, or null if an empty item is being sent
++     *
++     * @return the stack that is being sent, or null if none
++     */
++    @Nullable
++    public ItemStack getStack() {
++        return stack;
++    }
++
++    /**
++     * Set the stack that should be sent, or null to send an empty item
++     *
++     * @param stack the stack that should be being sent, or null if nothing should be sent
++     */
++    public void setStack(@Nullable ItemStack stack) {
++        this.stack = stack;
++    }
++
++    /**
++     * Get the player the item is being sent to
++     *
++     * @return the player
++     */
++    @Nonnull
++    public Player getPlayer() {
++        return player;
++    }
++
++    // Event boilerplate
++    private static final HandlerList handlerList = new HandlerList();
++
++    public HandlerList getHandlerList() {
++        return handlerList;
++    }
++
++    @Override
++    public HandlerList getHandlers() {
++        return getHandlerList();
++    }
++}
+-- 
+2.8.3
+
