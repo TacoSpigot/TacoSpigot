@@ -1,4 +1,4 @@
-From 1e912bb04d31ffd7009d517ebc5b11b2fc51e510 Mon Sep 17 00:00:00 2001
+From f66b634efa5ae5eb04a049d1e67b6ab8e63fd59d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 3 Feb 2016 11:27:34 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -9,7 +9,7 @@ Some plugins offer no way to disable their IMIE listeners. (See WorldGuard-3520)
 This patch adds a per-world flag to disable InventoryMoveItemEvent for hoppers.
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index a2d953a..39071df 100644
+index 6a783ef..f1800f3 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
 @@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryPickupItemEvent;
@@ -20,7 +20,7 @@ index a2d953a..39071df 100644
  import net.techcable.tacospigot.HopperHelper;
  // TacoSpigot end
  
-@@ -269,7 +270,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -258,7 +259,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
  
                          // CraftBukkit start - Call event when pushing items into other inventories
                          CraftItemStack oitemstack = CraftItemStack.asCraftMirror(this.splitStack(i, world.spigotConfig.hopperAmount)); // Spigot
@@ -32,7 +32,7 @@ index a2d953a..39071df 100644
                          Inventory destinationInventory;
                          // Have to special case large chests as they work oddly
                          if (iinventory instanceof InventoryLargeChest) {
-@@ -285,11 +289,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -274,11 +278,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                              this.setCooldown(world.spigotConfig.hopperTransfer); // Spigot
                              return false;
                          }
@@ -53,7 +53,7 @@ index a2d953a..39071df 100644
                                  iinventory.update();
                              } else {
                                  this.setItem(i, itemstack);
-@@ -420,6 +430,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -409,6 +419,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
              // ItemStack itemstack2 = addItem(ihopper, iinventory.splitStack(i, 1), (EnumDirection) null);
              // CraftBukkit start - Call event on collection of items from inventories into the hopper
              CraftItemStack oitemstack = CraftItemStack.asCraftMirror(iinventory.splitStack(i, ihopper.getWorld().spigotConfig.hopperAmount)); // Spigot
@@ -64,7 +64,7 @@ index a2d953a..39071df 100644
  
              Inventory sourceInventory;
              // Have to special case large chests as they work oddly
-@@ -442,11 +456,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -431,11 +445,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                  }
                  return false;
              }

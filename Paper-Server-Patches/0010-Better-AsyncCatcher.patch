@@ -1,4 +1,4 @@
-From 8789a1b9ef181cf19062df52ca34bbad981cd5c5 Mon Sep 17 00:00:00 2001
+From 12368d52f4166781df4538c943ca2f9477e1712c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Fri, 18 Mar 2016 13:56:01 -0700
 Subject: [PATCH] Better AsyncCatcher
@@ -6,10 +6,10 @@ Subject: [PATCH] Better AsyncCatcher
 Async catching for PlayerChunkMap
 
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index 6c95e50..eb111bf 100644
+index 20a8a80..1bd4173 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-@@ -18,6 +18,9 @@ import javax.annotation.Nullable;
+@@ -19,6 +19,9 @@ import javax.annotation.Nullable;
  // CraftBukkit start
  import java.util.LinkedList;
  // CraftBukkit end
@@ -19,7 +19,7 @@ index 6c95e50..eb111bf 100644
  
  public class PlayerChunkMap {
  
-@@ -40,12 +43,14 @@ public class PlayerChunkMap {
+@@ -41,12 +44,14 @@ public class PlayerChunkMap {
          }
      };
      private final WorldServer world;
@@ -107,5 +107,5 @@ index 429c258..86c8bf6 100644
          {
              if ( script.isFile() )
 -- 
-2.8.2
+2.8.3
 
