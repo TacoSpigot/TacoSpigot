@@ -1,14 +1,14 @@
-From 2bcbb978dc9809ad48f881e7c8bcbb62cf52c675 Mon Sep 17 00:00:00 2001
+From 82b29868a519ed6758406b3e3ceb12fcd42c5de4 Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Mon, 4 Apr 2016 01:45:23 -0400
 Subject: [PATCH] Fix armor toughness being ignored
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
-index 129bca8..2848def 100644
+index d0bce92..c497530 100644
 --- a/src/main/java/net/minecraft/server/EntityLiving.java
 +++ b/src/main/java/net/minecraft/server/EntityLiving.java
-@@ -1131,7 +1131,7 @@ public abstract class EntityLiving extends Entity {
+@@ -1153,7 +1153,7 @@ public abstract class EntityLiving extends Entity {
      protected float applyArmorModifier(DamageSource damagesource, float f) {
          if (!damagesource.ignoresArmor()) {
              // this.damageArmor(f); // CraftBukkit - Moved into damageEntity0(DamageSource, float)
@@ -18,5 +18,5 @@ index 129bca8..2848def 100644
  
          return f;
 -- 
-2.8.2
+2.8.3
 

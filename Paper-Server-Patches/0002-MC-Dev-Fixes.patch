@@ -1,4 +1,4 @@
-From 41511514e2937782432e56c900f36831b4c1dc64 Mon Sep 17 00:00:00 2001
+From 87b4be524fa7538124c536f9e6f3e34ed7c2e014 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Sun, 3 Apr 2016 14:05:27 -0700
 Subject: [PATCH] MC-Dev Fixes
@@ -6,10 +6,10 @@ Subject: [PATCH] MC-Dev Fixes
 Sometimes fernflower makes mistakes too
 
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index d708a7e..6aa06b2 100644
+index 71524f2..b77a3dd 100644
 --- a/src/main/java/net/minecraft/server/BlockStateEnum.java
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
-@@ -21,7 +21,7 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+@@ -22,7 +22,7 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
          Iterator iterator = collection.iterator();
  
          while (iterator.hasNext()) {
@@ -19,7 +19,7 @@ index d708a7e..6aa06b2 100644
  
              if (this.b.containsKey(s1)) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 4082cff..7816e56 100644
+index 0026e49..da05dbb 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
 @@ -85,7 +85,7 @@ public class BlockStateList {
@@ -40,7 +40,7 @@ index 4082cff..7816e56 100644
  
                  s1 = iblockstate.a(comparable);
              } while (BlockStateList.a.matcher(s1).matches());
-@@ -158,7 +158,7 @@ public class BlockStateList {
+@@ -163,7 +163,7 @@ public class BlockStateList {
              if (comparable == null) {
                  throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.t());
              } else {

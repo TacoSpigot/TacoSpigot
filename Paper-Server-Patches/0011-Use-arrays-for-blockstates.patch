@@ -1,4 +1,4 @@
-From a7c8348d0006fb1a5c501bf3d4f62d3ae6c8e591 Mon Sep 17 00:00:00 2001
+From 482a40be25eb77940db2d8c06c70d642cd26eb82 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -58,10 +58,10 @@ index e1261f5..5ea4b36 100644
  
      public String a() {
 diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
-index 6c4b26b..fc4490f 100644
+index 5b193f4..0a2aa9b 100644
 --- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
 +++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
-@@ -35,6 +35,25 @@ public class BlockStateBoolean extends BlockState<Boolean> {
+@@ -40,6 +40,25 @@ public class BlockStateBoolean extends BlockState<Boolean> {
          }
      }
  
@@ -88,15 +88,18 @@ index 6c4b26b..fc4490f 100644
          return 31 * super.hashCode() + this.a.hashCode();
      }
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index 6aa06b2..c6c18f1 100644
+index b77a3dd..b9be436 100644
 --- a/src/main/java/net/minecraft/server/BlockStateEnum.java
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
-@@ -36,11 +36,28 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+@@ -37,7 +37,6 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
      public Collection<T> c() {
          return this.a;
      }
 -
-     public String a(T t0) {
+     public Optional<T> b(String s) {
+         return Optional.fromNullable(this.b.get(s));
+     }
+@@ -46,6 +45,24 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
          return ((INamable) t0).getName();
      }
  
@@ -122,10 +125,10 @@ index 6aa06b2..c6c18f1 100644
          if (this == object) {
              return true;
 diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
-index 66a1496..835b5d6 100644
+index 2b7870e..7f05581 100644
 --- a/src/main/java/net/minecraft/server/BlockStateInteger.java
 +++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
-@@ -8,9 +8,40 @@ import java.util.HashSet;
+@@ -9,9 +9,40 @@ import java.util.HashSet;
  public class BlockStateInteger extends BlockState<Integer> {
  
      private final ImmutableSet<Integer> a;
@@ -167,7 +170,7 @@ index 66a1496..835b5d6 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 7816e56..874592b 100644
+index da05dbb..b2a1328 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
 @@ -23,6 +23,16 @@ import java.util.Map.Entry;
@@ -187,7 +190,7 @@ index 7816e56..874592b 100644
  public class BlockStateList {
  
      private static final Pattern a = Pattern.compile("^[a-z0-9_]+$");
-@@ -140,12 +150,22 @@ public class BlockStateList {
+@@ -145,12 +155,22 @@ public class BlockStateList {
      static class BlockData extends BlockDataAbstract {
  
          private final Block a;
@@ -213,7 +216,7 @@ index 7816e56..874592b 100644
          }
  
          public Collection<IBlockState<?>> r() {
-@@ -181,7 +201,7 @@ public class BlockStateList {
+@@ -186,7 +206,7 @@ public class BlockStateList {
          }
  
          public ImmutableMap<IBlockState<?>, Comparable<?>> s() {
@@ -222,7 +225,7 @@ index 7816e56..874592b 100644
          }
  
          public Block getBlock() {
-@@ -211,19 +231,33 @@ public class BlockStateList {
+@@ -216,19 +236,33 @@ public class BlockStateList {
                      while (iterator1.hasNext()) {
                          Comparable comparable = (Comparable) iterator1.next();
  
@@ -259,11 +262,11 @@ index 7816e56..874592b 100644
              return hashmap;
          }
 diff --git a/src/main/java/net/minecraft/server/IBlockState.java b/src/main/java/net/minecraft/server/IBlockState.java
-index 7e35d33..67e12b6 100644
+index de54801..4275df5 100644
 --- a/src/main/java/net/minecraft/server/IBlockState.java
 +++ b/src/main/java/net/minecraft/server/IBlockState.java
-@@ -2,6 +2,10 @@ package net.minecraft.server;
- 
+@@ -3,6 +3,10 @@ package net.minecraft.server;
+ import com.google.common.base.Optional;
  import java.util.Collection;
  
 +// TacoSpigot start
@@ -273,8 +276,8 @@ index 7e35d33..67e12b6 100644
  public interface IBlockState<T extends Comparable<T>> {
  
      String a();
-@@ -11,4 +15,20 @@ public interface IBlockState<T extends Comparable<T>> {
-     Class<T> b();
+@@ -14,4 +18,20 @@ public interface IBlockState<T extends Comparable<T>> {
+     Optional<T> b(String s);
  
      String a(T t0);
 +
@@ -824,5 +827,5 @@ index 0000000..b5adb4e
 +    public R apply(T t, int i);
 +}
 -- 
-2.8.2
+2.8.3
 

@@ -1,4 +1,4 @@
-From d8c7cd55ebcfa73608167aefd8e6db7f2f1e23df Mon Sep 17 00:00:00 2001
+From 7f413632bcd8391f3dd8c96c570408311221e802 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -7,7 +7,7 @@ Check our github versioning
 Add a dependency on jsr305 (@Nullable, @NonNull)
 
 diff --git a/pom.xml b/pom.xml
-index d8dc598..c8d0406 100644
+index 6558e8a..88a248d 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,18 +4,18 @@
@@ -25,7 +25,7 @@ index d8dc598..c8d0406 100644
 -    <artifactId>paper-api</artifactId>
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>tacospigot-api</artifactId>
-     <version>1.9.4-R0.1-SNAPSHOT</version>
+     <version>1.10-R0.1-SNAPSHOT</version>
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>
