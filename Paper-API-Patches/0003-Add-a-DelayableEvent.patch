@@ -1,0 +1,152 @@
+From 888499f672c1dca4acbb5bb487c01b6382bad1ce Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Thu, 9 Jun 2016 22:21:42 -0700
+Subject: [PATCH] Add a DelayableEvent
+
+Sometimes you want to be able to delay the action handled by an event.
+This can free up server time to do valuble other things, and the server can handle completing the event logic when you 'undelay' an event.
+
+Bungee has a similar mechanism in its 'AsyncEvent' mechanism.
+
+diff --git a/src/main/java/net/techcable/tacospigot/event/DelayableEvent.java b/src/main/java/net/techcable/tacospigot/event/DelayableEvent.java
+new file mode 100644
+index 0000000..9dd75cd
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/event/DelayableEvent.java
+@@ -0,0 +1,133 @@
++package net.techcable.tacospigot.event;
++
++import java.util.HashMap;
++import java.util.Map;
++
++import javax.annotation.ParametersAreNonnullByDefault;
++
++import org.bukkit.Bukkit;
++import org.bukkit.event.Event;
++import org.bukkit.plugin.Plugin;
++
++import static com.google.common.base.Preconditions.*;
++
++public abstract class DelayableEvent extends Event {
++    private final Map<Plugin, Integer> delays = new HashMap<>();
++    private volatile int totalDelays = 0;
++    private volatile boolean fired = false;
++    private final Callback<?> callback;
++
++    @SuppressWarnings("unchecked")
++    private void runCallback(boolean wasDelayed) {
++        assert !isDelayed();
++        ((Callback) callback).run(this, true);
++    }
++
++    protected DelayableEvent(boolean async, Callback<?> callback) {
++        super(async);
++        this.callback = checkNotNull(callback, "Null callback");
++    }
++
++    /**
++     * Have the specified plugin delay completion of the event
++     *
++     * @param plugin the plugin that is delaying execution
++     * @throws IllegalStateException if the event finished firing
++     */
++    public void delay(Plugin plugin) {
++        checkState(!fired || isDelayed(), "Event %s has already finished firing its listeners and isn't delayed!.", getClass().getTypeName());
++        synchronized (this) {
++            setDelays(plugin, getDelays(plugin) + 1);
++            totalDelays++;
++        }
++    }
++
++    public int getDelays(Plugin plugin) {
++        checkNotNull(plugin, "Null plugin");
++        return delays.getOrDefault(plugin, 0);
++    }
++
++    protected void setDelays(Plugin plugin, int delays) {
++        checkNotNull(plugin, "Null plugin");
++        if (delays <= 0) {
++            this.delays.remove(plugin);
++        } else {
++            this.delays.put(plugin, delays);
++        }
++    }
++
++    @Override
++    public boolean callEvent() {
++        boolean successful = super.callEvent();
++        onPostFire();
++        return successful;
++    }
++
++    public void undelay(Plugin plugin) {
++        synchronized (this) {
++            int pluginCount = getDelays(plugin);
++            checkState(pluginCount > 0, "Plugin %s doesn't have any delays registered", plugin);
++            setDelays(plugin, pluginCount - 1);
++            if (this.totalDelays == 0 && fired) runCallback(true);
++        }
++    }
++
++    /**
++     * Runs a task on the main thread, and delays the event until the task completes.
++     *
++     * @param plugin the plugin to run the task for
++     * @param task   the task to run
++     */
++    public void runTaskAndDelay(Plugin plugin, Runnable task) {
++        checkNotNull(plugin, "Null plugin");
++        checkNotNull(task, "Null task");
++        if (Bukkit.isPrimaryThread()) {
++            task.run();
++        } else {
++            delay(plugin);
++            try {
++                Bukkit.getScheduler().runTask(plugin, task);
++            } finally {
++                undelay(plugin);
++            }
++        }
++    }
++
++    /**
++     * Runs a task in a different thread, and delays the event until the task completes.
++     *
++     * @param plugin the plugin to run the task for
++     * @param task   the task to run
++     */
++    public void runTaskAsyncAndDelay(Plugin plugin, Runnable task) {
++        checkNotNull(plugin, "Null plugin");
++        checkNotNull(task, "Null task");
++        delay(plugin);
++        try {
++            Bukkit.getScheduler().runTaskAsynchronously(plugin, task);
++        } finally {
++            undelay(plugin);
++        }
++    }
++
++    public boolean isDelayed() {
++        return totalDelays > 0;
++    }
++
++    public synchronized boolean onPostFire() {
++        checkState(!fired, "Already marked event as fired!");
++        fired = true;
++        if (!isDelayed()) {
++            runCallback(false);
++            return false;
++        } else {
++            return true;
++        }
++    }
++
++    @FunctionalInterface
++    @ParametersAreNonnullByDefault
++    public interface Callback<T extends DelayableEvent> {
++        public void run(T event, boolean wasDelayed);
++    }
++}
+-- 
+2.8.3
+
