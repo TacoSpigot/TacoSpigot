@@ -1,4 +1,4 @@
-From 7a27378276c433240fe6784b11fe5225512a5b9f Mon Sep 17 00:00:00 2001
+From 8945fa8313553ece6ef3647c191ea257f8b8940b Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 5 Oct 2015 22:43:57 -0700
 Subject: [PATCH] Optimize X-Ray
@@ -7,20 +7,37 @@ Spigot uses a recursive version to check for adjacent blocks that is very
 slow and duplicates many checks.
 This is replaced with an iterative system that never duplicates checks
 
+diff --git a/src/main/java/net/minecraft/server/BlockPosition.java b/src/main/java/net/minecraft/server/BlockPosition.java
+index 0d0e0ab..977c44f 100644
+--- a/src/main/java/net/minecraft/server/BlockPosition.java
++++ b/src/main/java/net/minecraft/server/BlockPosition.java
+@@ -267,6 +267,12 @@ public class BlockPosition extends BaseBlockPosition {
+         }
+         */
+ 
++        // TacoSpigot start - OBFHELPER
++        public BlockPosition.MutableBlockPosition setValues(int x, int y, int z) {
++            return c(x, y, z);
++        }
++        // TacoSpigot end
++
+         public BlockPosition.MutableBlockPosition c(int i, int j, int k) {
+             setX(i);
+             setY(j);
 diff --git a/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
 new file mode 100644
-index 0000000..e51a766
+index 0000000..e98fa4d
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/utils/BlockHelper.java
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,64 @@
 +package net.techcable.tacospigot.utils;
 +
 +import java.util.AbstractSet;
 +import java.util.Iterator;
 +import java.util.Spliterator;
 +import java.util.Spliterators;
-+import java.util.function.Consumer;
-+import java.util.function.Predicate;
++import java.util.function.BiConsumer;
++import java.util.function.BiPredicate;
 +import java.util.stream.Stream;
 +import java.util.stream.StreamSupport;
 +
@@ -29,23 +46,38 @@ index 0000000..e51a766
 +
 +import net.minecraft.server.Block;
 +import net.minecraft.server.BlockPosition;
++import net.minecraft.server.World;
 +
 +public class BlockHelper {
-+    private BlockHelper() {
++    private BlockHelper() {}
++
++    public static void forEachAdjacentBlock(World w, BlockPosition position, int radius, BiConsumer<World, BlockPosition> action) {
++        isAllAdjacentBlocksFillPredicate(w, position, radius, (world, adjacentPos) -> {
++            action.accept(world, adjacentPos);
++            return true;
++        });
 +    }
 +
-+    public static Stream<BlockPosition> streamAdjacentBlocks(final BlockPosition pos, int radius) {
-+        Preconditions.checkArgument(radius >= 0, "Negative radius %s", radius);
-+        return StreamSupport.stream(new AdjacentBlockSet(pos, radius).spliterator(), false);
++    public static boolean isAllAdjacentBlocksLoaded(World world, BlockPosition pos, int radius) {
++        return isAllAdjacentBlocksFillPredicate(world, pos, radius, World::isLoaded);
 +    }
 +
-+    public static void forEachAdjacentBlock(BlockPosition position, int radius, Consumer<BlockPosition> action) {
-+        new AdjacentBlockSet(position, radius).forEach(action);
-+    }
-+
-+    public static boolean isAllAdjacentBlocksFillPredicate(BlockPosition position, int radius, Predicate<BlockPosition> predicate) {
-+        for (BlockPosition adjacent : new AdjacentBlockSet(position, radius)) {
-+            if (!predicate.test(adjacent)) return false;
++    public static boolean isAllAdjacentBlocksFillPredicate(World world, BlockPosition pos, int radius, BiPredicate<World, BlockPosition> predicate) {
++        // Make sure to keep this below the inline threshold!!!
++        int startX = pos.getX() - radius;
++        int endX = pos.getX() + radius;
++        int startY = Math.max(0, pos.getY() - radius);
++        int endY = Math.min(255, pos.getY() + radius);
++        int startZ = pos.getZ() - radius;
++        int endZ = pos.getZ() + radius;
++        BlockPosition.MutableBlockPosition adjacent = new BlockPosition.MutableBlockPosition();
++        for (int x = startX; x <= endX; x++) {
++            for (int y = startY; y <= endY; y++) {
++                for (int z = startZ; z <= endZ; z++) {
++                    adjacent.setValues(x, y, z);
++                    if (!predicate.test(world, adjacent)) return false;
++                }
++            }
 +        }
 +        return true;
 +    }
@@ -61,98 +93,9 @@ index 0000000..e51a766
 +    public static Block getBlock(int id) {
 +        return id < 256 ? blockById[id] : Block.getById(id);
 +    }
-+
-+    public static class AdjacentBlockSet extends AbstractSet<BlockPosition> {
-+        private final int startX, endX;
-+        private final int startY, endY;
-+        private final int startZ, endZ;
-+
-+
-+        public AdjacentBlockSet(BlockPosition pos, int radius) {
-+            this(
-+                    pos.getX() - radius, // startX
-+                    pos.getX() + radius, // endX
-+                    Math.max(0, pos.getY() - radius), // startY
-+                    Math.min(255, pos.getY() + radius), // endY
-+                    pos.getZ() - radius, // startZ
-+                    pos.getZ() + radius // endZ
-+            );
-+        }
-+
-+        public AdjacentBlockSet(int startX, int endX, int startY, int endY, int startZ, int endZ) {
-+            this.startX = startX;
-+            this.endX = endX;
-+            this.startY = startY;
-+            this.endY = endY;
-+            this.startZ = startZ;
-+            this.endZ = endZ;
-+        }
-+
-+        @Override
-+        public int size() {
-+            return (endX - startX) * (endY - startY) * (endZ - startZ);
-+        }
-+
-+        @Override
-+        public Spliterator<BlockPosition> spliterator() {
-+            return Spliterators.spliterator(iterator(), size(), Spliterator.IMMUTABLE | Spliterator.ORDERED | Spliterator.DISTINCT | Spliterator.NONNULL);
-+        }
-+
-+        @Override
-+        public Iterator<BlockPosition> iterator() {
-+            return new AdjacentBlockIterator();
-+        }
-+
-+        @Override
-+        public void forEach(Consumer<? super BlockPosition> action) {
-+            iterator().forEachRemaining(action);
-+        }
-+
-+        private class AdjacentBlockIterator extends AbstractIterator<BlockPosition> {
-+            private int x = startX;
-+            private int y = startY;
-+            private int z = startZ;
-+
-+            @Override
-+            protected BlockPosition computeNext() {
-+                final int x = this.x;
-+                final int y = this.y;
-+                final int z = this.z;
-+                if (z <= endZ) {
-+                    ++this.z;
-+                } else {
-+                    if (y < endY) {
-+                        ++this.y;
-+                    } else {
-+                        if (x < endX) {
-+                            ++this.x;
-+                        } else return endOfData();
-+                        this.y = startY;
-+                    }
-+                    this.z = startZ;
-+                    return computeNext();
-+                }
-+                return new BlockPosition(x, y, z);
-+            }
-+
-+            @Override
-+            public void forEachRemaining(Consumer<? super BlockPosition> action) {
-+                for (int x = this.x; x <= endX; x++) {
-+                    for (int y = this.y; y <= endY; y++) {
-+                        for (int z = this.z; z <= endZ; z++) {
-+                            BlockPosition adjacent = new BlockPosition(x, y, z);
-+                            action.accept(adjacent);
-+                        }
-+                    }
-+                }
-+                endOfData();
-+            }
-+        }
-+    }
 +}
-\ No newline at end of file
 diff --git a/src/main/java/org/spigotmc/AntiXray.java b/src/main/java/org/spigotmc/AntiXray.java
-index c2ad90c..3a13d38 100644
+index c2ad90c..7132082 100644
 --- a/src/main/java/org/spigotmc/AntiXray.java
 +++ b/src/main/java/org/spigotmc/AntiXray.java
 @@ -5,6 +5,7 @@ import gnu.trove.set.hash.TByteHashSet;
@@ -174,7 +117,15 @@ index c2ad90c..3a13d38 100644
  
  public class AntiXray
  {
-@@ -158,7 +163,7 @@ public class AntiXray
+@@ -137,6 +142,7 @@ public class AntiXray
+                     break;
+             }
+ 
++            BlockPosition.MutableBlockPosition pos = new BlockPosition.MutableBlockPosition(); // TacoSpigot - preallocate MutableBlockPosition
+             // Chunks can have up to 16 sections
+             for ( int i = 0; i < 16; i++ )
+             {
+@@ -158,20 +164,23 @@ public class AntiXray
                                  }
                                  // Grab the block ID in the buffer.
                                  // TODO: extended IDs are not yet supported
@@ -183,23 +134,54 @@ index c2ad90c..3a13d38 100644
                                          | ((buffer[(index << 1) + 1] & 0xFF) << 8);
                                  blockId >>>= 4;
                                  // Check if the block should be obfuscated
-@@ -204,21 +209,31 @@ public class AntiXray
+                                 if ( obfuscateBlocks[blockId] )
+                                 {
+                                     // The world isn't loaded, bail out
+-                                    if ( !isLoaded( world, new BlockPosition( startX + x, ( i << 4 ) + y, startZ + z ), initialRadius ) )
++                                    // TacoSpigot start
++                                    pos.setValues(startX + x, ( i << 4 ) + y, startZ + z);
++                                    if ( !isLoaded( world, /* new BlockPosition( startX + x, ( i << 4 ) + y, startZ + z ) */ pos, initialRadius ) )
+                                     {
++                                        // TacoSpigot end
+                                         index++;
+                                         continue;
+                                     }
+                                     // On the otherhand, if radius is 0, or the nearby blocks are all non air, we can obfuscate
+-                                    if ( !hasTransparentBlockAdjacent( world, new BlockPosition( startX + x, ( i << 4 ) + y, startZ + z ), initialRadius ) )
++                                    if ( !hasTransparentBlockAdjacent( world, /* new BlockPosition( startX + x, ( i << 4 ) + y, startZ + z ) */ pos, initialRadius ) ) // TacoSpigot - use prexisting MutableBlockPosition
+                                     {
+                                         int newId = blockId;
+                                         switch ( world.spigotConfig.engineMode )
+@@ -204,21 +213,43 @@ public class AntiXray
          }
      }
  
 -    private void updateNearbyBlocks(World world, BlockPosition position, int radius, boolean updateSelf)
 +    // TacoSpigot start
-+    private void updateNearbyBlocks(World world, BlockPosition startPos, int radius, boolean updateSelf) {
-+        BlockHelper.forEachAdjacentBlock(startPos, radius, (pos) -> {
-+            if (!updateSelf && pos.equals(startPos)) return;
-+            updateBlock(world, pos);
-+        });
++    private void updateNearbyBlocks(World world, final BlockPosition startPos, int radius, boolean updateSelf) {
++        int startX = startPos.getX() - radius;
++        int endX = startPos.getX() + radius;
++        int startY = Math.max(0, startPos.getY() - radius);
++        int endY = Math.min(255, startPos.getY() + radius);
++        int startZ = startPos.getZ() - radius;
++        int endZ = startPos.getZ() + radius;
++        BlockPosition.MutableBlockPosition adjacent = new BlockPosition.MutableBlockPosition();
++        for (int x = startX; x <= endX; x++) {
++            for (int y = startY; y <= endY; y++) {
++                for (int z = startZ; z <= endZ; z++) {
++                    adjacent.setValues(x, y, z);
++                    if (!updateSelf && x == startPos.getX() & y == startPos.getY() & z == startPos.getZ()) continue;
++                    if (world.isLoaded(adjacent)) updateBlock(world, adjacent);
++                }
++            }
++        }
 +    }
 +
 +    private void updateBlock(World world, BlockPosition position)
      {
          // If the block in question is loaded
-         if ( world.isLoaded( position ) )
+-        if ( world.isLoaded( position ) )
++        if ( false ) // TacoSpigot - caller checked
          {
              // Get block id
 -            Block block = world.getType(position).getBlock();
@@ -218,7 +200,7 @@ index c2ad90c..3a13d38 100644
              // Check other blocks for updates
              if ( radius > 0 )
              {
-@@ -229,31 +244,27 @@ public class AntiXray
+@@ -229,31 +260,27 @@ public class AntiXray
                  updateNearbyBlocks( world, position.south(), radius - 1, true );
                  updateNearbyBlocks( world, position.north(), radius - 1, true );
              }
@@ -238,13 +220,13 @@ index c2ad90c..3a13d38 100644
 -                && isLoaded( world, position.south(), radius - 1 )
 -                && isLoaded( world, position.north(), radius - 1 ) ) );
 +        // TacoSpigot start
-+        return BlockHelper.isAllAdjacentBlocksFillPredicate(position, radius, world::isLoaded);
++        return BlockHelper.isAllAdjacentBlocksLoaded(world, position, radius);
 +        // TacoSpigot end
      }
  
 -    private static boolean hasTransparentBlockAdjacent(World world, BlockPosition position, int radius)
 +    // TacoSpigot start
-+    private static boolean hasTransparentBlockAdjacent(World world, BlockPosition startPos, int radius)
++    private static boolean hasTransparentBlockAdjacent(World w, BlockPosition startPos, int radius)
      {
 -        return !isSolidBlock(world.getType(position, false).getBlock()) /* isSolidBlock */
 -                || ( radius > 0
@@ -255,7 +237,7 @@ index c2ad90c..3a13d38 100644
 -                || hasTransparentBlockAdjacent( world, position.south(), radius - 1 )
 -                || hasTransparentBlockAdjacent( world, position.north(), radius - 1 ) ) );
 +        // !(solid blocks all around)
-+        return !BlockHelper.isAllAdjacentBlocksFillPredicate(startPos, radius, (position) -> {
++        return !BlockHelper.isAllAdjacentBlocksFillPredicate(w, startPos, radius, (world, position) -> {
 +            Block block = getType(world, position);
 +            return isSolidBlock(block);
 +        }); /* isSolidBlock */
@@ -263,7 +245,7 @@ index c2ad90c..3a13d38 100644
      }
  
      private static boolean isSolidBlock(Block block) {
-@@ -264,4 +275,24 @@ public class AntiXray
+@@ -264,4 +291,24 @@ public class AntiXray
          // blocks around them.
          return block.isOccluding() && block != Blocks.MOB_SPAWNER && block != Blocks.BARRIER;
      }
@@ -289,5 +271,5 @@ index c2ad90c..3a13d38 100644
 +    // TacoSpigot end
  }
 -- 
-2.7.1
+2.8.3
 
