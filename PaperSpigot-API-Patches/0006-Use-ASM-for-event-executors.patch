@@ -1,4 +1,4 @@
-From 2c449fa94c577cdcbd75819b99c87bce89454f4b Mon Sep 17 00:00:00 2001
+From a5ebb016cffcdfdc660129b7978eca1b925419c7 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 3 Mar 2016 13:20:33 -0700
 Subject: [PATCH] Use ASM for event executors.
@@ -263,11 +263,56 @@ index 0000000..62acbf8
 +        return UNSAFE;
 +    }
 +}
+diff --git a/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java b/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java
+new file mode 100644
+index 0000000..82c6c5b
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java
+@@ -0,0 +1,39 @@
++package net.techcable.tacospigot.event.executor;
++
++import java.lang.invoke.MethodHandle;
++import java.lang.invoke.MethodHandles;
++import java.lang.reflect.Method;
++import java.lang.reflect.Modifier;
++
++import com.google.common.base.Preconditions;
++
++import org.bukkit.event.Event;
++import org.bukkit.event.EventException;
++import org.bukkit.event.Listener;
++import org.bukkit.plugin.EventExecutor;
++
++public class StaticMethodHandleEventExecutor implements EventExecutor {
++    private final Class<? extends Event> eventClass;
++    private final MethodHandle handle;
++
++    public StaticMethodHandleEventExecutor(Class<? extends Event> eventClass, Method m) {
++        Preconditions.checkArgument(Modifier.isStatic(m.getModifiers()), "Not a static method: %s", m);
++        this.eventClass = eventClass;
++        try {
++            m.setAccessible(true);
++            this.handle = MethodHandles.lookup().unreflect(m);
++        } catch (IllegalAccessException e) {
++            throw new AssertionError("Unable to set accessible", e);
++        }
++    }
++
++    @Override
++    public void execute(Listener listener, Event event) throws EventException {
++        if (!eventClass.isInstance(event)) return;
++        try {
++            handle.invoke(event);
++        } catch (Throwable t) {
++            throw new EventException(t);
++        }
++    }
++}
 diff --git a/src/main/java/org/bukkit/plugin/EventExecutor.java b/src/main/java/org/bukkit/plugin/EventExecutor.java
-index 3b2c99e..7b92ce0 100644
+index 3b2c99e..6f5fa9d 100644
 --- a/src/main/java/org/bukkit/plugin/EventExecutor.java
 +++ b/src/main/java/org/bukkit/plugin/EventExecutor.java
-@@ -4,9 +4,53 @@ import org.bukkit.event.Event;
+@@ -4,9 +4,54 @@ import org.bukkit.event.Event;
  import org.bukkit.event.EventException;
  import org.bukkit.event.Listener;
  
@@ -294,6 +339,7 @@ index 3b2c99e..7b92ce0 100644
 +        Preconditions.checkArgument(m.getParameterTypes()[0] == eventClass, "First parameter %s doesn't match event class %s", m.getParameterTypes()[0], eventClass);
 +        Preconditions.checkArgument(!Modifier.isStatic(m.getModifiers()), "Static method %s", m.getName());
 +        ClassDefiner definer = ClassDefiner.getInstance();
++        if (Modifier.isStatic(m.getModifiers())) return net.techcable.tacospigot.event.executor.StaticMethodHandleEventExecutor(eventClass, m); // TacoSpigot
 +        if (definer.isBypassAccessChecks() || Modifier.isPublic(m.getDeclaringClass().getModifiers()) && Modifier.isPublic(m.getModifiers())) {
 +            String name = ASMEventExecutorGenerator.generateName();
 +            byte[] classData = ASMEventExecutorGenerator.generateEventExecutor(m, name);
@@ -348,5 +394,5 @@ index b057b05..3def4c5 100644
                  eventSet.add(new TimedRegisteredListener(listener, executor, eh.priority(), plugin, eh.ignoreCancelled()));
              } else {
 -- 
-2.7.2
+2.8.3
 
