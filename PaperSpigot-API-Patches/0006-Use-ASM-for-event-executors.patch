@@ -1,4 +1,4 @@
-From a5ebb016cffcdfdc660129b7978eca1b925419c7 Mon Sep 17 00:00:00 2001
+From 9cdfb5a929990195e3e951022c079402f9d3ea33 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 3 Mar 2016 13:20:33 -0700
 Subject: [PATCH] Use ASM for event executors.
@@ -22,13 +22,13 @@ index b61d116..53d82df 100644
      </dependencies>
  
      <build>
-diff --git a/src/main/java/com/destroystokyo/paper/event/executor/MethodHandleEventExecutor.java b/src/main/java/com/destroystokyo/paper/event/executor/MethodHandleEventExecutor.java
+diff --git a/src/main/java/net/techcable/tacospigot/event/executor/MethodHandleEventExecutor.java b/src/main/java/net/techcable/tacospigot/event/executor/MethodHandleEventExecutor.java
 new file mode 100644
-index 0000000..9ff99e3
+index 0000000..cfcc270
 --- /dev/null
-+++ b/src/main/java/com/destroystokyo/paper/event/executor/MethodHandleEventExecutor.java
++++ b/src/main/java/net/techcable/tacospigot/event/executor/MethodHandleEventExecutor.java
 @@ -0,0 +1,40 @@
-+package com.destroystokyo.paper.event.executor;
++package net.techcable.tacospigot.event.executor;
 +
 +import java.lang.invoke.MethodHandle;
 +import java.lang.invoke.MethodHandles;
@@ -68,13 +68,58 @@ index 0000000..9ff99e3
 +        }
 +    }
 +}
-diff --git a/src/main/java/com/destroystokyo/paper/event/executor/asm/ASMEventExecutorGenerator.java b/src/main/java/com/destroystokyo/paper/event/executor/asm/ASMEventExecutorGenerator.java
+diff --git a/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java b/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java
 new file mode 100644
-index 0000000..45c2330
+index 0000000..82c6c5b
 --- /dev/null
-+++ b/src/main/java/com/destroystokyo/paper/event/executor/asm/ASMEventExecutorGenerator.java
++++ b/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java
+@@ -0,0 +1,39 @@
++package net.techcable.tacospigot.event.executor;
++
++import java.lang.invoke.MethodHandle;
++import java.lang.invoke.MethodHandles;
++import java.lang.reflect.Method;
++import java.lang.reflect.Modifier;
++
++import com.google.common.base.Preconditions;
++
++import org.bukkit.event.Event;
++import org.bukkit.event.EventException;
++import org.bukkit.event.Listener;
++import org.bukkit.plugin.EventExecutor;
++
++public class StaticMethodHandleEventExecutor implements EventExecutor {
++    private final Class<? extends Event> eventClass;
++    private final MethodHandle handle;
++
++    public StaticMethodHandleEventExecutor(Class<? extends Event> eventClass, Method m) {
++        Preconditions.checkArgument(Modifier.isStatic(m.getModifiers()), "Not a static method: %s", m);
++        this.eventClass = eventClass;
++        try {
++            m.setAccessible(true);
++            this.handle = MethodHandles.lookup().unreflect(m);
++        } catch (IllegalAccessException e) {
++            throw new AssertionError("Unable to set accessible", e);
++        }
++    }
++
++    @Override
++    public void execute(Listener listener, Event event) throws EventException {
++        if (!eventClass.isInstance(event)) return;
++        try {
++            handle.invoke(event);
++        } catch (Throwable t) {
++            throw new EventException(t);
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/event/executor/asm/ASMEventExecutorGenerator.java b/src/main/java/net/techcable/tacospigot/event/executor/asm/ASMEventExecutorGenerator.java
+new file mode 100644
+index 0000000..bce182d
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/event/executor/asm/ASMEventExecutorGenerator.java
 @@ -0,0 +1,44 @@
-+package com.destroystokyo.paper.event.executor.asm;
++package net.techcable.tacospigot.event.executor.asm;
 +
 +import java.lang.reflect.Method;
 +import java.util.concurrent.atomic.AtomicInteger;
@@ -118,15 +163,13 @@ index 0000000..45c2330
 +        return "com.destroystokyo.paper.event.executor.asm.generated.GeneratedEventExecutor" + id;
 +    }
 +}
-diff --git a/src/main/java/com/destroystokyo/paper/event/executor/asm/ClassDefiner.java b/src/main/java/com/destroystokyo/paper/event/executor/asm/ClassDefiner.java
+diff --git a/src/main/java/net/techcable/tacospigot/event/executor/asm/ClassDefiner.java b/src/main/java/net/techcable/tacospigot/event/executor/asm/ClassDefiner.java
 new file mode 100644
-index 0000000..6941d9f
+index 0000000..fd6e197
 --- /dev/null
-+++ b/src/main/java/com/destroystokyo/paper/event/executor/asm/ClassDefiner.java
-@@ -0,0 +1,32 @@
-+package com.destroystokyo.paper.event.executor.asm;
-+
-+import com.destroystokyo.paper.utils.UnsafeUtils;
++++ b/src/main/java/net/techcable/tacospigot/event/executor/asm/ClassDefiner.java
+@@ -0,0 +1,30 @@
++package net.techcable.tacospigot.event.executor.asm;
 +
 +public interface ClassDefiner {
 +
@@ -156,13 +199,13 @@ index 0000000..6941d9f
 +    }
 +
 +}
-diff --git a/src/main/java/com/destroystokyo/paper/event/executor/asm/SafeClassDefiner.java b/src/main/java/com/destroystokyo/paper/event/executor/asm/SafeClassDefiner.java
+diff --git a/src/main/java/net/techcable/tacospigot/event/executor/asm/SafeClassDefiner.java b/src/main/java/net/techcable/tacospigot/event/executor/asm/SafeClassDefiner.java
 new file mode 100644
-index 0000000..776a9a0
+index 0000000..704dfcd
 --- /dev/null
-+++ b/src/main/java/com/destroystokyo/paper/event/executor/asm/SafeClassDefiner.java
++++ b/src/main/java/net/techcable/tacospigot/event/executor/asm/SafeClassDefiner.java
 @@ -0,0 +1,62 @@
-+package com.destroystokyo.paper.event.executor.asm;
++package net.techcable.tacospigot.event.executor.asm;
 +
 +import java.util.concurrent.ConcurrentHashMap;
 +import java.util.concurrent.ConcurrentMap;
@@ -224,107 +267,24 @@ index 0000000..776a9a0
 +        }
 +    }
 +}
-diff --git a/src/main/java/com/destroystokyo/paper/utils/UnsafeUtils.java b/src/main/java/com/destroystokyo/paper/utils/UnsafeUtils.java
-new file mode 100644
-index 0000000..62acbf8
---- /dev/null
-+++ b/src/main/java/com/destroystokyo/paper/utils/UnsafeUtils.java
-@@ -0,0 +1,33 @@
-+package com.destroystokyo.paper.utils;
-+
-+import sun.misc.Unsafe;
-+
-+import java.lang.reflect.Field;
-+
-+public class UnsafeUtils {
-+    private UnsafeUtils() {}
-+
-+    private static final Unsafe UNSAFE;
-+    static {
-+        Unsafe unsafe;
-+        try {
-+            Class c = Class.forName("sun.misc.Unsafe");
-+            Field f = c.getDeclaredField("theUnsafe");
-+            f.setAccessible(true);
-+            unsafe = (Unsafe) f.get(null);
-+        } catch (ClassNotFoundException | NoSuchFieldException | SecurityException e) {
-+            unsafe = null;
-+        } catch (IllegalAccessException e) {
-+            throw new AssertionError(e);
-+        }
-+        UNSAFE = unsafe;
-+    }
-+
-+    public static boolean isUnsafeSupported() {
-+        return UNSAFE != null;
-+    }
-+
-+    public static Unsafe getUnsafe() {
-+        return UNSAFE;
-+    }
-+}
-diff --git a/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java b/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java
-new file mode 100644
-index 0000000..82c6c5b
---- /dev/null
-+++ b/src/main/java/net/techcable/tacospigot/event/executor/StaticMethodHandleEventExecutor.java
-@@ -0,0 +1,39 @@
-+package net.techcable.tacospigot.event.executor;
-+
-+import java.lang.invoke.MethodHandle;
-+import java.lang.invoke.MethodHandles;
-+import java.lang.reflect.Method;
-+import java.lang.reflect.Modifier;
-+
-+import com.google.common.base.Preconditions;
-+
-+import org.bukkit.event.Event;
-+import org.bukkit.event.EventException;
-+import org.bukkit.event.Listener;
-+import org.bukkit.plugin.EventExecutor;
-+
-+public class StaticMethodHandleEventExecutor implements EventExecutor {
-+    private final Class<? extends Event> eventClass;
-+    private final MethodHandle handle;
-+
-+    public StaticMethodHandleEventExecutor(Class<? extends Event> eventClass, Method m) {
-+        Preconditions.checkArgument(Modifier.isStatic(m.getModifiers()), "Not a static method: %s", m);
-+        this.eventClass = eventClass;
-+        try {
-+            m.setAccessible(true);
-+            this.handle = MethodHandles.lookup().unreflect(m);
-+        } catch (IllegalAccessException e) {
-+            throw new AssertionError("Unable to set accessible", e);
-+        }
-+    }
-+
-+    @Override
-+    public void execute(Listener listener, Event event) throws EventException {
-+        if (!eventClass.isInstance(event)) return;
-+        try {
-+            handle.invoke(event);
-+        } catch (Throwable t) {
-+            throw new EventException(t);
-+        }
-+    }
-+}
 diff --git a/src/main/java/org/bukkit/plugin/EventExecutor.java b/src/main/java/org/bukkit/plugin/EventExecutor.java
-index 3b2c99e..6f5fa9d 100644
+index 3b2c99e..cd5767e 100644
 --- a/src/main/java/org/bukkit/plugin/EventExecutor.java
 +++ b/src/main/java/org/bukkit/plugin/EventExecutor.java
-@@ -4,9 +4,54 @@ import org.bukkit.event.Event;
+@@ -4,9 +4,56 @@ import org.bukkit.event.Event;
  import org.bukkit.event.EventException;
  import org.bukkit.event.Listener;
  
-+// Paper start
++// TacoSpigot start
 +import java.lang.reflect.Method;
 +import java.lang.reflect.Modifier;
 +
-+import com.destroystokyo.paper.event.executor.MethodHandleEventExecutor;
-+import com.destroystokyo.paper.event.executor.asm.ASMEventExecutorGenerator;
-+import com.destroystokyo.paper.event.executor.asm.ClassDefiner;
 +import com.google.common.base.Preconditions;
-+// Paper end
++import net.techcable.tacospigot.event.executor.MethodHandleEventExecutor;
++import net.techcable.tacospigot.event.executor.StaticMethodHandleEventExecutor;
++import net.techcable.tacospigot.event.executor.asm.ASMEventExecutorGenerator;
++import net.techcable.tacospigot.event.executor.asm.ClassDefiner;
++// TacoSpigot end
 +
  /**
   * Interface which defines the class for event call backs to plugins
@@ -332,15 +292,16 @@ index 3b2c99e..6f5fa9d 100644
  public interface EventExecutor {
      public void execute(Listener listener, Event event) throws EventException;
 +
-+    // Paper start
++    // TacoSpigot start
 +    public static EventExecutor create(Method m, Class<? extends Event> eventClass) {
 +        Preconditions.checkNotNull(m, "Null method");
 +        Preconditions.checkArgument(m.getParameterCount() != 0, "Incorrect number of arguments %s", m.getParameterCount());
 +        Preconditions.checkArgument(m.getParameterTypes()[0] == eventClass, "First parameter %s doesn't match event class %s", m.getParameterTypes()[0], eventClass);
 +        Preconditions.checkArgument(!Modifier.isStatic(m.getModifiers()), "Static method %s", m.getName());
 +        ClassDefiner definer = ClassDefiner.getInstance();
-+        if (Modifier.isStatic(m.getModifiers())) return net.techcable.tacospigot.event.executor.StaticMethodHandleEventExecutor(eventClass, m); // TacoSpigot
-+        if (definer.isBypassAccessChecks() || Modifier.isPublic(m.getDeclaringClass().getModifiers()) && Modifier.isPublic(m.getModifiers())) {
++        if (Modifier.isStatic(m.getModifiers())) {
++            return new StaticMethodHandleEventExecutor(eventClass, m);
++        } else if (Modifier.isPublic(m.getDeclaringClass().getModifiers()) && Modifier.isPublic(m.getModifiers())) {
 +            String name = ASMEventExecutorGenerator.generateName();
 +            byte[] classData = ASMEventExecutorGenerator.generateEventExecutor(m, name);
 +            Class<? extends EventExecutor> c = definer.defineClass(m.getDeclaringClass().getClassLoader(), name, classData).asSubclass(EventExecutor.class);
@@ -365,12 +326,21 @@ index 3b2c99e..6f5fa9d 100644
 +            return new MethodHandleEventExecutor(eventClass, m);
 +        }
 +    }
-+    // Paper end
++    // TacoSpigot end
  }
 diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
-index b057b05..3def4c5 100644
+index b057b05..f37806d 100644
 --- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 +++ b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
+@@ -52,7 +52,7 @@ public final class JavaPluginLoader implements PluginLoader {
+ 
+     /**
+      * This class was not meant to be constructed explicitly
+-     * 
++     *
+      * @param instance the server instance
+      */
+     @Deprecated
 @@ -291,20 +291,7 @@ public final class JavaPluginLoader implements PluginLoader {
                  }
              }
@@ -389,7 +359,7 @@ index b057b05..3def4c5 100644
 -                    }
 -                }
 -            }, plugin, method, eventClass); // Spigot
-+            EventExecutor executor = new co.aikar.timings.TimedEventExecutor(EventExecutor.create(method, eventClass), plugin, method, eventClass); // Spigot // Paper - Use factory method `EventExecutor.create()`
++            EventExecutor executor = new co.aikar.timings.TimedEventExecutor(EventExecutor.create(method, eventClass), plugin, method, eventClass); // Spigot // TacoSpigot - Use factory method `EventExecutor.create()`
              if (false) { // Spigot - RL handles useTimings check now
                  eventSet.add(new TimedRegisteredListener(listener, executor, eh.priority(), plugin, eh.ignoreCancelled()));
              } else {
