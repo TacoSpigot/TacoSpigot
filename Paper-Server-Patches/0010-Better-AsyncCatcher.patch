@@ -1,4 +1,4 @@
-From 12368d52f4166781df4538c943ca2f9477e1712c Mon Sep 17 00:00:00 2001
+From 39ba7b425f20eb56269a7ecdb6cc3a7aca6dc158 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Fri, 18 Mar 2016 13:56:01 -0700
 Subject: [PATCH] Better AsyncCatcher
@@ -40,10 +40,10 @@ index 20a8a80..1bd4173 100644
      private long k;
      private boolean l = true;
 diff --git a/src/main/java/org/spigotmc/AsyncCatcher.java b/src/main/java/org/spigotmc/AsyncCatcher.java
-index 4b3aa85..c2e0271 100644
+index 4b3aa85..8a5159f 100644
 --- a/src/main/java/org/spigotmc/AsyncCatcher.java
 +++ b/src/main/java/org/spigotmc/AsyncCatcher.java
-@@ -1,17 +1,47 @@
+@@ -1,6 +1,13 @@
  package org.spigotmc;
  
  import net.minecraft.server.MinecraftServer;
@@ -57,11 +57,7 @@ index 4b3aa85..c2e0271 100644
  
  public class AsyncCatcher
  {
- 
--    public static boolean enabled = true;
-+    public static final boolean enabled = true; // TacoSpigot - final (never disable)
- 
-     public static void catchOp(String reason)
+@@ -11,7 +18,30 @@ public class AsyncCatcher
      {
          if ( enabled && Thread.currentThread() != MinecraftServer.getServer().primaryThread )
          {
@@ -93,19 +89,6 @@ index 4b3aa85..c2e0271 100644
 +    }
 +    // TacoSpigot end
  }
-diff --git a/src/main/java/org/spigotmc/RestartCommand.java b/src/main/java/org/spigotmc/RestartCommand.java
-index 429c258..86c8bf6 100644
---- a/src/main/java/org/spigotmc/RestartCommand.java
-+++ b/src/main/java/org/spigotmc/RestartCommand.java
-@@ -42,7 +42,7 @@ public class RestartCommand extends Command
- 
-     public static void restart(final File script)
-     {
--        AsyncCatcher.enabled = false; // Disable async catcher incase it interferes with us
-+        // AsyncCatcher.enabled = false; // Disable async catcher incase it interferes with us // TacoSpigot - remove, its all on the main thread
-         try
-         {
-             if ( script.isFile() )
 -- 
 2.8.3
 
