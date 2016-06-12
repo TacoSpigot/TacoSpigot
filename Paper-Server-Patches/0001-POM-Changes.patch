@@ -1,11 +1,11 @@
-From 3de208e50acb6a516cce0ee1808b2e53eed2d1b7 Mon Sep 17 00:00:00 2001
+From 15cfc9083171a088fcd068dae136157599fa204c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index c31ee8f..5fc848d 100644
+index 79d2171..927418f 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -17,9 +17,10 @@ index c31ee8f..5fc848d 100644
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>server</artifactId>
      <packaging>jar</packaging>
-     <version>1.9.4-R0.1-SNAPSHOT</version>
+-    <version>1.9.4-R0.1-SNAPSHOT</version>
 -    <name>Paper</name>
 -    <url>https://github.com/PaperSpigot/Paper</url>
++    <version>1.9.4-R0.1</version>
 +    <name>TacoSpigot</name>
 +    <url>https://github.com/TacoSpigot/TacoSpigot</url>
  
@@ -78,5 +79,5 @@ index 674096c..4135e72 100644
  
          if (stream != null) {
 -- 
-2.8.2
+2.8.3
 
