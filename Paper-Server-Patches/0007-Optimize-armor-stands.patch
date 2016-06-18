@@ -1,4 +1,4 @@
-From f9da03952f0f65ad3fd68d886f28471dd31ac199 Mon Sep 17 00:00:00 2001
+From 9cf728ac1049e3f1e4019f9f1bd54dc9edc36816 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 19:10:21 -0700
 Subject: [PATCH] Optimize armor stands
@@ -28,7 +28,7 @@ index b096e8c..9cc74ec 100644
  
          static final int[] a = new int[EnumItemSlot.Function.values().length];
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index c638da6..49f911c 100644
+index 4adf585..0a0c5f3 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -1244,6 +1244,7 @@ public abstract class World implements IBlockAccess {
@@ -40,12 +40,12 @@ index c638da6..49f911c 100644
  
              for (k1 = 0; k1 < list.size(); ++k1) {
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index d431d3b..4e2283c 100644
+index 2bc5877..abda229 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-@@ -67,4 +67,9 @@ public class TacoSpigotWorldConfig {
-     private void isHopperPushBased() {
-         isHopperPushBased = getBoolean("hopper.push-based", true);
+@@ -62,4 +62,9 @@ public class TacoSpigotWorldConfig {
+         config.addDefault("world-settings.default." + path, def);
+         return config.getString("world-settings." + worldName + "." + path, config.getString("world-settings.default." + path));
      }
 +
 +    public boolean optimizeArmorStandMovement;

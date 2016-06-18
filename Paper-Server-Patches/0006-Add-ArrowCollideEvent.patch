@@ -1,11 +1,11 @@
-From 01f6f1fa3998759f9083429da08acf6fe8e5515c Mon Sep 17 00:00:00 2001
+From 83da27e9be1be6f6fcb0400d2b34f7775c7af6fa Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 23 Sep 2015 12:29:13 -0700
 Subject: [PATCH] Add ArrowCollideEvent
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityArrow.java b/src/main/java/net/minecraft/server/EntityArrow.java
-index 7ad21ca..f6b35d9 100644
+index 37cb17c..d6c6012 100644
 --- a/src/main/java/net/minecraft/server/EntityArrow.java
 +++ b/src/main/java/net/minecraft/server/EntityArrow.java
 @@ -10,6 +10,11 @@ import org.bukkit.entity.LivingEntity;

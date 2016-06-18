@@ -1,4 +1,4 @@
-From 130f017655cf11ed5b0986ab5c745e1f878b30cb Mon Sep 17 00:00:00 2001
+From 979ffc8504d48259635d2721f92f64ab5120f160 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 3 Feb 2016 11:27:34 -0700
 Subject: [PATCH] Add a flag to disable InventoryMoveItemEvent
@@ -9,30 +9,32 @@ Some plugins offer no way to disable their IMIE listeners. (See WorldGuard-3520)
 This patch adds a per-world flag to disable InventoryMoveItemEvent for hoppers.
 
 diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
-index 16e7ffa..ad1ef53 100644
+index cefd659..817a03c 100644
 --- a/src/main/java/net/minecraft/server/TileEntityHopper.java
 +++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
-@@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryPickupItemEvent;
+@@ -12,6 +12,9 @@ import org.bukkit.event.inventory.InventoryMoveItemEvent;
+ import org.bukkit.event.inventory.InventoryPickupItemEvent;
  import org.bukkit.inventory.Inventory;
  // CraftBukkit end
- // TacoSpigot start
++// TacoSpigot start
 +import org.bukkit.craftbukkit.entity.CraftItem;
- import net.techcable.tacospigot.HopperHelper;
- // TacoSpigot end
++// TacoSpigot end
  
-@@ -262,7 +263,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITickable {
+ 
+@@ -259,7 +262,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
  
                          // CraftBukkit start - Call event when pushing items into other inventories
                          CraftItemStack oitemstack = CraftItemStack.asCraftMirror(this.splitStack(i, world.spigotConfig.hopperAmount)); // Spigot
 -
 +                        // TacoSpigot start - option to disable event
 +                        final org.bukkit.inventory.ItemStack stack;
-+                        if (HopperHelper.isFireInventoryMoveItemEvent(this)) {
++                        if (this.getWorld().tacoSpigotConfig.isHopperFireIMIE && InventoryMoveItemEvent.getHandlerList().getRegisteredListeners().length > 0) {
 +                            // TacoSpigot end
                          Inventory destinationInventory;
                          // Have to special case large chests as they work oddly
                          if (iinventory instanceof InventoryLargeChest) {
-@@ -278,11 +282,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -275,11 +281,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                              this.setCooldown(world.spigotConfig.hopperTransfer); // Spigot
                              return false;
                          }
@@ -53,18 +55,18 @@ index 16e7ffa..ad1ef53 100644
                                  iinventory.update();
                              } else {
                                  this.setItem(i, itemstack);
-@@ -424,6 +434,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -416,6 +428,10 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
              // ItemStack itemstack2 = addItem(ihopper, iinventory.splitStack(i, 1), (EnumDirection) null);
              // CraftBukkit start - Call event on collection of items from inventories into the hopper
              CraftItemStack oitemstack = CraftItemStack.asCraftMirror(iinventory.splitStack(i, ihopper.getWorld().spigotConfig.hopperAmount)); // Spigot
 +            // TacoSpigot start - option to disable event
 +            final org.bukkit.inventory.ItemStack stack;
-+            if (HopperHelper.isFireInventoryMoveItemEvent(ihopper)) {
++            if (ihopper.getWorld().tacoSpigotConfig.isHopperFireIMIE && InventoryMoveItemEvent.getHandlerList().getRegisteredListeners().length > 0) {
 +                // TacoSpigot end
  
              Inventory sourceInventory;
              // Have to special case large chests as they work oddly
-@@ -446,11 +460,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
+@@ -438,11 +454,17 @@ public class TileEntityHopper extends TileEntityLootable implements IHopper, ITi
                  }
                  return false;
              }
@@ -85,38 +87,11 @@ index 16e7ffa..ad1ef53 100644
                      iinventory.update();
                  } else {
                      iinventory.setItem(i, itemstack1);
-diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-index 1249a71..5dad71c 100644
---- a/src/main/java/net/techcable/tacospigot/HopperHelper.java
-+++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
-@@ -5,11 +5,14 @@ import net.minecraft.server.BlockChest;
- import net.minecraft.server.BlockPosition;
- import net.minecraft.server.Blocks;
- import net.minecraft.server.Chunk;
-+import net.minecraft.server.IHopper;
- import net.minecraft.server.IInventory;
- import net.minecraft.server.TileEntity;
- import net.minecraft.server.TileEntityHopper;
- import net.minecraft.server.World;
- 
-+import org.bukkit.event.inventory.InventoryMoveItemEvent;
-+
- public class HopperHelper {
- 
-     public static TileEntityHopper getHopper(World world, BlockPosition pos) {
-@@ -35,4 +38,7 @@ public class HopperHelper {
-         return null;
-     }
- 
-+    public static boolean isFireInventoryMoveItemEvent(IHopper hopper) {
-+        return hopper.getWorld().tacoSpigotConfig.isHopperFireIMIE && InventoryMoveItemEvent.getHandlerList().getRegisteredListeners().length > 0;
-+    }
- }
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-index 4e2283c..3f18f79 100644
+index abda229..30b5142 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
-@@ -72,4 +72,9 @@ public class TacoSpigotWorldConfig {
+@@ -67,4 +67,9 @@ public class TacoSpigotWorldConfig {
      private void isArmorStandMoveWithoutGravity() {
          optimizeArmorStandMovement = getBoolean("armor-stand.optimize-movement", false); // Doesn't fully emulate vanilla behavior, see issue #1
      }
