@@ -1,4 +1,4 @@
-From 7848022c5ffc25814ae2a06bb4bb85932e44c730 Mon Sep 17 00:00:00 2001
+From 950526640cf03b17b27df4f4677a129a28fdd48f Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
@@ -41,7 +41,7 @@ index 6b0af31..729fbdb 100644
  
      public ItemCooldown df() {
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index c643189..82c9928 100644
+index 347f0c9..4b8f6e5 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -459,6 +459,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
