@@ -1,16 +1,18 @@
-From e3efd949a280bd457f15129a711db55a178bdcc1 Mon Sep 17 00:00:00 2001
+From 0c1c9f4eb61dace9550b1d16ba450d9f36a475e2 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 20 Jun 2016 09:48:02 -0700
-Subject: [PATCH] Use arrays for the DataWatcher
+Subject: [PATCH] Use arrays for the DataWatcher and optionaly disable
+ read-locking
 
 As of 1.9, metadata ids are completely seqentual so we can just use a simple lookup table.
 This makes things a lot faster.
+Also, when we use 'ArrayMap', we can let server owners optionally disable read-locking because ArrayMap is thread safe.
 
 diff --git a/src/main/java/net/minecraft/server/DataWatcher.java b/src/main/java/net/minecraft/server/DataWatcher.java
-index 86ad41d..2f1dea2 100644
+index 86ad41d..9702eac 100644
 --- a/src/main/java/net/minecraft/server/DataWatcher.java
 +++ b/src/main/java/net/minecraft/server/DataWatcher.java
-@@ -12,14 +12,21 @@ import java.util.Map;
+@@ -12,15 +12,22 @@ import java.util.Map;
  import java.util.concurrent.locks.ReadWriteLock;
  import java.util.concurrent.locks.ReentrantReadWriteLock;
  import javax.annotation.Nullable;
@@ -18,9 +20,9 @@ index 86ad41d..2f1dea2 100644
 +import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
  import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap; // Paper
 +
-+import net.techcable.tacospigot.LookupTableMap;
++import net.techcable.tacospigot.ArrayMap;
++import net.techcable.tacospigot.NoOpReadWriteLock;
 +import net.techcable.tacospigot.TacoSpigotConfig;
-+import net.techcable.tacospigot.function.FunctionalMaps;
 +
  import org.apache.commons.lang3.ObjectUtils;
  
@@ -29,10 +31,12 @@ index 86ad41d..2f1dea2 100644
      private static final Map<Class<? extends Entity>, Integer> a = Maps.newHashMap();
      private final Entity b;
 -    private final Map<Integer, DataWatcher.Item<?>> c = new Int2ObjectOpenHashMap<>(); // Paper
-+    private final Int2ObjectMap<Item<?>> c = TacoSpigotConfig.useArraysForDatawatcher ? new LookupTableMap<>() : new Int2ObjectOpenHashMap<>(); // Paper // TacoSpigot - use 'Int2ObjectMap' and use 'LookupTableMap' if useArraysForDatawatcher
-     private final ReadWriteLock d = new ReentrantReadWriteLock();
+-    private final ReadWriteLock d = new ReentrantReadWriteLock();
++    private final Int2ObjectMap<Item<?>> c = TacoSpigotConfig.useArraysForDatawatcher ? new ArrayMap<>() : new Int2ObjectOpenHashMap<>(); // Paper // TacoSpigot - use 'Int2ObjectMap' and use 'ArrayMap' if useArraysForDatawatcher
++    private final ReadWriteLock d = TacoSpigotConfig.disableDataWatcherReadLocking && TacoSpigotConfig.useArraysForDatawatcher ? NoOpReadWriteLock.INSTANCE : new ReentrantReadWriteLock(); // TacoSpigot - don't lock if we're using ArrayMap
      private boolean e = true;
      private boolean f;
+ 
 @@ -74,7 +81,7 @@ public class DataWatcher {
          DataWatcher.Item datawatcher_item = new DataWatcher.Item(datawatcherobject, t0);
  
@@ -51,12 +55,12 @@ index 86ad41d..2f1dea2 100644
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.a(throwable, "Getting synched entity data");
              CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Synched entity data");
-diff --git a/src/main/java/net/techcable/tacospigot/LookupTableMap.java b/src/main/java/net/techcable/tacospigot/LookupTableMap.java
+diff --git a/src/main/java/net/techcable/tacospigot/ArrayMap.java b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 new file mode 100644
-index 0000000..20e48b6
+index 0000000..4100202
 --- /dev/null
-+++ b/src/main/java/net/techcable/tacospigot/LookupTableMap.java
-@@ -0,0 +1,211 @@
++++ b/src/main/java/net/techcable/tacospigot/ArrayMap.java
+@@ -0,0 +1,234 @@
 +package net.techcable.tacospigot;
 +
 +import it.unimi.dsi.fastutil.ints.AbstractInt2ObjectMap;
@@ -67,23 +71,35 @@ index 0000000..20e48b6
 +import it.unimi.dsi.fastutil.objects.ObjectIterator;
 +import it.unimi.dsi.fastutil.objects.ObjectSet;
 +
-+import java.util.Arrays;
 +import java.util.NoSuchElementException;
++import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
++import java.util.concurrent.atomic.AtomicReferenceArray;
 +import java.util.function.BiConsumer;
 +import java.util.function.ObjIntConsumer;
 +import javax.annotation.Nonnull;
-+
-+import com.google.common.collect.AbstractIterator;
++import javax.annotation.concurrent.ThreadSafe;
 +
 +import static com.google.common.base.Preconditions.*;
 +
++/**
++ * A concurrent map of integers to objects with non-locking read operations, and locking write operations.
++ * <p>
++ * This map is backed by a array, and therefore the amount of overhead this map incurs is equal to the largest key/integer.
++ * Therefore you should <i>not use this map if your keys will be large or scattered!</i>
++ * However, if the keys are dense and small, this may actually take less memory than a HashMap.
++ * </p>
++ *
++ * @param <V> the type of vales
++ */
 +@SuppressWarnings("unchecked")
-+public final class LookupTableMap<V> extends AbstractInt2ObjectMap<V> {
-+    private static final int DEFAULT_EXPANSION_SIZE = 15;
-+    private Object[] values;
-+    private int size;
-+    private ObjectSet<Int2ObjectMap.Entry<V>> entrySet;
-+    private ObjectCollection<V> valuesCollection;
++@ThreadSafe
++public final class ArrayMap<V> extends AbstractInt2ObjectMap<V> {
++    private static final AtomicIntegerFieldUpdater<ArrayMap> SIZE_UPDATER = AtomicIntegerFieldUpdater.newUpdater(ArrayMap.class, "size");
++    private volatile int size;
++    @Nonnull
++    private volatile AtomicReferenceArray<V> values = new AtomicReferenceArray<>(0);
++    private volatile ObjectSet<Int2ObjectMap.Entry<V>> entrySet;
++    private volatile ObjectCollection<V> valuesCollection;
 +
 +    @Override
 +    public ObjectSet<Int2ObjectMap.Entry<V>> int2ObjectEntrySet() {
@@ -133,50 +149,58 @@ index 0000000..20e48b6
 +    @Override
 +    @SuppressWarnings("unchecked")
 +    public V get(int i) {
-+        Object[] values = this.values;
-+        return i >= 0 && i < values.length ? (V) values[i] : null;
++        AtomicReferenceArray<V> values = this.values;
++        return i >= 0 && i < values.length() ? values.get(i) : null;
 +    }
 +
 +    @Override
-+    public V put(int key, V value) {
++    public synchronized V put(int key, V value) {
 +        checkNotNull(value, "Null value");
++        AtomicReferenceArray<V> values = this.values;
++        int length;
 +        if (key < 0) {
 +            throw new IllegalArgumentException(negativeKey(key));
-+        } else if (key >= values.length) {
++        } else if (key >= values.length()) {
 +            expandAndPut(key, value); // Put in a separate method for inlining (its a unlikely slow-case)
 +            return null;
 +        } else {
-+            V oldValue = (V) values[key];
-+            values[key] = value;
-+            if (oldValue == null) size++; // New entry
++            V oldValue = values.getAndSet(key, value);
++            if (oldValue == null) SIZE_UPDATER.incrementAndGet(this); // New entry
 +            return oldValue;
 +        }
 +    }
 +
 +    private void expandAndPut(int key, V value) {
-+        values = Arrays.copyOf(values, key + DEFAULT_EXPANSION_SIZE);
-+        values[key] = value;
-+        size++; // Since we've expanded, there was obviously nothing in there before
++        assert Thread.holdsLock(this);
++        AtomicReferenceArray<V> values = this.values;
++        AtomicReferenceArray<V> copy = new AtomicReferenceArray<>(key + 1);
++        for (int i = 0; i < values.length(); i++) {
++            copy.set(i, values.get(i));
++        }
++        this.values = copy;
++        values.set(key, value);
++        SIZE_UPDATER.incrementAndGet(this);
 +    }
 +
 +    @Override
-+    public V remove(int key) {
++    public synchronized V remove(int key) {
++        AtomicReferenceArray<V> values = this.values;
 +        if (key < 0) {
 +            throw new IllegalArgumentException(negativeKey(key));
-+        } else if (key >= values.length) {
++        } else if (key >= values.length()) {
 +            return null;
 +        } else {
-+            V oldValue = (V) values[key];
-+            values[key] = null;
-+            if (oldValue != null) size--; // Entry was there before, but now we're removing it
++            V oldValue = values.getAndSet(key, null);
++            if (oldValue != null)
++                SIZE_UPDATER.decrementAndGet(this); // Entry was there before, but now we're removing it
 +            return oldValue;
 +        }
 +    }
 +
 +    @Override
 +    public boolean containsKey(int i) {
-+        Object[] values = this.values;
-+        return i >= 0 && i < values.length && values[i] != null;
++        AtomicReferenceArray<V> values = this.values;
++        return i >= 0 && i < values.length() && values.get(i) != null;
 +    }
 +
 +    @Override
@@ -185,8 +209,9 @@ index 0000000..20e48b6
 +    }
 +
 +    public void forEachPrimitive(ObjIntConsumer<V> action) {
-+        for (int index = 0; index < values.length; index++) {
-+            V value = (V) values[index];
++        AtomicReferenceArray<V> values = this.values;
++        for (int index = 0; index < values.length(); index++) {
++            V value = values.get(index);
 +            if (value != null) {
 +                action.accept(value, index);
 +            }
@@ -194,7 +219,7 @@ index 0000000..20e48b6
 +    }
 +
 +    private String negativeKey(int key) {
-+        return "Can't add a negative key " + key + " to a LookupTableMap!";
++        return "Can't add a negative key " + key + " to a ArrayMap!";
 +    }
 +
 +    @Override
@@ -207,15 +232,16 @@ index 0000000..20e48b6
 +
 +        @Override
 +        public int skip(int toSkip) {
-+            if (toSkip > values.length) toSkip = values.length;
++            if (toSkip > values.length()) toSkip = values.length();
 +            index += toSkip;
 +            return toSkip;
 +        }
 +
 +        @Override
 +        public boolean hasNext() {
-+            while (index < values.length) {
-+                V value = (V) values[index];
++            AtomicReferenceArray<V> values = ArrayMap.this.values;
++            while (index < values.length()) {
++                V value = values.get(index);
 +                if (value != null) {
 +                    return true;
 +                } else {
@@ -226,9 +252,10 @@ index 0000000..20e48b6
 +        }
 +
 +        /* default */ Int2ObjectMap.Entry<V> nextEntry() {
-+            while (index < values.length) {
++            AtomicReferenceArray<V> values = ArrayMap.this.values;
++            while (index < values.length()) {
 +                int key = index++;
-+                V value = (V) values[key];
++                V value = values.get(key);
 +                if (value != null) {
 +                    return new Entry(key, value);
 +                }
@@ -268,11 +295,97 @@ index 0000000..20e48b6
 +
 +    }
 +}
+diff --git a/src/main/java/net/techcable/tacospigot/NoOpLock.java b/src/main/java/net/techcable/tacospigot/NoOpLock.java
+new file mode 100644
+index 0000000..75ba906
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/NoOpLock.java
+@@ -0,0 +1,36 @@
++package net.techcable.tacospigot;
++
++import java.util.concurrent.TimeUnit;
++import java.util.concurrent.locks.Condition;
++import java.util.concurrent.locks.Lock;
++
++public class NoOpLock implements Lock {
++    private NoOpLock() {}
++    public static final NoOpLock INSTANCE = new NoOpLock();
++
++    @Override
++    public void lock() {}
++
++    @Override
++    public void lockInterruptibly() throws InterruptedException {}
++
++    @Override
++    public boolean tryLock() {
++        return true;
++    }
++
++    @Override
++    public boolean tryLock(long time, TimeUnit unit) throws InterruptedException {
++        return true;
++    }
++
++    @Override
++    public void unlock() {
++
++    }
++
++    @Override
++    public Condition newCondition() {
++        throw new UnsupportedOperationException();
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java b/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java
+new file mode 100644
+index 0000000..f9816c2
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java
+@@ -0,0 +1,22 @@
++package net.techcable.tacospigot;
++
++import java.util.concurrent.locks.Lock;
++import java.util.concurrent.locks.ReadWriteLock;
++import javax.annotation.Nonnull;
++
++public class NoOpReadWriteLock implements ReadWriteLock {
++    private NoOpReadWriteLock() {}
++    public static final NoOpReadWriteLock INSTANCE = new NoOpReadWriteLock();
++
++    @Override
++    @Nonnull
++    public Lock readLock() {
++        return NoOpLock.INSTANCE;
++    }
++
++    @Override
++    @Nonnull
++    public Lock writeLock() {
++        return NoOpLock.INSTANCE;
++    }
++}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index 22c6009..94bb2e7 100644
+index 22c6009..300d506 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-@@ -112,4 +112,10 @@ public class TacoSpigotConfig {
+@@ -5,15 +5,10 @@ import java.io.IOException;
+ import java.lang.reflect.InvocationTargetException;
+ import java.lang.reflect.Method;
+ import java.lang.reflect.Modifier;
+-import java.util.HashMap;
+ import java.util.List;
+-import java.util.Map;
+ import java.util.logging.Level;
+ 
+-import net.minecraft.server.MinecraftServer;
+-
+ import org.bukkit.Bukkit;
+-import org.bukkit.command.Command;
+ import org.bukkit.configuration.InvalidConfigurationException;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ 
+@@ -112,4 +107,15 @@ public class TacoSpigotConfig {
      private static void betterPvp() {
          betterPvp = getBoolean("betterPvp", false);
      }
@@ -282,10 +395,15 @@ index 22c6009..94bb2e7 100644
 +        useArraysForDatawatcher = getBoolean("useArraysForDatawatcher", false);
 +    }
 +
++    public static boolean disableDataWatcherReadLocking;
++    private static void disableDataWatcherReadLocking() {
++        disableDataWatcherReadLocking = getBoolean("disableDataWatcherReadLocking", false);
++    }
++
  }
 diff --git a/src/main/java/net/techcable/tacospigot/function/FunctionalMaps.java b/src/main/java/net/techcable/tacospigot/function/FunctionalMaps.java
 new file mode 100644
-index 0000000..85b867e
+index 0000000..4462cec
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/function/FunctionalMaps.java
 @@ -0,0 +1,29 @@
@@ -297,16 +415,16 @@ index 0000000..85b867e
 +import java.util.function.ObjIntConsumer;
 +import javax.annotation.ParametersAreNonnullByDefault;
 +
-+import net.techcable.tacospigot.LookupTableMap;
++import net.techcable.tacospigot.ArrayMap;
 +
 +import static com.google.common.base.Preconditions.*;
 +
 +@ParametersAreNonnullByDefault
 +public class FunctionalMaps {
 +    public static <V> void forEachPrimitive(Int2ObjectMap<V> map, ObjIntConsumer<V> action) {
-+        if (map instanceof LookupTableMap) {
++        if (map instanceof ArrayMap) {
 +            //noinspection unchecked - ur mums unchecked!
-+            ((LookupTableMap) checkNotNull(map, "Null map")).forEachPrimitive(action);
++            ((ArrayMap) checkNotNull(map, "Null map")).forEachPrimitive(action);
 +        } else {
 +            defaultForEachPrimitive(map, action);
 +        }
