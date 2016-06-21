@@ -181,7 +181,7 @@ index c2ad90c..7132082 100644
      {
          // If the block in question is loaded
 -        if ( world.isLoaded( position ) )
-+        if ( false ) // TacoSpigot - caller checked
++        if ( true ) // TacoSpigot - caller checked
          {
              // Get block id
 -            Block block = world.getType(position).getBlock();
