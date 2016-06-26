@@ -1,4 +1,4 @@
-From 9cf728ac1049e3f1e4019f9f1bd54dc9edc36816 Mon Sep 17 00:00:00 2001
+From 77a29a4c66721480609667fba907bb93ec71f99f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 19:10:21 -0700
 Subject: [PATCH] Optimize armor stands
@@ -28,10 +28,10 @@ index b096e8c..9cc74ec 100644
  
          static final int[] a = new int[EnumItemSlot.Function.values().length];
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 4adf585..0a0c5f3 100644
+index 237ed47..ecc13bc 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -1244,6 +1244,7 @@ public abstract class World implements IBlockAccess {
+@@ -1254,6 +1254,7 @@ public abstract class World implements IBlockAccess {
  
          blockposition_pooledblockposition.t();
          if (entity != null) {
@@ -54,5 +54,5 @@ index 2bc5877..abda229 100644
 +    }
  }
 -- 
-2.8.3
+2.9.0
 

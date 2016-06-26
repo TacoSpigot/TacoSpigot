@@ -1,4 +1,4 @@
-From 0c1c9f4eb61dace9550b1d16ba450d9f36a475e2 Mon Sep 17 00:00:00 2001
+From 47ca70284cbe9b4c3acdf49e040ae4b942ca8d5c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 20 Jun 2016 09:48:02 -0700
 Subject: [PATCH] Use arrays for the DataWatcher and optionaly disable
@@ -9,10 +9,10 @@ This makes things a lot faster.
 Also, when we use 'ArrayMap', we can let server owners optionally disable read-locking because ArrayMap is thread safe.
 
 diff --git a/src/main/java/net/minecraft/server/DataWatcher.java b/src/main/java/net/minecraft/server/DataWatcher.java
-index 86ad41d..9702eac 100644
+index 1f5e6c0..8bde9ef 100644
 --- a/src/main/java/net/minecraft/server/DataWatcher.java
 +++ b/src/main/java/net/minecraft/server/DataWatcher.java
-@@ -12,15 +12,22 @@ import java.util.Map;
+@@ -12,7 +12,14 @@ import java.util.Map;
  import java.util.concurrent.locks.ReadWriteLock;
  import java.util.concurrent.locks.ReentrantReadWriteLock;
  import javax.annotation.Nullable;
@@ -25,39 +25,40 @@ index 86ad41d..9702eac 100644
 +import net.techcable.tacospigot.TacoSpigotConfig;
 +
  import org.apache.commons.lang3.ObjectUtils;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+@@ -22,8 +29,8 @@ public class DataWatcher {
+     private static final Logger a = LogManager.getLogger();
+     private static final Map<Class<? extends Entity>, Integer> b = Maps.newHashMap();
+     private final Entity c;
+-    private final Map<Integer, DataWatcher.Item<?>> d = new Int2ObjectOpenHashMap<>(); // Paper
+-    private final ReadWriteLock e = new ReentrantReadWriteLock();
++    private final Int2ObjectMap<Item<?>> d = TacoSpigotConfig.useArraysForDatawatcher ? new ArrayMap<>() : new Int2ObjectOpenHashMap<>(); // Paper // TacoSpigot - use 'Int2ObjectMap' and use 'ArrayMap' if useArraysForDatawatcher
++    private final ReadWriteLock e = TacoSpigotConfig.disableDataWatcherReadLocking && TacoSpigotConfig.useArraysForDatawatcher ? NoOpReadWriteLock.INSTANCE : new ReentrantReadWriteLock(); // TacoSpigot - don't lock if we're using ArrayMap
+     private boolean f = true;
+     private boolean g;
  
- public class DataWatcher {
- 
-     private static final Map<Class<? extends Entity>, Integer> a = Maps.newHashMap();
-     private final Entity b;
--    private final Map<Integer, DataWatcher.Item<?>> c = new Int2ObjectOpenHashMap<>(); // Paper
--    private final ReadWriteLock d = new ReentrantReadWriteLock();
-+    private final Int2ObjectMap<Item<?>> c = TacoSpigotConfig.useArraysForDatawatcher ? new ArrayMap<>() : new Int2ObjectOpenHashMap<>(); // Paper // TacoSpigot - use 'Int2ObjectMap' and use 'ArrayMap' if useArraysForDatawatcher
-+    private final ReadWriteLock d = TacoSpigotConfig.disableDataWatcherReadLocking && TacoSpigotConfig.useArraysForDatawatcher ? NoOpReadWriteLock.INSTANCE : new ReentrantReadWriteLock(); // TacoSpigot - don't lock if we're using ArrayMap
-     private boolean e = true;
-     private boolean f;
- 
-@@ -74,7 +81,7 @@ public class DataWatcher {
+@@ -89,7 +96,7 @@ public class DataWatcher {
          DataWatcher.Item datawatcher_item = new DataWatcher.Item(datawatcherobject, t0);
  
-         this.d.writeLock().lock();
--        this.c.put(Integer.valueOf(datawatcherobject.a()), datawatcher_item);
-+        this.c.put(datawatcherobject.a(), datawatcher_item); // TacoSpigot - primitives
-         this.e = false;
-         this.d.writeLock().unlock();
+         this.e.writeLock().lock();
+-        this.d.put(Integer.valueOf(datawatcherobject.a()), datawatcher_item);
++        this.d.put(datawatcherobject.a(), datawatcher_item); // TacoSpigot - primitives
+         this.f = false;
+         this.e.writeLock().unlock();
      }
-@@ -85,7 +92,7 @@ public class DataWatcher {
+@@ -100,7 +107,7 @@ public class DataWatcher {
          DataWatcher.Item datawatcher_item;
  
          try {
--            datawatcher_item = (DataWatcher.Item) this.c.get(Integer.valueOf(datawatcherobject.a()));
-+            datawatcher_item = (DataWatcher.Item) this.c.get(datawatcherobject.a()); // TacoSpigot - use primitives
+-            datawatcher_item = (DataWatcher.Item) this.d.get(Integer.valueOf(datawatcherobject.a()));
++            datawatcher_item = (DataWatcher.Item) this.d.get(datawatcherobject.a()); // TacoSpigot - use primitives
          } catch (Throwable throwable) {
              CrashReport crashreport = CrashReport.a(throwable, "Getting synched entity data");
              CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Synched entity data");
 diff --git a/src/main/java/net/techcable/tacospigot/ArrayMap.java b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 new file mode 100644
-index 0000000..4100202
+index 0000000..3c810e9
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 @@ -0,0 +1,234 @@
@@ -295,9 +296,10 @@ index 0000000..4100202
 +
 +    }
 +}
+\ No newline at end of file
 diff --git a/src/main/java/net/techcable/tacospigot/NoOpLock.java b/src/main/java/net/techcable/tacospigot/NoOpLock.java
 new file mode 100644
-index 0000000..75ba906
+index 0000000..692170b
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/NoOpLock.java
 @@ -0,0 +1,36 @@
@@ -337,9 +339,10 @@ index 0000000..75ba906
 +        throw new UnsupportedOperationException();
 +    }
 +}
+\ No newline at end of file
 diff --git a/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java b/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java
 new file mode 100644
-index 0000000..f9816c2
+index 0000000..a190239
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java
 @@ -0,0 +1,22 @@
@@ -365,6 +368,7 @@ index 0000000..f9816c2
 +        return NoOpLock.INSTANCE;
 +    }
 +}
+\ No newline at end of file
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 index 22c6009..300d506 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
@@ -437,5 +441,5 @@ index 0000000..4462cec
 +    }
 +}
 -- 
-2.8.3
+2.9.0
 
