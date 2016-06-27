@@ -1,4 +1,4 @@
-From 47ca70284cbe9b4c3acdf49e040ae4b942ca8d5c Mon Sep 17 00:00:00 2001
+From 0c71061571112ec93e53b1bb88f2435bbf274fed Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 20 Jun 2016 09:48:02 -0700
 Subject: [PATCH] Use arrays for the DataWatcher and optionaly disable
@@ -58,7 +58,7 @@ index 1f5e6c0..8bde9ef 100644
              CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Synched entity data");
 diff --git a/src/main/java/net/techcable/tacospigot/ArrayMap.java b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 new file mode 100644
-index 0000000..3c810e9
+index 0000000..6a6adb7
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 @@ -0,0 +1,234 @@
@@ -179,7 +179,7 @@ index 0000000..3c810e9
 +            copy.set(i, values.get(i));
 +        }
 +        this.values = copy;
-+        values.set(key, value);
++        copy.set(key, value);
 +        SIZE_UPDATER.incrementAndGet(this);
 +    }
 +
