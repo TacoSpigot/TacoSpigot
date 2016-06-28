@@ -1,0 +1,63 @@
+From 18dc4655901227871cfc8f574308854b9f0c9605 Mon Sep 17 00:00:00 2001
+From: vemacs <d@nkmem.es>
+Date: Mon, 27 Jun 2016 17:33:39 -0700
+Subject: [PATCH] Implement SpawnerPreSpawnEvent
+
+Relavent IRC Logs:
+
+> vemacs: there's just that one event that's absolutely necessary from it"
+> vemacs: the server jar
+> Techcable: oh yeah, just use taco
+> vemacs: i just need that event
+> vemacs: for mobstacking without rape
+> Techcable: oh :p
+> vemacs: because spawnerspawnevent actually creates an entity
+> vemacs: and if you cancel it
+> vemacs: server gets stuck in a cycle
+> vemacs: of re-calling it
+> Techcable: oh.........
+> vemacs: due to some wave logic thingy
+> vemacs: cancellation -> GC, rape
+> vemacs: prespawn = no GC, less rape
+> Techcable: lol
+> vemacs: good writeup on a similar issue
+> vemacs: https://bukkit.org/threads/important-information-regarding-cancelling-creature-spawns.147007/
+> vemacs: but yeah, i've tried it with spawnerspawnevent and it's just bad
+> vemacs: hence I *need* that event
+
+diff --git a/src/main/java/net/minecraft/server/MobSpawnerAbstract.java b/src/main/java/net/minecraft/server/MobSpawnerAbstract.java
+index d4674dc..897f8f1 100644
+--- a/src/main/java/net/minecraft/server/MobSpawnerAbstract.java
++++ b/src/main/java/net/minecraft/server/MobSpawnerAbstract.java
+@@ -5,7 +5,11 @@ import java.util.Iterator;
+ import java.util.List;
+ 
+ // CraftBukkit start
++import net.techcable.tacospigot.event.entity.SpawnerPreSpawnEvent;
++
++import org.bukkit.Location;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+ import org.bukkit.event.entity.SpawnerSpawnEvent;
+ // CraftBukkit end
+@@ -91,6 +95,16 @@ public abstract class MobSpawnerAbstract {
+                 boolean flag = false;
+ 
+                 for (int i = 0; i < this.spawnCount; ++i) {
++                    // TacoSpigot start
++                    SpawnerPreSpawnEvent event = new SpawnerPreSpawnEvent( new Location(this.a().getWorld(), blockposition.getX(), blockposition.getY(), blockposition.getZ()), EntityType.fromName(this.getMobName()));
++                    this.a().getServer().getPluginManager().callEvent(event);
++
++                    if (event.isCancelled()) {
++                        flag = true;
++                        break;
++                    }
++                    // TacoSpigot end
++
+                     Entity entity = EntityTypes.createEntityByName(this.getMobName(), this.a());
+ 
+                     if (entity == null) {
+-- 
+2.9.0
+
