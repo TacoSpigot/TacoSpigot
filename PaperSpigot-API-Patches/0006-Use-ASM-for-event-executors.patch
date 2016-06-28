@@ -1,4 +1,4 @@
-From 9cdfb5a929990195e3e951022c079402f9d3ea33 Mon Sep 17 00:00:00 2001
+From 33b2c3f4a72d2ca7155c572ab1061d9173289236 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 3 Mar 2016 13:20:33 -0700
 Subject: [PATCH] Use ASM for event executors.
@@ -268,10 +268,10 @@ index 0000000..704dfcd
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/plugin/EventExecutor.java b/src/main/java/org/bukkit/plugin/EventExecutor.java
-index 3b2c99e..cd5767e 100644
+index 3b2c99e..2dda3dc 100644
 --- a/src/main/java/org/bukkit/plugin/EventExecutor.java
 +++ b/src/main/java/org/bukkit/plugin/EventExecutor.java
-@@ -4,9 +4,56 @@ import org.bukkit.event.Event;
+@@ -4,9 +4,55 @@ import org.bukkit.event.Event;
  import org.bukkit.event.EventException;
  import org.bukkit.event.Listener;
  
@@ -328,18 +328,9 @@ index 3b2c99e..cd5767e 100644
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
-index b057b05..f37806d 100644
+index b057b05..f2a6d0d 100644
 --- a/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
 +++ b/src/main/java/org/bukkit/plugin/java/JavaPluginLoader.java
-@@ -52,7 +52,7 @@ public final class JavaPluginLoader implements PluginLoader {
- 
-     /**
-      * This class was not meant to be constructed explicitly
--     * 
-+     *
-      * @param instance the server instance
-      */
-     @Deprecated
 @@ -291,20 +291,7 @@ public final class JavaPluginLoader implements PluginLoader {
                  }
              }
@@ -363,5 +354,4 @@ index b057b05..f37806d 100644
                  eventSet.add(new TimedRegisteredListener(listener, executor, eh.priority(), plugin, eh.ignoreCancelled()));
              } else {
 -- 
-2.8.3
-
+2.9.0.windows.1
