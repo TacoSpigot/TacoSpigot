@@ -1,4 +1,4 @@
-From eadff12ee566bc08df572b62bff3eff4d06e2577 Mon Sep 17 00:00:00 2001
+From ea3a892f3e3ffc3f170fcd3e170799826e128ba3 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 20 Jun 2016 09:48:02 -0700
 Subject: [PATCH] Use arrays for the DataWatcher and optionaly disable
@@ -58,7 +58,7 @@ index 1f5e6c0..8bde9ef 100644
              CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Synched entity data");
 diff --git a/src/main/java/net/techcable/tacospigot/ArrayMap.java b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 new file mode 100644
-index 0000000..0a9b928
+index 0000000..36c9fd2
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 @@ -0,0 +1,234 @@
@@ -175,7 +175,7 @@ index 0000000..0a9b928
 +        assert Thread.holdsLock(this);
 +        AtomicReferenceArray<V> values = this.values;
 +        AtomicReferenceArray<V> copy = new AtomicReferenceArray<>(key + 1);
-+        for (int i = 0; i < key; i++) {
++        for (int i = 0; i < values.length(); i++) {
 +            copy.set(i, values.get(i));
 +        }
 +        copy.set(key, value);
