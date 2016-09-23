@@ -3,7 +3,7 @@ Contributing to TacoSpigot
 TacoSpigot has a very lenient policy towards PRs, but would prefer that you try and adhere to the following guidelines.
 
 ## Understanding Patches
-Patches to TacoSpigot are very simple, but centes around the directories 'TacoSpigot-API' and 'TacoSpigot-Server'
+Patches to TacoSpigot are very simple, but centers around the directories 'TacoSpigot-API' and 'TacoSpigot-Server'
 
 Assuming you already have forked the repository:
 
