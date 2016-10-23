@@ -1,4 +1,4 @@
-From 87b4be524fa7538124c536f9e6f3e34ed7c2e014 Mon Sep 17 00:00:00 2001
+From ba621ce57f0253b0c4ddc564c77386dac0cd1734 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Sun, 3 Apr 2016 14:05:27 -0700
 Subject: [PATCH] MC-Dev Fixes
@@ -6,10 +6,10 @@ Subject: [PATCH] MC-Dev Fixes
 Sometimes fernflower makes mistakes too
 
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index 71524f2..b77a3dd 100644
+index 66c459d..9f43b2b 100644
 --- a/src/main/java/net/minecraft/server/BlockStateEnum.java
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
-@@ -22,7 +22,7 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+@@ -27,7 +27,7 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
          Iterator iterator = collection.iterator();
  
          while (iterator.hasNext()) {
@@ -75,5 +75,5 @@ index a79fa01..a21743d 100644
 +    // TacoSpigot end
  }
 -- 
-2.8.3
+2.10.1
 

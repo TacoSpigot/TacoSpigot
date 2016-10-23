@@ -1,4 +1,4 @@
-From 5e30b232e9e04a605ecea33570faa730a90b2ecc Mon Sep 17 00:00:00 2001
+From cf68a8048318541f9c30d9936bf839e6b0ccabf3 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -88,10 +88,10 @@ index 5b193f4..0a2aa9b 100644
          return 31 * super.hashCode() + this.a.hashCode();
      }
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index b77a3dd..b9be436 100644
+index 9f43b2b..af44862 100644
 --- a/src/main/java/net/minecraft/server/BlockStateEnum.java
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
-@@ -37,7 +37,6 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+@@ -43,7 +43,6 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
      public Collection<T> c() {
          return this.a;
      }
@@ -99,14 +99,13 @@ index b77a3dd..b9be436 100644
      public Optional<T> b(String s) {
          return Optional.fromNullable(this.b.get(s));
      }
-@@ -46,6 +45,24 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+@@ -52,6 +51,23 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
          return ((INamable) t0).getName();
      }
  
 +    // TacoSpigot start
 +    @Override
-+    public int
-+getValueId(T value) {
++    public int getValueId(T value) {
 +        return value.ordinal();
 +    }
 +
@@ -121,9 +120,9 @@ index b77a3dd..b9be436 100644
 +    }
 +    // TacoSpigot end
 +
+     @Override // Paper - override equals as BlockStateEnum is a singleton
      public boolean equals(Object object) {
-         if (this == object) {
-             return true;
+        return this == object;
 diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
 index 2b7870e..7f05581 100644
 --- a/src/main/java/net/minecraft/server/BlockStateInteger.java
@@ -508,5 +507,5 @@ index 0000000..87a50a3
 +    public R apply(T t, int i);
 +}
 -- 
-2.8.3
+2.10.1
 

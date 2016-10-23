@@ -1,11 +1,11 @@
-From 7b1362ea69257c7a1c838f77454b62a61b9fcd6e Mon Sep 17 00:00:00 2001
+From 5f102d51547b135cd1247e95157c82a9889ab1c5 Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index 6b0af31..729fbdb 100644
+index 301313b..74ae03d 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
 @@ -24,6 +24,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
@@ -41,7 +41,7 @@ index 6b0af31..729fbdb 100644
  
      public ItemCooldown df() {
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 390528c..e6a7639 100644
+index ef3a096..31ef9cd 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -462,6 +462,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
@@ -68,5 +68,5 @@ index b7699d8..22c6009 100644
 +    }
  }
 -- 
-2.8.3
+2.10.1
 

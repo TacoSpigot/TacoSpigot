@@ -1,4 +1,4 @@
-From d533a57e1aaac7444e991a534b39a9941fad03f9 Mon Sep 17 00:00:00 2001
+From 28fad7f9f7dfe7dffe4aed4d3a411fd216438fab Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Mon, 7 Mar 2016 12:51:01 -0700
 Subject: [PATCH] Speedup BlockPos by fixing inlining
@@ -157,5 +157,5 @@ index 5bbaa87..f3f4806 100644
  
          public BlockPosition h() {
 -- 
-2.9.0
+2.10.1
 

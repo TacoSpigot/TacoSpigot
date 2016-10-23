@@ -1,11 +1,11 @@
-From d596e3a7875c048f4f1b231214a793d492eaeecc Mon Sep 17 00:00:00 2001
+From b8d19e617e0fead8023d0fa9250730f65eb86d6f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index e70aa8e..46baa99 100644
+index 9eaab84..7e9114f 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -135,6 +135,7 @@ public abstract class World implements IBlockAccess {
@@ -207,10 +207,10 @@ index 0000000..2bc5877
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 975a036..44acbea 100644
+index 4fb9c5e..8dd0528 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -713,6 +713,7 @@ public final class CraftServer implements Server {
+@@ -720,6 +720,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
@@ -218,7 +218,7 @@ index 975a036..44acbea 100644
          for (WorldServer world : console.worlds) {
              world.worldData.setDifficulty(difficulty);
              world.setSpawnFlags(monsters, animals);
-@@ -729,6 +730,7 @@ public final class CraftServer implements Server {
+@@ -736,6 +737,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperConfig.init(); // Paper
@@ -226,7 +226,7 @@ index 975a036..44acbea 100644
          }
  
          // Paper start
-@@ -1416,7 +1418,7 @@ public final class CraftServer implements Server {
+@@ -1420,7 +1422,7 @@ public final class CraftServer implements Server {
  
          for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
              result.add(getOfflinePlayer((GameProfile) entry.getKey()));
@@ -263,5 +263,5 @@ index 2aad1e8..2bc89d6 100644
                  MinecraftServer.main(options);
              } catch (Throwable t) {
 -- 
-2.8.3
+2.10.1
 

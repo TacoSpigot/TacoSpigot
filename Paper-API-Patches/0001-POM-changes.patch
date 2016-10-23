@@ -1,4 +1,4 @@
-From 370468c88cef58f1b8cfa7f208635030c2750235 Mon Sep 17 00:00:00 2001
+From 3318a5c9651631ebae8a5df854b75ca33834a26b Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -7,7 +7,7 @@ Check our github versioning
 Add a dependency on jsr305 (@Nullable, @NonNull)
 
 diff --git a/pom.xml b/pom.xml
-index 67807c1..ae7079e 100644
+index 400968f..18fd27e 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,18 +4,18 @@
@@ -29,13 +29,13 @@ index 67807c1..ae7079e 100644
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>
--    <url>https://github.com/PaperSpigot/Paper</url>
+-    <url>https://github.com/PaperMC/Paper</url>
 +    <name>TacoSpigot-API</name>
 +    <url>https://github.com/TacoSpigot/TacoSpigot</url>
      <description>An enhanced plugin API for Minecraft servers.</description>
  
      <properties>
-@@ -132,6 +132,12 @@
+@@ -139,6 +139,12 @@
              <artifactId>asm-all</artifactId>
              <version>5.0.4</version>
          </dependency>
@@ -49,7 +49,7 @@ index 67807c1..ae7079e 100644
  
      <build>
 diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-index 0790f3c..e689566 100644
+index 0790f3c..e8ca024 100644
 --- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 +++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 @@ -191,8 +191,10 @@ public class VersionCommand extends BukkitCommand {
@@ -112,15 +112,6 @@ index 0790f3c..e689566 100644
  
      // Contributed by Techcable <Techcable@outlook.com> in GH PR #65
      private static final String BRANCH = "master";
-@@ -306,7 +316,7 @@ public class VersionCommand extends BukkitCommand {
-                     case "behind":
-                         return ((Number) obj.get("behind_by")).intValue();
-                     default:
--                        return -1;
-+                        return -2;
-                 }
-             } catch (ParseException | NumberFormatException e) {
-                 e.printStackTrace();
 -- 
-2.9.0
+2.10.1
 
