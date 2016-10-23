@@ -1,11 +1,11 @@
-From 5f102d51547b135cd1247e95157c82a9889ab1c5 Mon Sep 17 00:00:00 2001
+From 6b0fcd241e4b9db3b2f058b503cf2d060bc6fb15 Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index 301313b..74ae03d 100644
+index 301313b..9a59413 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
 @@ -24,6 +24,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
@@ -26,12 +26,23 @@ index 301313b..74ae03d 100644
      // Paper start - affectsSpawning API
      public boolean affectsSpawning = true;
  
-@@ -1906,11 +1910,12 @@ public abstract class EntityHuman extends EntityLiving {
+@@ -1906,11 +1910,24 @@ public abstract class EntityHuman extends EntityLiving {
      }
  
      public float o(float f) {
--        return MathHelper.a(((float) this.aF + f) / this.dd(), 0.0F, 1.0F);
-+        return MathHelper.a(((float) (betterPvp ? Math.max(this.aF, this.clientTicksSinceLastAttack) : this.aE) + f) / this.dd(), 0.0F, 1.0F); // TacoSpigot - check client and server ticks
++        // TacoSpigot start - use both client and server ticks
++        if (betterPvp) {
++            return MathHelper.a(
++                (float) (Math.max(
++                     this.aF,
++                     this.clientTicksSinceLastAttack
++                ) + f) / this.dd(),
++                0.0F,
++                1.0F
++            );
++        }
++        // TacoSpigot end
+         return MathHelper.a(((float) this.aF + f) / this.dd(), 0.0F, 1.0F);
      }
  
      public void de() {
