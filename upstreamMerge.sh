@@ -16,3 +16,6 @@ function update {
 #update Paperclip
 update Paper
 # TacoSpigot end
+
+# Update changes to submodules
+git submodule update --recursive
