@@ -1,14 +1,14 @@
-From 6b0fcd241e4b9db3b2f058b503cf2d060bc6fb15 Mon Sep 17 00:00:00 2001
+From d2ad356e7668fc34daf060fe8e0245e72ec847df Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index 301313b..9a59413 100644
+index 865c1a2..82b386d 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
-@@ -24,6 +24,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
+@@ -25,6 +25,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
  import org.bukkit.util.Vector;
  // CraftBukkit end
  
@@ -17,7 +17,7 @@ index 301313b..9a59413 100644
  public abstract class EntityHuman extends EntityLiving {
  
      private static final DataWatcherObject<Float> a = DataWatcher.a(EntityHuman.class, DataWatcherRegistry.c);
-@@ -66,6 +68,8 @@ public abstract class EntityHuman extends EntityLiving {
+@@ -67,6 +69,8 @@ public abstract class EntityHuman extends EntityLiving {
      private final ItemCooldown bW = this.l();
      public EntityFishingHook hookedFish;
  
@@ -26,7 +26,7 @@ index 301313b..9a59413 100644
      // Paper start - affectsSpawning API
      public boolean affectsSpawning = true;
  
-@@ -1906,11 +1910,24 @@ public abstract class EntityHuman extends EntityLiving {
+@@ -1907,11 +1911,24 @@ public abstract class EntityHuman extends EntityLiving {
      }
  
      public float o(float f) {
@@ -52,7 +52,7 @@ index 301313b..9a59413 100644
  
      public ItemCooldown df() {
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index ef3a096..31ef9cd 100644
+index 413b937..30c122e 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -462,6 +462,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
@@ -79,5 +79,5 @@ index b7699d8..22c6009 100644
 +    }
  }
 -- 
-2.10.1
+2.10.2
 
