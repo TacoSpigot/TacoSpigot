@@ -1,14 +1,14 @@
-From eac83efefaed5d929bb41bd87b1f48c1d6041488 Mon Sep 17 00:00:00 2001
+From 9daf245b76b8692cd45a8f20ea0a8753e9167d44 Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Wed, 16 Mar 2016 22:03:58 -0400
 Subject: [PATCH] Fix incorrect getNoDamageTicks
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 3f871a7..889533e 100644
+index ffb7341..f78bf70 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -1288,11 +1288,16 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -1310,11 +1310,16 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
  
      @Override
      public int getNoDamageTicks() {
@@ -26,5 +26,5 @@ index 3f871a7..889533e 100644
  
      @Override
 -- 
-2.8.3
+2.10.2
 

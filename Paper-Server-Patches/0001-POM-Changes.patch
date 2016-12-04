@@ -1,11 +1,11 @@
-From 7e87812086ca6edf21cb3881b13ed8dea9b2f922 Mon Sep 17 00:00:00 2001
+From d92755b386e55fad2033d3d7d05e96e28ebadce3 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 63aaa7a..e92dd12 100644
+index 911c0a9..c443123 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -17,7 +17,7 @@ index 63aaa7a..e92dd12 100644
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>server</artifactId>
      <packaging>jar</packaging>
-     <version>1.10.2-R0.1-SNAPSHOT</version>
+     <version>1.11-R0.1-SNAPSHOT</version>
 -    <name>Paper</name>
 -    <url>https://github.com/PaperMC/Paper</url>
 +    <name>TacoSpigot</name>
@@ -25,7 +25,7 @@ index 63aaa7a..e92dd12 100644
  
      <properties>
          <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-@@ -21,16 +21,16 @@
+@@ -22,16 +22,16 @@
      </properties>
  
      <parent>
@@ -46,7 +46,7 @@ index 63aaa7a..e92dd12 100644
              <version>${project.version}</version>
              <scope>compile</scope>
          </dependency>
-@@ -108,7 +108,7 @@
+@@ -109,7 +109,7 @@
                  <artifactId>gitdescribe-maven-plugin</artifactId>
                  <version>1.3</version>
                  <configuration>
@@ -69,5 +69,5 @@ index 674096c..4135e72 100644
  
          if (stream != null) {
 -- 
-2.9.0
+2.10.2
 

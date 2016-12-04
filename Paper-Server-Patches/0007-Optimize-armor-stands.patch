@@ -1,4 +1,4 @@
-From 77a29a4c66721480609667fba907bb93ec71f99f Mon Sep 17 00:00:00 2001
+From 83b097bc0e80875452dcfec7b7ba89c67eee4aaf Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Oct 2015 19:10:21 -0700
 Subject: [PATCH] Optimize armor stands
@@ -9,29 +9,29 @@ This patch also avoids armor stands looking up entities, which provides
 most of the benefits of avoiding move() while keeping gravity.
 
 diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
-index b096e8c..9cc74ec 100644
+index 750e30d..9090b19 100644
 --- a/src/main/java/net/minecraft/server/EntityArmorStand.java
 +++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
-@@ -754,6 +754,14 @@ public class EntityArmorStand extends EntityLiving {
-         return false;
+@@ -159,6 +159,14 @@ public class EntityArmorStand extends EntityLiving {
+         }
      }
  
 +    // TacoSpigot start - add an option to make armor stands not move
 +    @Override
-+    public void move(double motX, double motY, double motZ) {
++    public void move(EnumMoveType moveType, double motX, double motY, double motZ) {
 +        if (getWorld().tacoSpigotConfig.optimizeArmorStandMovement) return;
-+        super.move(motX, motY, motZ);
++        super.move(moveType, motX, motY, motZ);
 +    }
 +    // TacoSpigot end
 +
-     static class SyntheticClass_1 {
- 
-         static final int[] a = new int[EnumItemSlot.Function.values().length];
+     public static void b(DataConverterManager dataconvertermanager) {
+         dataconvertermanager.a(DataConverterTypes.ENTITY, (DataInspector) (new DataInspectorItemList(EntityArmorStand.class, new String[] { "ArmorItems", "HandItems"})));
+     }
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 237ed47..ecc13bc 100644
+index 8bc3e7f..91c04fd 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -1254,6 +1254,7 @@ public abstract class World implements IBlockAccess {
+@@ -1313,6 +1313,7 @@ public abstract class World implements IBlockAccess {
  
          blockposition_pooledblockposition.t();
          if (entity != null) {
@@ -54,5 +54,5 @@ index 2bc5877..abda229 100644
 +    }
  }
 -- 
-2.9.0
+2.10.2
 

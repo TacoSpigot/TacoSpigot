@@ -1,4 +1,4 @@
-From 3318a5c9651631ebae8a5df854b75ca33834a26b Mon Sep 17 00:00:00 2001
+From 3a0cf882c688aa18c23028d28a0669c46f578421 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -7,7 +7,7 @@ Check our github versioning
 Add a dependency on jsr305 (@Nullable, @NonNull)
 
 diff --git a/pom.xml b/pom.xml
-index 400968f..18fd27e 100644
+index b0eba81..8388190 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,18 +4,18 @@
@@ -25,7 +25,7 @@ index 400968f..18fd27e 100644
 -    <artifactId>paper-api</artifactId>
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>tacospigot-api</artifactId>
-     <version>1.10.2-R0.1-SNAPSHOT</version>
+     <version>1.11-R0.1-SNAPSHOT</version>
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>
@@ -35,7 +35,7 @@ index 400968f..18fd27e 100644
      <description>An enhanced plugin API for Minecraft servers.</description>
  
      <properties>
-@@ -139,6 +139,12 @@
+@@ -140,6 +140,12 @@
              <artifactId>asm-all</artifactId>
              <version>5.0.4</version>
          </dependency>
@@ -113,5 +113,5 @@ index 0790f3c..e8ca024 100644
      // Contributed by Techcable <Techcable@outlook.com> in GH PR #65
      private static final String BRANCH = "master";
 -- 
-2.10.1
+2.10.2
 

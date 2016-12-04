@@ -1,4 +1,4 @@
-From ba621ce57f0253b0c4ddc564c77386dac0cd1734 Mon Sep 17 00:00:00 2001
+From 760f3571c1f8b8c11f139d1e6bb33fa11103d58e Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Sun, 3 Apr 2016 14:05:27 -0700
 Subject: [PATCH] MC-Dev Fixes
@@ -19,10 +19,10 @@ index 66c459d..9f43b2b 100644
  
              if (this.b.containsKey(s1)) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 0026e49..da05dbb 100644
+index edea58b..e4d1e48 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
-@@ -85,7 +85,7 @@ public class BlockStateList {
+@@ -87,7 +87,7 @@ public class BlockStateList {
          if (!BlockStateList.a.matcher(s).matches()) {
              throw new IllegalArgumentException("Block: " + block.getClass() + " has invalidly named property: " + s);
          } else {
@@ -31,7 +31,7 @@ index 0026e49..da05dbb 100644
  
              String s1;
  
-@@ -94,7 +94,7 @@ public class BlockStateList {
+@@ -96,7 +96,7 @@ public class BlockStateList {
                      return s;
                  }
  
@@ -40,9 +40,9 @@ index 0026e49..da05dbb 100644
  
                  s1 = iblockstate.a(comparable);
              } while (BlockStateList.a.matcher(s1).matches());
-@@ -163,7 +163,7 @@ public class BlockStateList {
+@@ -165,7 +165,7 @@ public class BlockStateList {
              if (comparable == null) {
-                 throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.t());
+                 throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.s());
              } else {
 -                return (Comparable) iblockstate.b().cast(comparable);
 +                return iblockstate.b().cast(comparable); // TacoSpigot - fix fernflower error
@@ -75,5 +75,5 @@ index a79fa01..a21743d 100644
 +    // TacoSpigot end
  }
 -- 
-2.10.1
+2.10.2
 

@@ -1,4 +1,4 @@
-From cf68a8048318541f9c30d9936bf839e6b0ccabf3 Mon Sep 17 00:00:00 2001
+From d56084e5b64cb09b692ba5902ee2005f08b2926e Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -169,10 +169,10 @@ index 2b7870e..7f05581 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index da05dbb..7d3314d 100644
+index e4d1e48..1733832 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
-@@ -23,6 +23,14 @@ import java.util.Map.Entry;
+@@ -24,6 +24,14 @@ import java.util.Map.Entry;
  import java.util.regex.Pattern;
  import javax.annotation.Nullable;
  
@@ -187,7 +187,7 @@ index da05dbb..7d3314d 100644
  public class BlockStateList {
  
      private static final Pattern a = Pattern.compile("^[a-z0-9_]+$");
-@@ -145,16 +153,27 @@ public class BlockStateList {
+@@ -147,16 +155,27 @@ public class BlockStateList {
      static class BlockData extends BlockDataAbstract {
  
          private final Block a;
@@ -213,33 +213,33 @@ index da05dbb..7d3314d 100644
 +            // TacoSpigot end
          }
  
-         public Collection<IBlockState<?>> r() {
+         public Collection<IBlockState<?>> t() {
 -            return Collections.unmodifiableCollection(this.b.keySet());
 +            return Collections.unmodifiableCollection(this.bAsImmutableMap.keySet()); // TacoSpigot - use bAsImmutableMap
          }
  
          public <T extends Comparable<T>> T get(IBlockState<T> iblockstate) {
-@@ -186,7 +205,7 @@ public class BlockStateList {
+@@ -188,7 +207,7 @@ public class BlockStateList {
          }
  
-         public ImmutableMap<IBlockState<?>, Comparable<?>> s() {
+         public ImmutableMap<IBlockState<?>, Comparable<?>> u() {
 -            return this.b;
 +            return this.bAsImmutableMap; // TacoSpigot
          }
  
          public Block getBlock() {
-@@ -206,7 +225,7 @@ public class BlockStateList {
+@@ -208,7 +227,7 @@ public class BlockStateList {
                  throw new IllegalStateException();
              } else {
                  HashBasedTable hashbasedtable = HashBasedTable.create();
--                Iterator iterator = this.b.entrySet().iterator();
-+                Iterator iterator = this.bAsImmutableMap.entrySet().iterator(); // TacoSpigot - use bAsImmutableMap
+-                UnmodifiableIterator unmodifiableiterator = this.b.entrySet().iterator();
++                UnmodifiableIterator unmodifiableiterator = this.bAsImmutableMap.entrySet().iterator(); // TacoSpigot - use bAsImmutableMap
  
-                 while (iterator.hasNext()) {
-                     Entry entry = (Entry) iterator.next();
-@@ -216,18 +235,34 @@ public class BlockStateList {
-                     while (iterator1.hasNext()) {
-                         Comparable comparable = (Comparable) iterator1.next();
+                 while (unmodifiableiterator.hasNext()) {
+                     Entry entry = (Entry) unmodifiableiterator.next();
+@@ -218,18 +237,34 @@ public class BlockStateList {
+                     while (iterator.hasNext()) {
+                         Comparable comparable = (Comparable) iterator.next();
  
 -                        if (comparable != entry.getValue()) {
 +                        if (true) { // TacoSpigot - include everything in the table
@@ -506,6 +506,9 @@ index 0000000..87a50a3
 +public interface ObjIntBiFunction<T, R> {
 +    public R apply(T t, int i);
 +}
+diff --git a/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java.porig b/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java.porig
+new file mode 100644
+index 0000000..e69de29
 -- 
-2.10.1
+2.10.2
 

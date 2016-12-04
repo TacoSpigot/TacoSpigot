@@ -1,15 +1,15 @@
-From 83da27e9be1be6f6fcb0400d2b34f7775c7af6fa Mon Sep 17 00:00:00 2001
+From 0fe137034baeee8d7e34b13c66a6a1b80050d39f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Wed, 23 Sep 2015 12:29:13 -0700
 Subject: [PATCH] Add ArrowCollideEvent
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityArrow.java b/src/main/java/net/minecraft/server/EntityArrow.java
-index 37cb17c..d6c6012 100644
+index c04962e..2fc66fb 100644
 --- a/src/main/java/net/minecraft/server/EntityArrow.java
 +++ b/src/main/java/net/minecraft/server/EntityArrow.java
-@@ -10,6 +10,11 @@ import org.bukkit.entity.LivingEntity;
- import org.bukkit.event.entity.EntityCombustByEntityEvent;
+@@ -11,6 +11,11 @@ import org.bukkit.event.entity.EntityCombustByEntityEvent;
+ import org.bukkit.event.entity.EntityCombustEvent;
  import org.bukkit.event.player.PlayerPickupArrowEvent;
  // CraftBukkit end
 +// TacoSpigot start
@@ -20,7 +20,7 @@ index 37cb17c..d6c6012 100644
  
  public abstract class EntityArrow extends Entity implements IProjectile {
  
-@@ -197,6 +202,16 @@ public abstract class EntityArrow extends Entity implements IProjectile {
+@@ -198,6 +203,16 @@ public abstract class EntityArrow extends Entity implements IProjectile {
              }
              // Paper end
  
@@ -38,5 +38,5 @@ index 37cb17c..d6c6012 100644
                  this.a(movingobjectposition);
              }
 -- 
-2.8.3
+2.10.2
 

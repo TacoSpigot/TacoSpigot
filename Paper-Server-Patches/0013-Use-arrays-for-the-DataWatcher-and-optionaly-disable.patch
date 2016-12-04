@@ -1,4 +1,4 @@
-From 4274926c6ef7ed64734f17b8a670dc966dc376ad Mon Sep 17 00:00:00 2001
+From fcd226e35ad4056b1068beba3168fb29e0f953c4 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 20 Jun 2016 09:48:02 -0700
 Subject: [PATCH] Use arrays for the DataWatcher and optionaly disable
@@ -9,7 +9,7 @@ This makes things a lot faster.
 Also, when we use 'ArrayMap', we can let server owners optionally disable read-locking because ArrayMap is thread safe.
 
 diff --git a/src/main/java/net/minecraft/server/DataWatcher.java b/src/main/java/net/minecraft/server/DataWatcher.java
-index 1f5e6c0..8bde9ef 100644
+index 820c152..ac72857 100644
 --- a/src/main/java/net/minecraft/server/DataWatcher.java
 +++ b/src/main/java/net/minecraft/server/DataWatcher.java
 @@ -12,7 +12,14 @@ import java.util.Map;
@@ -441,5 +441,5 @@ index 0000000..4462cec
 +    }
 +}
 -- 
-2.10.1
+2.10.2
 
