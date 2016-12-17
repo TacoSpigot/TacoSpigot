@@ -1,0 +1,24 @@
+From fca4bca81f5be67d91c0e5566278a4cc184f3372 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Fri, 16 Dec 2016 17:35:27 -0700
+Subject: [PATCH] More agressive PooledMutableBlockPosition checks.
+
+Before use after free was just a warning, now it's an error.
+
+diff --git a/src/main/java/net/minecraft/server/BlockPosition.java b/src/main/java/net/minecraft/server/BlockPosition.java
+index 0045d13..fa57987 100644
+--- a/src/main/java/net/minecraft/server/BlockPosition.java
++++ b/src/main/java/net/minecraft/server/BlockPosition.java
+@@ -308,8 +308,7 @@ public class BlockPosition extends BaseBlockPosition {
+ 
+         public BlockPosition.PooledBlockPosition f(int i, int j, int k) {
+             if (this.f) {
+-                BlockPosition.b.error("PooledMutableBlockPosition modified after it was released.", new Throwable());
+-                this.f = false;
++                throw new IllegalStateException("PooledMutableBlockPosition modified after it was released."); // TacoSpigot - make this fatal
+             }
+ 
+             return (BlockPosition.PooledBlockPosition) super.c(i, j, k);
+-- 
+2.10.2
+
