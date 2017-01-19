@@ -1,4 +1,4 @@
-From fcd226e35ad4056b1068beba3168fb29e0f953c4 Mon Sep 17 00:00:00 2001
+From 4f2578c6f563ec5dd8f7c80aa762acfe4553d12d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 20 Jun 2016 09:48:02 -0700
 Subject: [PATCH] Use arrays for the DataWatcher and optionaly disable
@@ -9,7 +9,7 @@ This makes things a lot faster.
 Also, when we use 'ArrayMap', we can let server owners optionally disable read-locking because ArrayMap is thread safe.
 
 diff --git a/src/main/java/net/minecraft/server/DataWatcher.java b/src/main/java/net/minecraft/server/DataWatcher.java
-index 820c152..ac72857 100644
+index 820c15278..ac728575b 100644
 --- a/src/main/java/net/minecraft/server/DataWatcher.java
 +++ b/src/main/java/net/minecraft/server/DataWatcher.java
 @@ -12,7 +12,14 @@ import java.util.Map;
@@ -58,7 +58,7 @@ index 820c152..ac72857 100644
              CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Synched entity data");
 diff --git a/src/main/java/net/techcable/tacospigot/ArrayMap.java b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 new file mode 100644
-index 0000000..36c9fd2
+index 000000000..36c9fd252
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 @@ -0,0 +1,234 @@
@@ -299,7 +299,7 @@ index 0000000..36c9fd2
 \ No newline at end of file
 diff --git a/src/main/java/net/techcable/tacospigot/NoOpLock.java b/src/main/java/net/techcable/tacospigot/NoOpLock.java
 new file mode 100644
-index 0000000..692170b
+index 000000000..692170bdd
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/NoOpLock.java
 @@ -0,0 +1,36 @@
@@ -342,7 +342,7 @@ index 0000000..692170b
 \ No newline at end of file
 diff --git a/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java b/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java
 new file mode 100644
-index 0000000..a190239
+index 000000000..a190239f1
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/NoOpReadWriteLock.java
 @@ -0,0 +1,22 @@
@@ -370,7 +370,7 @@ index 0000000..a190239
 +}
 \ No newline at end of file
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index 22c6009..300d506 100644
+index 22c6009ab..300d5066e 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -5,15 +5,10 @@ import java.io.IOException;
@@ -407,7 +407,7 @@ index 22c6009..300d506 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/function/FunctionalMaps.java b/src/main/java/net/techcable/tacospigot/function/FunctionalMaps.java
 new file mode 100644
-index 0000000..4462cec
+index 000000000..4462cec4e
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/function/FunctionalMaps.java
 @@ -0,0 +1,29 @@
@@ -441,5 +441,5 @@ index 0000000..4462cec
 +    }
 +}
 -- 
-2.10.2
+2.11.0
 

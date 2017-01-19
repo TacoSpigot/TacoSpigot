@@ -1,4 +1,4 @@
-From 3a0cf882c688aa18c23028d28a0669c46f578421 Mon Sep 17 00:00:00 2001
+From 605ac629e2f8523a1ffebdf683c8e773d418a25a Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -7,7 +7,7 @@ Check our github versioning
 Add a dependency on jsr305 (@Nullable, @NonNull)
 
 diff --git a/pom.xml b/pom.xml
-index b0eba81..8388190 100644
+index f5f62b44..436802b8 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,18 +4,18 @@
@@ -25,7 +25,7 @@ index b0eba81..8388190 100644
 -    <artifactId>paper-api</artifactId>
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>tacospigot-api</artifactId>
-     <version>1.11-R0.1-SNAPSHOT</version>
+     <version>1.11.2-R0.1-SNAPSHOT</version>
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>
@@ -49,7 +49,7 @@ index b0eba81..8388190 100644
  
      <build>
 diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-index 0790f3c..e8ca024 100644
+index 0790f3ca..e8ca024d 100644
 --- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 +++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 @@ -191,8 +191,10 @@ public class VersionCommand extends BukkitCommand {
@@ -113,5 +113,5 @@ index 0790f3c..e8ca024 100644
      // Contributed by Techcable <Techcable@outlook.com> in GH PR #65
      private static final String BRANCH = "master";
 -- 
-2.10.2
+2.11.0
 

@@ -1,4 +1,4 @@
-From 36d3a6b75f9ae884dfe3123c92d4d611c3b4d4cc Mon Sep 17 00:00:00 2001
+From da581ce0385bb205e34bdf24d567dd843152d369 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Fri, 18 Mar 2016 13:56:01 -0700
 Subject: [PATCH] Better AsyncCatcher
@@ -6,7 +6,7 @@ Subject: [PATCH] Better AsyncCatcher
 Async catching for PlayerChunkMap
 
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index 20a8a80..1bd4173 100644
+index d3c454cb5..e26005a0c 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
 @@ -19,6 +19,9 @@ import javax.annotation.Nullable;
@@ -40,7 +40,7 @@ index 20a8a80..1bd4173 100644
      private long k;
      private boolean l = true;
 diff --git a/src/main/java/org/spigotmc/AsyncCatcher.java b/src/main/java/org/spigotmc/AsyncCatcher.java
-index 4b3aa85..8a5159f 100644
+index 4b3aa85c9..8a5159fdf 100644
 --- a/src/main/java/org/spigotmc/AsyncCatcher.java
 +++ b/src/main/java/org/spigotmc/AsyncCatcher.java
 @@ -1,6 +1,13 @@
@@ -90,5 +90,5 @@ index 4b3aa85..8a5159f 100644
 +    // TacoSpigot end
  }
 -- 
-2.8.3
+2.11.0
 
