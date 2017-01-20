@@ -1,4 +1,4 @@
-From 4f2578c6f563ec5dd8f7c80aa762acfe4553d12d Mon Sep 17 00:00:00 2001
+From 802d73bc3d51af254e7f9ef037751f5188105e6c Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 20 Jun 2016 09:48:02 -0700
 Subject: [PATCH] Use arrays for the DataWatcher and optionaly disable
