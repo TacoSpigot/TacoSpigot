@@ -2,54 +2,70 @@
 
 # Generates a patched jar for paperclip
 
-if [[ $# < 4 ]]; then
+if [[ $# -lt 4 ]]; then
     echo "Usage ./generateJar.sh {input jar} {mojang_jar} {source_url} {name}"
     exit 1;
 fi;
 
-workdir=work/Paperclip
+basedir="$(pwd)"
 
-mkdir -p $workdir
+mkdir -p work/Paperclip
 PAPERCLIP_JAR=paperclip.jar
 
-if [ ! -f $workdir/$PAPERCLIP_JAR ]; then
+if [ ! -f work/Paperclip/$PAPERCLIP_JAR ]; then
     if [ ! -d Paperclip ]; then
         echo "Paperclip not found"
         exit 1;
     fi
     echo "Generating Paperclip Jar"
     pushd Paperclip
-    mvn -P '!generate' clean install
-    if [ ! -f target/paperclip*.jar ]; then
-        echo "Couldn't generate paperclip jar"
-        exit;
+    mvn -P '!generate' clean install || exit 1
+    RESULT_JARS=( target/paperclip*.jar )
+    if [ ! -f ${RESULT_JARS[0]} ]; then
+        echo "Couldn't generate paperclip jar" 2>/dev/null;
+        exit 1;
     fi;
+    cp "${RESULT_JARS[0]}" "$basedir/work/Paperclip/$PAPERCLIP_JAR"
     popd
-    cp Paperclip/target/paperclip*.jar $workdir/$PAPERCLIP_JAR
 fi;
 
+if [ ! -f work/jbsdiff.jar ]; then
+    echo "jbsdiff not found"
+    if [ ! -d work/jbsdiff ]; then
+        echo "Cloning jbsdiff"
+        git clone "https://github.com/malensek/jbsdiff.git" work/jbsdiff
+        if [ ! -d work/jbsdiff ]; then
+            echo "Failed to clone bsdiff " 2>/dev/null;
+            exit 1
+        fi;
+    fi
+    echo "Compiling jbsdiff"
+    pushd work/jbsdiff
+    mvn clean package || exit 1
+    RESULT_JARS=( target/jbsdiff*.jar )
+    if [ ! -f ${RESULT_JARS[0]} ]; then
+        echo "Couldn't generate jbsdiff jar" 2>/dev/null;
+        exit 1;
+    fi;
+    cp "${RESULT_JARS[0]}" "$basedir/work/jbsdiff.jar"
+    popd
+fi;
 
 INPUT_JAR=$1
 VANILLA_JAR=$2
 VANILLA_URL=$3
 NAME=$4
 
-which bsdiff 2>&1 >/dev/null
-if [ $? != 0 ]; then
-    echo "Bsdiff not found"
-    exit 1;
-fi;
-
 OUTPUT_JAR=$NAME.jar
 PATCH_FILE=$NAME.patch
 
 hash() {
-    echo $(sha256sum $1 | sed -E "s/(\S+).*/\1/")
+    echo "$(sha256sum $1 | sed -E "s/(\S+).*/\1/")"
 }
 
 echo "Computing Patch"
 
-bsdiff $VANILLA_JAR $INPUT_JAR $workdir/$PATCH_FILE
+java -jar work/jbsdiff.jar diff $VANILLA_JAR $INPUT_JAR work/Paperclip/$PATCH_FILE || exit 1
 
 genJson() {
     PATCH=$1
@@ -67,13 +83,13 @@ genJson() {
 
 echo "Generating Final Jar"
 
-cp $workdir/$PAPERCLIP_JAR $workdir/$OUTPUT_JAR
+cp work/Paperclip/$PAPERCLIP_JAR work/Paperclip/$OUTPUT_JAR
 
 PATCH_JSON=patch.json
 
-genJson $PATCH_FILE $VANILLA_URL $(hash $VANILLA_JAR) $(hash $INPUT_JAR) > $workdir/$PATCH_JSON
+genJson $PATCH_FILE $VANILLA_URL "$(hash $VANILLA_JAR)" "$(hash $INPUT_JAR)" > work/Paperclip/$PATCH_JSON
 
-pushd $workdir
+pushd work/Paperclip
 
 jar uf $OUTPUT_JAR $PATCH_FILE $PATCH_JSON
 
