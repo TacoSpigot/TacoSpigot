@@ -1,11 +1,25 @@
-From 198bce9aba37abb6c5bb29edd57eccb975bbd48b Mon Sep 17 00:00:00 2001
+From fdc7043997f6721d4d39e850e6b25821616fc41f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 4 Aug 2015 20:45:22 -0700
 Subject: [PATCH] Metrics
 
+Uses bStats since mcstats is dead.
 
+diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
+index 585260697..e52256512 100644
+--- a/src/main/java/com/destroystokyo/paper/Metrics.java
++++ b/src/main/java/com/destroystokyo/paper/Metrics.java
+@@ -139,7 +139,7 @@ class Metrics {
+     public JSONObject getPluginData() {
+         JSONObject data = new JSONObject();
+ 
+-        String pluginName = "Paper";
++        String pluginName = "TacoSpigot"; // TacoSpigot - We're TacoSpigot, not Paper
+         String pluginVersion = (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown";
+ 
+         data.put("pluginName", pluginName); // Append the name of the plugin
 diff --git a/src/main/java/org/spigotmc/Metrics.java b/src/main/java/org/spigotmc/Metrics.java
-index 680283c..f0b24dc 100644
+index 680283ce0..f0b24dc73 100644
 --- a/src/main/java/org/spigotmc/Metrics.java
 +++ b/src/main/java/org/spigotmc/Metrics.java
 @@ -344,7 +344,7 @@ public class Metrics {
@@ -18,5 +32,5 @@ index 680283c..f0b24dc 100644
          String pluginVersion = (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown";
          String serverVersion = Bukkit.getVersion();
 -- 
-2.8.3
+2.12.2
 
