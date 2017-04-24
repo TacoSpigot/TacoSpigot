@@ -1,11 +1,11 @@
-From 08a8026ee95c64323955de20ea3dc141d3952567 Mon Sep 17 00:00:00 2001
+From 273628d990d4fd060b5498f0900a3d19a127e775 Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index af173a137..f12960f47 100644
+index af173a13..f12960f4 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
 @@ -21,6 +21,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
@@ -55,10 +55,10 @@ index af173a137..f12960f47 100644
  
      public ItemCooldown di() {
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index f153e58ee..aa789a20c 100644
+index 0e2f43b9..2630053b 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -462,6 +462,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+@@ -463,6 +463,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
                      this.syncPosition();
                  }
  
@@ -68,7 +68,7 @@ index f153e58ee..aa789a20c 100644
                      if (this.e - this.A > 20) {
                          this.A = this.e;
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index b7699d8c4..22c6009ab 100644
+index b7699d8c..22c6009a 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -107,4 +107,9 @@ public class TacoSpigotConfig {
@@ -82,5 +82,5 @@ index b7699d8c4..22c6009ab 100644
 +    }
  }
 -- 
-2.11.0
+2.12.2
 

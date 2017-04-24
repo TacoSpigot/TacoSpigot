@@ -1,4 +1,4 @@
-From fdc7043997f6721d4d39e850e6b25821616fc41f Mon Sep 17 00:00:00 2001
+From e1cb60e11d97ce556411d6deb8960f9366a01935 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 4 Aug 2015 20:45:22 -0700
 Subject: [PATCH] Metrics
@@ -6,31 +6,27 @@ Subject: [PATCH] Metrics
 Uses bStats since mcstats is dead.
 
 diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
-index 585260697..e52256512 100644
+index 9389f9a8..14db0377 100644
 --- a/src/main/java/com/destroystokyo/paper/Metrics.java
 +++ b/src/main/java/com/destroystokyo/paper/Metrics.java
-@@ -139,7 +139,7 @@ class Metrics {
-     public JSONObject getPluginData() {
-         JSONObject data = new JSONObject();
+@@ -576,7 +576,7 @@ public class Metrics {
+             boolean logFailedRequests = config.getBoolean("logFailedRequests", false);
+             // Only start Metrics, if it's enabled in the config
+             if (config.getBoolean("enabled", true)) {
+-                Metrics metrics = new Metrics("Paper", serverUUID, logFailedRequests, Bukkit.getLogger());
++                Metrics metrics = new Metrics("TacoSpigot", serverUUID, logFailedRequests, Bukkit.getLogger());
  
--        String pluginName = "Paper";
-+        String pluginName = "TacoSpigot"; // TacoSpigot - We're TacoSpigot, not Paper
-         String pluginVersion = (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown";
+                 metrics.addCustomChart(new Metrics.SimplePie("minecraft_version", () -> {
+                     String minecraftVersion = Bukkit.getVersion();
+@@ -586,7 +586,7 @@ public class Metrics {
  
-         data.put("pluginName", pluginName); // Append the name of the plugin
-diff --git a/src/main/java/org/spigotmc/Metrics.java b/src/main/java/org/spigotmc/Metrics.java
-index 680283ce0..f0b24dc73 100644
---- a/src/main/java/org/spigotmc/Metrics.java
-+++ b/src/main/java/org/spigotmc/Metrics.java
-@@ -344,7 +344,7 @@ public class Metrics {
-      */
-     private void postPlugin(final boolean isPing) throws IOException {
-         // Server software specific section
--        String pluginName = "PaperSpigot"; // Paper - Keep old name for legacy data
-+        String pluginName = "TacoSpigot"; // Paper - Keep old name for legacy data // TacoSpigot - Its *my* usage data
-         boolean onlineMode = Bukkit.getServer().getOnlineMode(); // TRUE if online mode is enabled
-         String pluginVersion = (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown";
-         String serverVersion = Bukkit.getVersion();
+                 metrics.addCustomChart(new Metrics.SingleLineChart("players", () -> Bukkit.getOnlinePlayers().size()));
+                 metrics.addCustomChart(new Metrics.SimplePie("online_mode", () -> Bukkit.getOnlineMode() ? "online" : "offline"));
+-                metrics.addCustomChart(new Metrics.SimplePie("paper_version", () -> (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown"));
++                metrics.addCustomChart(new Metrics.SimplePie("taco_version", () -> (Metrics.class.getPackage().getImplementationVersion() != null) ? Metrics.class.getPackage().getImplementationVersion() : "unknown"));
+ 
+                 metrics.addCustomChart(new Metrics.DrilldownPie("java_version", () -> {
+                     Map<String, Map<String, Integer>> map = new HashMap<>();
 -- 
 2.12.2
 
