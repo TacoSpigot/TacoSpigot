@@ -1,9 +1,8 @@
-From 605ac629e2f8523a1ffebdf683c8e773d418a25a Mon Sep 17 00:00:00 2001
+From 0af1bde32ff890230a2216b60328f186e6884365 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
 
-Check our github versioning
 Add a dependency on jsr305 (@Nullable, @NonNull)
 
 diff --git a/pom.xml b/pom.xml
@@ -48,70 +47,6 @@ index f5f62b44..436802b8 100644
      </dependencies>
  
      <build>
-diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-index 0790f3ca..e8ca024d 100644
---- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-+++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-@@ -191,8 +191,10 @@ public class VersionCommand extends BukkitCommand {
-     private void obtainVersion() {
-         String version = Bukkit.getVersion();
-         if (version == null) version = "Custom";
--        if (version.startsWith("git-Paper-")) {
--            String[] parts = version.substring("git-Paper-".length()).split("[-\\s]");
-+        // TacoSpigot start
-+        if (version.startsWith("git-TacoSpigot-")) {
-+            String[] parts = version.substring("git-TacoSpigot-".length()).split("[-\\s]");
-+            // TacoSpigot end
-             int distance = getDistance(null, parts[0]);
-             switch (distance) {
-                 case -1:
-@@ -205,7 +207,7 @@ public class VersionCommand extends BukkitCommand {
-                     setVersionMessage("Unknown version");
-                     break;
-                 default:
--                    setVersionMessage("You are " + distance + " version(s) behind");
-+                    setVersionMessage("You are " + distance + " commit(s) behind"); // TacoSpigot - version -> commit
-             }
-         } else if (version.startsWith("git-Bukkit-")) {
-             // Paper end
-@@ -243,13 +245,17 @@ public class VersionCommand extends BukkitCommand {
- 
-     // Paper start
-     private static int getDistance(String repo, String verInfo) {
-+        // TacoSpigot start - remove jenkins check
-+        /*
-         try {
-             int currentVer = Integer.decode(verInfo);
-             return getFromJenkins(currentVer);
-         } catch (NumberFormatException ex) {
-+            */
-             verInfo = verInfo.replace("\"", "");
--            return getFromRepo("PaperMC/Paper", verInfo);
--        }
-+            return getFromRepo("TacoSpigot/TacoSpigot", verInfo); // 'PaperMC/Paper' -> 'TacoSpigot/TacoSpigot'
-+        //}
-+        // TacoSpigot end
-             /*
-             BufferedReader reader = Resources.asCharSource(
-                     new URL("https://hub.spigotmc.org/stash/rest/api/1.0/projects/SPIGOT/repos/" + repo + "/commits?since=" + URLEncoder.encode(hash, "UTF-8") + "&withCounts=true"),
-@@ -267,6 +273,8 @@ public class VersionCommand extends BukkitCommand {
-             */
-     }
- 
-+    // TacoSpigot start - remove jenkins check
-+    /*
-     private static int getFromJenkins(int currentVer) {
-         try {
-             BufferedReader reader = Resources.asCharSource(
-@@ -287,6 +295,8 @@ public class VersionCommand extends BukkitCommand {
-             return -1;
-         }
-     }
-+    */
-+    // TacoSpigot end
- 
-     // Contributed by Techcable <Techcable@outlook.com> in GH PR #65
-     private static final String BRANCH = "master";
 -- 
-2.11.0
+2.12.2
 

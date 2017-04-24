@@ -1,0 +1,319 @@
+From 39f172c2eb33b9ca4abfe8eb0265d61f0177f905 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Mon, 24 Apr 2017 11:07:19 -0700
+Subject: [PATCH] Better version checking
+
+Startup now checks the CI for the latest version,
+and warns on custom versions.
+Version handling should be more robust, and handle more cases.
+
+diff --git a/src/main/java/net/techcable/tacospigot/TacoVersioning.java b/src/main/java/net/techcable/tacospigot/TacoVersioning.java
+new file mode 100644
+index 00000000..0a00c5db
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/TacoVersioning.java
+@@ -0,0 +1,58 @@
++package net.techcable.tacospigot;
++
++import java.io.BufferedReader;
++import java.io.IOException;
++import java.io.InputStreamReader;
++import java.net.HttpURLConnection;
++import java.net.URL;
++import java.util.Objects;
++import java.util.regex.Matcher;
++import java.util.regex.Pattern;
++
++import com.google.common.base.Charsets;
++
++import org.bukkit.Bukkit;
++import org.json.simple.JSONObject;
++import org.json.simple.parser.JSONParser;
++import org.json.simple.parser.ParseException;
++
++public final class TacoVersioning {
++    public static final String REPO = "TacoSpigot/TacoSpigot";
++    public static final String BRANCH = "master";
++    private TacoVersioning() {}
++
++    private static final Pattern VERSION_PATTERN = Pattern.compile("git-(\\w+)-\"(\\w+)\"");
++    public static VersionInfo currentVersion() {
++        String versionStr = Bukkit.getVersion();
++        Matcher m;
++        if (versionStr != null && (m = VERSION_PATTERN.matcher(versionStr)).matches()) {
++            return new VersionInfo(m.group(1), m.group(2));
++        } else {
++            return new VersionInfo("custom", Objects.toString(versionStr));
++        }
++    }
++    public static VersionDifference compareToLatest() throws IOException, VersioningException {
++        return compareToRepo(REPO, BRANCH, currentVersion().getCommit());
++    }
++
++    public static VersionDifference compareToRepo(String repo, String branch, String hash) throws IOException, VersioningException {
++        HttpURLConnection connection = (HttpURLConnection) new URL("https://api.github.com/repos/" + repo + "/compare/" + branch + "..." + hash).openConnection();
++        connection.connect();
++        if (connection.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
++            throw new UnknownVersionException(hash);
++        }
++        try (
++                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), Charsets.UTF_8))
++        ) {
++            JSONObject obj = (JSONObject) new JSONParser().parse(reader);
++            String status = (String) obj.get("status");
++            int aheadBy = ((Number) obj.get("ahead_by")).intValue();
++            int behindBy = ((Number) obj.get("behind_by")).intValue();
++            VersionDifference difference = new VersionDifference(aheadBy, behindBy);
++            assert VersionDifferenceType.valueOf(status.toUpperCase()) == difference.getDifferenceType();
++            return difference;
++        } catch (ParseException | NumberFormatException | ClassCastException e) {
++            throw new VersioningException("Unable to compare version " + hash + " to " + repo + "/" + branch);
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/UnknownVersionException.java b/src/main/java/net/techcable/tacospigot/UnknownVersionException.java
+new file mode 100644
+index 00000000..2cf4ff2b
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/UnknownVersionException.java
+@@ -0,0 +1,13 @@
++package net.techcable.tacospigot;
++
++public class UnknownVersionException extends VersioningException {
++    public UnknownVersionException(String version) {
++        super("Unknown version: " + version);
++        this.version = version;
++    }
++    private final String version;
++
++    public String getVersion() {
++        return version;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/VersionDifference.java b/src/main/java/net/techcable/tacospigot/VersionDifference.java
+new file mode 100644
+index 00000000..dd4b002b
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/VersionDifference.java
+@@ -0,0 +1,61 @@
++package net.techcable.tacospigot;
++
++public class VersionDifference {
++    private final int aheadBy, behindBy;
++    private final VersionDifferenceType differenceType;
++
++    public VersionDifference(int aheadBy, int behindBy) {
++        this.aheadBy = aheadBy;
++        this.behindBy = behindBy;
++        if (aheadBy < 0 || behindBy < 0) {
++            throw new IllegalArgumentException("Negative aheadBy or behindBy: " + aheadBy + ", " + behindBy);
++        }
++        if (aheadBy > 0) {
++            if (behindBy > 0) {
++                differenceType = VersionDifferenceType.DIVERGED;
++            } else {
++                differenceType = VersionDifferenceType.AHEAD;
++            }
++        } else if (behindBy > 0) {
++            differenceType = VersionDifferenceType.BEHIND;
++        } else {
++            differenceType = VersionDifferenceType.IDENTICAL;
++        }
++    }
++
++    public int getAheadBy() {
++        return aheadBy;
++    }
++
++    public int getBehindBy() {
++        return behindBy;
++    }
++
++    public VersionDifferenceType getDifferenceType() {
++        return differenceType;
++    }
++
++    public boolean isIdentical() {
++        return differenceType == VersionDifferenceType.IDENTICAL;
++    }
++
++    public boolean isOutdated() {
++        return behindBy > 0;
++    }
++
++    @Override
++    public String toString() {
++        switch (differenceType) {
++            case DIVERGED:
++                return behindBy + " commits behind, " + aheadBy + " commits ahead of";
++            case BEHIND:
++                return behindBy + " commits behind";
++            case AHEAD:
++                return aheadBy + " ahead of";
++            case IDENTICAL:
++                return "identical to";
++            default:
++                throw new AssertionError(differenceType);
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/VersionDifferenceType.java b/src/main/java/net/techcable/tacospigot/VersionDifferenceType.java
+new file mode 100644
+index 00000000..b241af79
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/VersionDifferenceType.java
+@@ -0,0 +1,8 @@
++package net.techcable.tacospigot;
++
++public enum VersionDifferenceType {
++    AHEAD,
++    BEHIND,
++    DIVERGED,
++    IDENTICAL
++}
+diff --git a/src/main/java/net/techcable/tacospigot/VersionInfo.java b/src/main/java/net/techcable/tacospigot/VersionInfo.java
+new file mode 100644
+index 00000000..17bcd9dc
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/VersionInfo.java
+@@ -0,0 +1,37 @@
++package net.techcable.tacospigot;
++
++import static java.util.Objects.*;
++
++public class VersionInfo {
++    private final String serverType, commit;
++
++    public VersionInfo(String serverType, String commit) {
++        this.serverType = requireNonNull(serverType);
++        this.commit = requireNonNull(commit);
++    }
++
++    public String getServerType() {
++        return serverType;
++    }
++
++    public String getCommit() {
++        return commit;
++    }
++
++    public boolean isCustom() {
++        switch (serverType) {
++            case "TacoSpigot":
++            case "Paper":
++            case "Spigot":
++            case "Bukkit":
++                return false;
++            default:
++                return true;
++        }
++    }
++
++    @Override
++    public String toString() {
++        return serverType + "@" + commit;
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/VersioningException.java b/src/main/java/net/techcable/tacospigot/VersioningException.java
+new file mode 100644
+index 00000000..d68c6e0e
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/VersioningException.java
+@@ -0,0 +1,10 @@
++package net.techcable.tacospigot;
++
++public class VersioningException extends Exception {
++    public VersioningException(String message) {
++        super(message);
++    }
++    public VersioningException(String message, Exception cause) {
++        super(message, cause);
++    }
++}
+diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
+index aae605e9..bb970b3c 100644
+--- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
++++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
+@@ -20,6 +20,7 @@ import java.io.IOException;
+ import java.net.URL;
+ import java.net.URLEncoder;
+ import java.util.HashSet;
++import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.locks.ReentrantLock;
+ import java.util.logging.Level;
+@@ -32,6 +33,12 @@ import org.json.simple.parser.ParseException;
+ import java.io.InputStreamReader;
+ import java.net.HttpURLConnection;
+ // Paper end
++// TacoSpigot start
++import net.techcable.tacospigot.TacoVersioning;
++import net.techcable.tacospigot.UnknownVersionException;
++import net.techcable.tacospigot.VersionDifference;
++import net.techcable.tacospigot.VersioningException;
++// TacoSpigot end
+ 
+ public class VersionCommand extends BukkitCommand {
+     public VersionCommand(String name) {
+@@ -187,6 +194,24 @@ public class VersionCommand extends BukkitCommand {
+         }
+     }
+ 
++    // TacoSpigot start - Delegate to our version-checking logic
++    private void obtainVersion() {
++        try {
++            VersionDifference difference = TacoVersioning.compareToLatest();
++            if (difference.isIdentical()) {
++                setVersionMessage("You are running the latest version");
++            } else {
++                setVersionMessage("You are " + difference + " the latest version!");
++            }
++        } catch (UnknownVersionException e) {
++            setVersionMessage("Unknown version, custom build? " + Objects.toString(Bukkit.getVersion()));
++        } catch (IOException | VersioningException e) {
++            setVersionMessage("Error obtaining version information");
++            //noinspection CallToPrintStackTrace
++            e.printStackTrace();
++        }
++    }
++    /*
+     // Paper start
+     private void obtainVersion() {
+         String version = Bukkit.getVersion();
+@@ -224,6 +249,9 @@ public class VersionCommand extends BukkitCommand {
+             setVersionMessage("Unknown version, custom build?");
+         }
+     }
++    */
++    // TacoSpigot end
++
+ 
+     private void setVersionMessage(String msg) {
+         lastCheck = System.currentTimeMillis();
+@@ -241,6 +269,8 @@ public class VersionCommand extends BukkitCommand {
+         }
+     }
+ 
++    // TacoSpigot start - remove Paper's check
++    /*
+     // Paper start
+     private static int getDistance(String repo, String verInfo) {
+         try {
+@@ -264,7 +294,6 @@ public class VersionCommand extends BukkitCommand {
+             } finally {
+                 reader.close();
+             }
+-            */
+     }
+ 
+     private static int getFromJenkins(int currentVer) {
+@@ -318,4 +347,6 @@ public class VersionCommand extends BukkitCommand {
+         }
+     }
+     // Paper end
++    */
++    // TacoSpigot end
+ }
+-- 
+2.12.2
+

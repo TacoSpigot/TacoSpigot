@@ -1,0 +1,75 @@
+From 71a0dd9bb93b70f2570a92f608b2c4c1ce9c6b9c Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Mon, 24 Apr 2017 11:12:40 -0700
+Subject: [PATCH] Better version checking
+
+Checks for outdated versions on startup, and warns on custom versions.
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index a21d1456..eafeb922 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -15,6 +15,12 @@ import joptsimple.OptionParser;
+ import joptsimple.OptionSet;
+ import net.minecraft.server.MinecraftServer;
+ import org.fusesource.jansi.AnsiConsole;
++// TacoSpigot start
++import net.techcable.tacospigot.TacoVersioning;
++import net.techcable.tacospigot.UnknownVersionException;
++import net.techcable.tacospigot.VersionDifference;
++import net.techcable.tacospigot.VersioningException;
++// TacoSpigot end
+ 
+ public class Main {
+     public static boolean useJline = true;
+@@ -201,17 +207,39 @@ public class Main {
+                     useConsole = false;
+                 }
+ 
+-                if (Main.class.getPackage().getImplementationVendor() != null && System.getProperty("IReallyKnowWhatIAmDoingISwear") == null) {
+-                    Date buildDate = new SimpleDateFormat("yyyyMMdd-HHmm").parse(Main.class.getPackage().getImplementationVendor());
+-
+-                    Calendar deadline = Calendar.getInstance();
+-                    deadline.add(Calendar.DAY_OF_YEAR, -14);
+-                    if (buildDate.before(deadline.getTime())) {
+-                        System.err.println("*** Error, this build is outdated ***");
+-                        System.err.println("*** Please download a new build as per instructions from https://paperci.emc.gs/ ***"); // Paper
++                // TacoSpigot start - Check if the version is outdated
++                VersionDifference versionDifference = null;
++                boolean isCustom = TacoVersioning.currentVersion().isCustom();
++                try {
++                    versionDifference = TacoVersioning.compareToLatest();
++                } catch (UnknownVersionException e) {
++                    isCustom = true;
++                } catch (VersioningException | IOException e) {
++                    System.err.println("Unable to fetch latest version info!");
++                    e.printStackTrace();
++                }
++                if (isCustom) {
++                    System.err.println("*** Warning, this build (" + TacoVersioning.currentVersion() + ") is custom ***");
++                    System.err.println("*** No support will be offered by the TacoSpigot or Paper authors! ***");
++                    System.err.println("*** Unless this is intended, please download a new build from https://ci.techcable.net/ ***");
++                    System.err.println("*** Server will start in 5 seconds ***");
++                    Thread.sleep(TimeUnit.SECONDS.toMillis(5));
++                } else if (versionDifference != null) {
++                    if (versionDifference.isOutdated()) {
++                        System.err.println("*** Error, this build (" + TacoVersioning.currentVersion() + ") is outdated ***");
++                        System.err.println("*** It is " + versionDifference + " the latest version! ***");
++                        System.err.println("*** No support will be offered by the TacoSpigot or Paper authors! ***");
++                        System.err.println("*** Please download a new build as per instructions from https://ci.techcable.net/ ***"); // Paper
+                         System.err.println("*** Server will start in 15 seconds ***");
+                         Thread.sleep(TimeUnit.SECONDS.toMillis(15));
++                    } else if (!versionDifference.isIdentical()) {
++                        System.err.println("*** Warning, this build (" + TacoVersioning.currentVersion() + ") isn't the latest ***");
++                        System.err.println("*** It is " + versionDifference + " the latest version! ***");
++                        System.err.println("*** Unless this is intended, please download a new build from https://ci.techcable.net/ ***");
++                        System.err.println("*** Server will start in 5 seconds ***");
++                        Thread.sleep(TimeUnit.SECONDS.toMillis(5));
+                     }
++                    // TacoSpigot end
+                 }
+ 
+                 // Spigot Start
+-- 
+2.12.2
+
