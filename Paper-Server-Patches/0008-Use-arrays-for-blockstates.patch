@@ -1,10 +1,10 @@
-From 6e622caf585327a19ba6007fc997f7bc31300e2f Mon Sep 17 00:00:00 2001
+From 3d99017bfe28df52eea6ea8f13fd4737d04d51be Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
 
 It uses a special data structure that is a combination of a lookup table and a binary search. Most blockstates have sequental ids, so they can go in a lookup table. However, there are some blockstates that are not sequental, which are stuffed into a seperate sorted array, and then do a binary search over that.
-This data structure is usualy faster than a hashmap (especially when using the lookup table), and since the array we binary search over is so small.
+This data structure is usualy faster than a hashmap (especially when using the lookup table), and since the array we binary search over is so small, the outliers don't make a big difference.
 
 Should help with redstone.
 
@@ -310,19 +310,23 @@ index de548018d..51143a6a9 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
 new file mode 100644
-index 000000000..cbdad7e36
+index 000000000..6fc4c57a6
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,143 @@
 +package net.techcable.tacospigot;
 +
 +import java.util.Arrays;
++import java.util.Comparator;
 +import java.util.Iterator;
 +import java.util.Map;
++import java.util.Objects;
 +import java.util.function.IntFunction;
 +import java.util.function.ToIntFunction;
 +
 +import com.google.common.base.Preconditions;
++
++import org.apache.commons.lang3.ArrayUtils;
 +
 +public class ImmutableArrayMap<K, V> {
 +    private final int offset;
@@ -332,7 +336,13 @@ index 000000000..cbdad7e36
 +
 +    private final int size;
 +
-+    @SuppressWarnings("Convert2Lambda") // The comparator is anonomous for performance reasons
++    /**
++     * Allow at most 48 empty values in the range of sequential values.
++     * This is a should be a good amount for the block state ids,
++     * since the indexes shouldn't be too far apart, and we need them to be fast.
++     */
++    private static final int MAXIMUM_EMPTY = 48;
++
 +    public ImmutableArrayMap(ToIntFunction<K> indexer, IntFunction<K> byIndex, Map<K, V> map) {
 +        Preconditions.checkNotNull(indexer, "Null indexer function");
 +        Preconditions.checkNotNull(byIndex, "Null byIndex function");
@@ -345,63 +355,88 @@ index 000000000..cbdad7e36
 +            Preconditions.checkArgument(iterator.hasNext(), "Expected %s entries but only got %s", size, i + 1);
 +            entries[i] = iterator.next();
 +        }
-+        Arrays.sort(entries, (entry1, entry2) -> Integer.compare(indexer.applyAsInt(entry1.getKey()), indexer.applyAsInt(entry2.getKey())));
++        Arrays.sort(entries, Comparator.comparingInt(entry -> indexer.applyAsInt(entry.getKey())));
 +        Preconditions.checkArgument(!iterator.hasNext(), "Got more than expected %s entries", size);
-+        int[] ids = Arrays.stream(entries).map(Map.Entry::getKey).mapToInt(indexer).toArray(); // Don't worry, its sorted by key id ;)
-+        int[] largestRangeOfSequentialValues = calculateLargestRangeOfSequentialValues(ids);
-+        int minIndex = largestRangeOfSequentialValues == null ? -1 : largestRangeOfSequentialValues[0];
-+        int maxIndex = largestRangeOfSequentialValues == null ? -1 : largestRangeOfSequentialValues[1];
-+        int sequentalRangeSize = largestRangeOfSequentialValues == null ? 0 : largestRangeOfSequentialValues[2];
-+        if (sequentalRangeSize < size / 2) {
-+            System.err.println("Less than 50% of values are sequential");
-+            System.err.print(sequentalRangeSize);
-+            System.err.print(" out of ");
-+            System.err.println(size);
-+            System.err.println("Expect reduced performance");
-+        }
-+        this.data = new Object[sequentalRangeSize];
-+        this.outlyingIds = new int[size - sequentalRangeSize];
-+        this.outlyingData = new Object[size - sequentalRangeSize];
-+        this.offset = sequentalRangeSize == 0 ? 0 : ids[minIndex];
-+        int outlyingIndex = 0;
-+        for (int i = 0; i < entries.length; i++) {
-+            Map.Entry<K, V> entry = entries[i];
-+            K key = entry.getKey();
-+            V value = entry.getValue();
-+            int id = indexer.applyAsInt(key);
-+            Preconditions.checkArgument(id >= 0, "Negative id for %s: %s", key, id);
-+            if (i >= minIndex && i < maxIndex) {
-+                int index = id - offset;
-+                data[index] = value;
-+            } else {
-+                int index = outlyingIndex++;
-+                outlyingIds[index] = id;
-+                outlyingData[index] = value;
++        int[] ids = Arrays.stream(entries).map(Map.Entry::getKey).mapToInt(indexer).toArray();
++        assert Arrays.equals(ids, Arrays.stream(ids).sorted().toArray()) : "Entries should be sorted by id!";
++        if (ids.length > 0) {
++            IDRange range = IDRange.findLargestRange(ids, MAXIMUM_EMPTY);
++            assert range.size() <= size;
++            this.data = new Object[range.span()];
++            this.outlyingIds = size > range.size() ? new int[size - range.size()] : ArrayUtils.EMPTY_INT_ARRAY;
++            this.outlyingData = size > range.size() ? new Object[size - range.size()] : ArrayUtils.EMPTY_OBJECT_ARRAY;
++            this.offset = range.minId;
++            int outlyingIndex = 0;
++            for (Map.Entry<K, V> entry : entries) {
++                K key = entry.getKey();
++                V value = entry.getValue();
++                int id = indexer.applyAsInt(key);
++                Preconditions.checkArgument(id >= 0, "Negative id for %s: %s", key, id);
++                if (id >= range.minId && id <= range.maxId) {
++                    int index = id - offset;
++                    data[index] = value;
++                } else {
++                    int index = outlyingIndex++;
++                    outlyingIds[index] = id;
++                    outlyingData[index] = value;
++                }
 +            }
++        } else {
++            this.offset = 0;
++            this.data = ArrayUtils.EMPTY_OBJECT_ARRAY;
++            this.outlyingIds = ArrayUtils.EMPTY_INT_ARRAY;
++            this.outlyingData = ArrayUtils.EMPTY_OBJECT_ARRAY;
 +        }
 +    }
 +
-+    private static int[] calculateLargestRangeOfSequentialValues(int[] ids) {
-+        int largestRangeSize = 0;
-+        int[] largestRange = new int[3];
-+        for (int minIndex = 0; minIndex < ids.length; minIndex++) {
-+            final int min = ids[minIndex];
-+            int lastNum = min;
-+            int maxIndex;
-+            for (maxIndex = minIndex + 1; maxIndex < ids.length; maxIndex++) {
-+                final int max = ids[maxIndex];
-+                if (lastNum + 1 != max) break; // The number is not sequential
-+                lastNum = max;
-+            }
-+            int rangeSize = maxIndex - minIndex;
-+            if (rangeSize > largestRangeSize) {
-+                largestRange[0] = minIndex;
-+                largestRange[1] = maxIndex;
-+                largestRange[2] = rangeSize;
-+                largestRangeSize = rangeSize;
-+            }
++    /* default */ static class IDRange {
++        public final int[] ids;
++        public final int minIndex, maxIndex; // Inclusive end
++        public final int minId, maxId;
++        public IDRange(int[] ids, int minIndex, int maxIndex) {
++            assert minIndex <= maxIndex;
++            this.ids = Objects.requireNonNull(ids);
++            this.minIndex = minIndex;
++            this.maxIndex = maxIndex;
++            this.minId = ids[minIndex];
++            this.maxId = ids[maxIndex];
++            assert size() <= span();
 +        }
-+        return largestRangeSize == 0 ? null : largestRange;
++
++        public int size() {
++            return maxIndex - minIndex + 1;
++        }
++
++        public int span() {
++            return maxId - minId + 1;
++        }
++
++        public static IDRange findLargestRange(int[] ids, int maximumEmpty) {
++            assert ids.length > 0;
++            IDRange largestRange = new IDRange(ids, 0, 0);
++            for (int minIndex = 0; minIndex < ids.length; minIndex++) {
++                // Find the largest 'maxIndex' where numEmpty <= maximumEmpty
++                int maxIndex = minIndex;
++                int maxId = ids[maxIndex];
++                int numEmpty = 0;
++                while (maxIndex + 1 < ids.length) {
++                    int newMaxId = ids[maxIndex + 1];
++                    assert newMaxId > maxId;
++                    int distance = newMaxId - maxId;
++                    // The new number of empty elements is any distance bigger than one
++                    int newNumEmpty = numEmpty + (distance - 1);
++                    if (newNumEmpty > maximumEmpty) break;
++                    numEmpty = newNumEmpty;
++                    maxIndex += 1;
++                }
++                IDRange range = new IDRange(ids, minIndex, maxIndex);
++
++                if (range.size() > largestRange.size()) {
++                    largestRange = range;
++                }
++            }
++            return largestRange;
++        }
 +    }
 +
 +    public int size() {
@@ -525,6 +560,131 @@ index 000000000..87a50a3dc
 diff --git a/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java.porig b/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java.porig
 new file mode 100644
 index 000000000..e69de29bb
+diff --git a/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java b/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java
+new file mode 100644
+index 000000000..179d06853
+--- /dev/null
++++ b/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java
+@@ -0,0 +1,119 @@
++package net.techcable.tacospigot;
++
++import java.util.Random;
++
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++
++import org.junit.Assert;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.junit.runners.Parameterized;
++
++import static org.junit.Assert.*;
++
++@RunWith(Parameterized.class)
++public class ImmutableArrayMapTest {
++    private final ImmutableMap<Integer, String> expected;
++    private final ImmutableArrayMap<Integer, String> actual;
++    public ImmutableArrayMapTest(ImmutableMap<Integer, String> data) {
++        this.expected = data;
++        this.actual = new ImmutableArrayMap<>(Integer::intValue, Integer::valueOf, data);
++    }
++
++    @Test
++    public void testSize() {
++        assertEquals(expected.size(), actual.size());
++    }
++
++    @Test
++    public void testGets() {
++        expected.forEach((key, expectedValue) -> {
++            String actualValue = this.actual.get(key);
++            if (!actualValue.equals(expectedValue)) {
++                fail(key + " should be " + expectedValue + ", not " + actualValue);
++            }
++        });
++    }
++
++    @Test
++    public void testNotContainsRandom() {
++        new Random().ints(0, 10_000)
++                .filter((key) -> !expected.containsKey(key))
++                .limit(2500)
++                .forEach((int key) -> {
++                    String value = actual.get(key);
++                    if (value != null) {
++                        fail("Map shouldn't contain " + key + ": " + value);
++                    }
++                });
++    }
++
++    @Parameterized.Parameters
++    public static ImmutableList<ImmutableMap<Integer, String>> data() {
++        return ImmutableList.of(
++                // Entirely sparse ids
++                ImmutableMap.of(
++                        100, "bob",
++                        400, "taco",
++                        1000, "bananas",
++                        2000, "love"
++                ),
++                ImmutableMap.of(
++                        1000, "bamboo",
++                        500, "eats",
++                        7000, "leaves",
++                        400, "panda"
++                ),
++                // Sparse...dense...sparse
++                ImmutableMap.<Integer, String>builder()
++                        .put(50, "potato")
++                        .put(500, "banana")
++                        .put(800, "taco")
++                        .put(801, "loves")
++                        .put(805, "you")
++                        .put(811, "too")
++                        .put(5000, "baby")
++                        .build(),
++                // Sparse..dense
++                ImmutableMap.<Integer, String>builder()
++                        .put(6000, "I think that")
++                        .put(10_000, "testing is hard")
++                        .put(400, "almost")
++                        .put(401, "as hard as")
++                        .put(406, "pooping")
++                        .put(408, "in the toilet")
++                        .build(),
++                // Dense...sparse
++                ImmutableMap.<Integer, String>builder()
++                        .put(407, "bananas")
++                        .put(408, "need")
++                        .put(400, "love")
++                        .put(409, "too!")
++                        .put(5000, "good")
++                        .put(8000, "for you!")
++                        .build(),
++                // All dense
++                ImmutableMap.<Integer, String>builder()
++                        .put(409, "Do you")
++                        .put(400, "want to")
++                        .put(309, "build a")
++                        .put(405, "snowman?")
++                        .put(411, "or ride")
++                        .put(412, "our bike")
++                        .put(308, "around")
++                        .put(407, "the halls?")
++                        .build(),
++                // Perfectly sequential (but randomly sorted)
++                ImmutableMap.<Integer, String>builder()
++                        .put(408, "fifteen")
++                        .put(411, "minutes")
++                        .put(406, "could")
++                        .put(407, "save you")
++                        .put(409, "fifteen")
++                        .put(410, "percent or more")
++                        .put(405, "on car insurance")
++                        .build()
++        );
++    }
++}
 -- 
 2.12.2
 
