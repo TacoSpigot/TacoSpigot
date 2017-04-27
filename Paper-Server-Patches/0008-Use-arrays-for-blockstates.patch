@@ -1,4 +1,4 @@
-From 244423fe3d24f872d6918ed5f18e1ac13074dfce Mon Sep 17 00:00:00 2001
+From 6e622caf585327a19ba6007fc997f7bc31300e2f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -9,15 +9,17 @@ This data structure is usualy faster than a hashmap (especially when using the l
 Should help with redstone.
 
 diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
-index e1261f564..5ea4b3625 100644
+index e1261f564..776d25166 100644
 --- a/src/main/java/net/minecraft/server/BlockState.java
 +++ b/src/main/java/net/minecraft/server/BlockState.java
-@@ -2,14 +2,44 @@ package net.minecraft.server;
+@@ -2,14 +2,60 @@ package net.minecraft.server;
  
  import com.google.common.base.Objects;
  
 +// TacoSpigot start
 +import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Map;
 +// TacoSpigot end
 +
  public abstract class BlockState<T extends Comparable<T>> implements IBlockState<T> {
@@ -25,7 +27,6 @@ index e1261f564..5ea4b3625 100644
      private final Class<T> a;
      private final String b;
 +    // TacoSpigot start
-+    private static int nextId = 0;
 +    private final int id;
 +
 +    @Override
@@ -33,27 +34,42 @@ index e1261f564..5ea4b3625 100644
 +        return id;
 +    }
 +
-+    private static BlockState[] byId = new BlockState[0];
++    private static final Map<String, Integer> blockStateIds = new HashMap<>();
++    private static volatile BlockState[] byId = new BlockState[0];
 +
 +    public static BlockState getById(int id) {
-+        if (id < 0) {
-+            throw new IllegalArgumentException("Negative id: " + id);
-+        } else if (id < byId.length) {
++        BlockState[] byId = BlockState.byId;
++        if (id >= 0 && id < byId.length) {
 +            return byId[id];
 +        } else {
-+            return null;
++            throw new IllegalArgumentException("Invalid BlockState id: " + id);
 +        }
++    }
++    private static synchronized int computeId(BlockState state) {
++        /*
++         * NOTE: We have to use a string as the key,
++         * since the BlockState object might not be fully initialized yet.
++         * This relies on the assumption that state == other
++         * if and only if (state.b == other.b && state.a == other.a).
++         * This is true in the current version of minecraft,
++         * but future versions might change this
++         */
++        String stringId = state.b + ":" + state.a;
++        return blockStateIds.computeIfAbsent(stringId, (strId) -> {
++            BlockState[] byId = BlockState.byId;
++            int newId = byId.length;
++            byId = Arrays.copyOf(byId, newId + 1);
++            byId[newId] = state;
++            BlockState.byId = byId;
++            return newId;
++        });
 +    }
 +    // TacoSpigot end
  
      protected BlockState(String s, Class<T> oclass) {
          this.a = oclass;
          this.b = s;
-+        // TacoSpigot start
-+        id = nextId++;
-+        if (id >= byId.length) byId = Arrays.copyOf(byId, id + 1);
-+        byId[id] = this;
-+        // TacoSpigot end
++        this.id = computeId(this); // TacoSpigot - compute id after setting fields
      }
  
      public String a() {
@@ -510,5 +526,5 @@ diff --git a/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.ja
 new file mode 100644
 index 000000000..e69de29bb
 -- 
-2.11.0
+2.12.2
 
