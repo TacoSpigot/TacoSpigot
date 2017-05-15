@@ -1,4 +1,4 @@
-From 8fe50b7bff2dbe5220600b9cfd4abda531a6ddca Mon Sep 17 00:00:00 2001
+From 9fdc27e201c5514241aa4d573523127e70b650b6 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 24 Apr 2017 11:12:40 -0700
 Subject: [PATCH] Better version checking
@@ -6,7 +6,7 @@ Subject: [PATCH] Better version checking
 Checks for outdated versions on startup, and warns on custom versions.
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index 5364cb84..0d8ee872 100644
+index ad3dd94fa..74ae873a2 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -15,6 +15,12 @@ import joptsimple.OptionParser;
@@ -28,7 +28,7 @@ index 5364cb84..0d8ee872 100644
  
 +                // TacoSpigot start - Actually Check if the version is outdated
 +                /*
-                 if (false && Main.class.getPackage().getImplementationVendor() != null && System.getProperty("IReallyKnowWhatIAmDoingISwear") == null) {
+                 if (Main.class.getPackage().getImplementationVendor() != null && System.getProperty("IReallyKnowWhatIAmDoingISwear") == null) {
                      Date buildDate = new SimpleDateFormat("yyyyMMdd-HHmm").parse(Main.class.getPackage().getImplementationVendor());
  
 @@ -213,6 +221,42 @@ public class Main {
@@ -75,5 +75,5 @@ index 5364cb84..0d8ee872 100644
                  // Spigot Start
                  int maxPermGen = 0; // In kb
 -- 
-2.12.2
+2.13.0
 

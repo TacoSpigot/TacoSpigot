@@ -1,4 +1,4 @@
-From 3d99017bfe28df52eea6ea8f13fd4737d04d51be Mon Sep 17 00:00:00 2001
+From 48edcd5f2df16b60df0dc02deedbb421175b9a88 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -9,12 +9,12 @@ This data structure is usualy faster than a hashmap (especially when using the l
 Should help with redstone.
 
 diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
-index e1261f564..776d25166 100644
+index 60703c627..0b370d828 100644
 --- a/src/main/java/net/minecraft/server/BlockState.java
 +++ b/src/main/java/net/minecraft/server/BlockState.java
 @@ -2,14 +2,60 @@ package net.minecraft.server;
  
- import com.google.common.base.Objects;
+ import com.google.common.base.MoreObjects;
  
 +// TacoSpigot start
 +import java.util.Arrays;
@@ -104,7 +104,7 @@ index 5b193f48b..0a2aa9b55 100644
          return 31 * super.hashCode() + this.a.hashCode();
      }
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index 9f43b2bb3..af4486211 100644
+index 66c459d83..aba47b964 100644
 --- a/src/main/java/net/minecraft/server/BlockStateEnum.java
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
 @@ -43,7 +43,6 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
@@ -185,7 +185,7 @@ index 2b7870ead..7f05581a6 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 457153799..b4d4daf24 100644
+index f5226921a..315cc5fa7 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
 @@ -24,6 +24,14 @@ import java.util.Map.Entry;
@@ -686,5 +686,5 @@ index 000000000..179d06853
 +    }
 +}
 -- 
-2.12.2
+2.13.0
 

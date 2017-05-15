@@ -1,14 +1,14 @@
-From 273628d990d4fd060b5498f0900a3d19a127e775 Mon Sep 17 00:00:00 2001
+From 5cf882017c7a13c6d80e6ff2df1a9465c8c2c99f Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index af173a13..f12960f4 100644
+index 29c2fd4c9..0239435d8 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
-@@ -21,6 +21,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
+@@ -22,6 +22,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
  import org.bukkit.util.Vector;
  // CraftBukkit end
  
@@ -17,8 +17,8 @@ index af173a13..f12960f4 100644
  public abstract class EntityHuman extends EntityLiving {
  
      private static final DataWatcherObject<Float> a = DataWatcher.a(EntityHuman.class, DataWatcherRegistry.c);
-@@ -63,6 +65,9 @@ public abstract class EntityHuman extends EntityLiving {
-     private final ItemCooldown bV;
+@@ -65,6 +67,9 @@ public abstract class EntityHuman extends EntityLiving {
+     private final ItemCooldown bX;
      @Nullable
      public EntityFishingHook hookedFish;
 +
@@ -27,38 +27,45 @@ index af173a13..f12960f4 100644
      public boolean affectsSpawning = true;
  
      // CraftBukkit start
-@@ -1889,11 +1894,25 @@ public abstract class EntityHuman extends EntityLiving {
+@@ -1880,16 +1885,32 @@ public abstract class EntityHuman extends EntityLiving {
+         this.datawatcher.set(EntityHuman.bu, nbttagcompound);
      }
  
-     public float o(float f) {
--        return MathHelper.a(((float) this.aE + f) / this.dg(), 0.0F, 1.0F);
++    public float getAttackSpeed() { return this.dp(); } // TacoSpigot - OBFHELPER
+     public float dp() {
+         return (float) (1.0D / this.getAttributeInstance(GenericAttributes.g).getValue() * 20.0D);
+     }
+ 
+     public float p(float f) {
+-        return MathHelper.a(((float) this.aE + f) / this.dp(), 0.0F, 1.0F);
 +        // TacoSpigot start - use both client and server ticks
 +        if (betterPvp) {
 +            return MathHelper.a(
 +                (float) (Math.max(
-+                     this.aE,
++                     this.getTicksSinceLastSwing(),
 +                     this.clientTicksSinceLastAttack
-+                ) + f) / this.dg(),
++                ) + f) / this.getAttackSpeed(),
 +                0.0F,
 +                1.0F
 +            );
 +        } else {
-+            return MathHelper.a(((float) this.aE + f) / this.dg(), 0.0F, 1.0F);
++            return MathHelper.a(((float) this.getTicksSinceLastSwing() + f) / this.getAttackSpeed(), 0.0F, 1.0F);
 +        }
 +        // TacoSpigot end
      }
  
-     public void dh() {
++    public int getTicksSinceLastSwing() { return this.aE; } // TacoSpigot - OBFHELPER
+     public void dq() {
          this.aE = 0;
 +        this.clientTicksSinceLastAttack = 0; // TacoSpigot
      }
  
-     public ItemCooldown di() {
+     public ItemCooldown getCooldownTracker() {
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 0e2f43b9..2630053b 100644
+index 0b6fd67e7..9f431961d 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -463,6 +463,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+@@ -474,6 +474,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
                      this.syncPosition();
                  }
  
@@ -68,7 +75,7 @@ index 0e2f43b9..2630053b 100644
                      if (this.e - this.A > 20) {
                          this.A = this.e;
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index b7699d8c..22c6009a 100644
+index b7699d8c4..22c6009ab 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -107,4 +107,9 @@ public class TacoSpigotConfig {
@@ -82,5 +89,5 @@ index b7699d8c..22c6009a 100644
 +    }
  }
 -- 
-2.12.2
+2.13.0
 

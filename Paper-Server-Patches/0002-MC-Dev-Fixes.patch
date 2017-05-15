@@ -1,25 +1,12 @@
-From 760f3571c1f8b8c11f139d1e6bb33fa11103d58e Mon Sep 17 00:00:00 2001
+From d0efd7ba1205cfe75ab7d70f22fdb7910e1be4db Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Sun, 3 Apr 2016 14:05:27 -0700
 Subject: [PATCH] MC-Dev Fixes
 
 Sometimes fernflower makes mistakes too
 
-diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index 66c459d..9f43b2b 100644
---- a/src/main/java/net/minecraft/server/BlockStateEnum.java
-+++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
-@@ -27,7 +27,7 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
-         Iterator iterator = collection.iterator();
- 
-         while (iterator.hasNext()) {
--            Enum oenum = (Enum) iterator.next();
-+            T oenum = (T) iterator.next(); // TacoSpigot - fix decompile error
-             String s1 = ((INamable) oenum).getName();
- 
-             if (this.b.containsKey(s1)) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index edea58b..e4d1e48 100644
+index 56e0c8f13..f5226921a 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
 @@ -87,7 +87,7 @@ public class BlockStateList {
@@ -50,7 +37,7 @@ index edea58b..e4d1e48 100644
          }
  
 diff --git a/src/main/java/net/minecraft/server/PacketEncoder.java b/src/main/java/net/minecraft/server/PacketEncoder.java
-index a79fa01..a21743d 100644
+index a6da6f5cc..843fb2e48 100644
 --- a/src/main/java/net/minecraft/server/PacketEncoder.java
 +++ b/src/main/java/net/minecraft/server/PacketEncoder.java
 @@ -19,7 +19,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
@@ -59,10 +46,10 @@ index a79fa01..a21743d 100644
  
 -    protected void a(ChannelHandlerContext channelhandlercontext, Packet<?> packet, ByteBuf bytebuf) throws Exception {
 +    protected void encode(ChannelHandlerContext channelhandlercontext, Packet<?> packet, ByteBuf bytebuf) throws Exception { // TacoSpigot - fix decompiler issue
-         Integer integer = ((EnumProtocol) channelhandlercontext.channel().attr(NetworkManager.c).get()).a(this.c, packet);
+         EnumProtocol enumprotocol = (EnumProtocol) channelhandlercontext.channel().attr(NetworkManager.c).get();
  
-         if (PacketEncoder.a.isDebugEnabled()) {
-@@ -42,7 +42,11 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+         if (enumprotocol == null) {
+@@ -48,7 +48,11 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
          }
      }
  
@@ -75,5 +62,5 @@ index a79fa01..a21743d 100644
 +    // TacoSpigot end
  }
 -- 
-2.10.2
+2.13.0
 
