@@ -1,11 +1,11 @@
-From e6ce4dff68d3cd67af6bb7c939e0e97e383657e6 Mon Sep 17 00:00:00 2001
+From cb4905cece8763ada95694e4e0ca9bd43a45cbef Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 2fe4433e7..9278ce0f6 100644
+index bf77c39f9..2f978f6d1 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -136,6 +136,7 @@ public abstract class World implements IBlockAccess {
@@ -207,10 +207,10 @@ index 000000000..2bc587722
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 8559d8200..933ca22ce 100644
+index d515ef0f4..d96bc638c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -715,6 +715,7 @@ public final class CraftServer implements Server {
+@@ -721,6 +721,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
@@ -218,7 +218,7 @@ index 8559d8200..933ca22ce 100644
          for (WorldServer world : console.worlds) {
              world.worldData.setDifficulty(difficulty);
              world.setSpawnFlags(monsters, animals);
-@@ -731,6 +732,7 @@ public final class CraftServer implements Server {
+@@ -737,6 +738,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperConfig.init(); // Paper
@@ -226,7 +226,7 @@ index 8559d8200..933ca22ce 100644
          }
  
          // Paper start
-@@ -1384,7 +1386,7 @@ public final class CraftServer implements Server {
+@@ -1390,7 +1392,7 @@ public final class CraftServer implements Server {
  
          for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
              result.add(getOfflinePlayer((GameProfile) entry.getKey()));
@@ -236,7 +236,7 @@ index 8559d8200..933ca22ce 100644
          return result;
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index dab983481..ad3dd94fa 100644
+index 98e27fa25..b1533c140 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -142,6 +142,14 @@ public class Main {
@@ -254,7 +254,7 @@ index dab983481..ad3dd94fa 100644
              }
          };
  
-@@ -222,6 +230,7 @@ public class Main {
+@@ -223,6 +231,7 @@ public class Main {
                      System.out.println( "Please see http://www.spigotmc.org/wiki/changing-permgen-size/ for more details and more in-depth instructions." );
                  }
                  // Spigot End

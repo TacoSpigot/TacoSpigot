@@ -1,4 +1,4 @@
-From 9b78f1d713612cf040a2d34e7aac323676552ad8 Mon Sep 17 00:00:00 2001
+From ca243a1e504af0de1c65160c8f0f44b6dae27f54 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -6,7 +6,7 @@ Subject: [PATCH] POM changes
 Add a dependency on jsr305 (@Nullable, @NonNull)
 
 diff --git a/pom.xml b/pom.xml
-index c671cc33..f0502dfd 100644
+index e7a4eb2c..182cdf7d 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,18 +4,18 @@
@@ -24,7 +24,7 @@ index c671cc33..f0502dfd 100644
 -    <artifactId>paper-api</artifactId>
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>tacospigot-api</artifactId>
-     <version>1.12-pre2-SNAPSHOT</version>
+     <version>1.12-pre5-SNAPSHOT</version>
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>
@@ -34,7 +34,7 @@ index c671cc33..f0502dfd 100644
      <description>An enhanced plugin API for Minecraft servers.</description>
  
      <properties>
-@@ -134,6 +134,12 @@
+@@ -133,6 +133,12 @@
              <artifactId>asm-all</artifactId>
              <version>5.0.4</version>
          </dependency>

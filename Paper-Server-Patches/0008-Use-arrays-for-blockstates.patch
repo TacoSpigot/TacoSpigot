@@ -1,4 +1,4 @@
-From 48edcd5f2df16b60df0dc02deedbb421175b9a88 Mon Sep 17 00:00:00 2001
+From 7a7167fa8acd6f12f0e3e93051005215aa06d0a5 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -185,7 +185,7 @@ index 2b7870ead..7f05581a6 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index f5226921a..315cc5fa7 100644
+index b666c099d..15b8c398c 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
 @@ -24,6 +24,14 @@ import java.util.Map.Entry;
@@ -229,7 +229,7 @@ index f5226921a..315cc5fa7 100644
 +            // TacoSpigot end
          }
  
-         public Collection<IBlockState<?>> t() {
+         public Collection<IBlockState<?>> s() {
 -            return Collections.unmodifiableCollection(this.b.keySet());
 +            return Collections.unmodifiableCollection(this.bAsImmutableMap.keySet()); // TacoSpigot - use bAsImmutableMap
          }
@@ -238,7 +238,7 @@ index f5226921a..315cc5fa7 100644
 @@ -188,7 +207,7 @@ public class BlockStateList {
          }
  
-         public ImmutableMap<IBlockState<?>, Comparable<?>> u() {
+         public ImmutableMap<IBlockState<?>, Comparable<?>> t() {
 -            return this.b;
 +            return this.bAsImmutableMap; // TacoSpigot
          }
@@ -557,9 +557,6 @@ index 000000000..87a50a3dc
 +public interface ObjIntBiFunction<T, R> {
 +    public R apply(T t, int i);
 +}
-diff --git a/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java.porig b/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java.porig
-new file mode 100644
-index 000000000..e69de29bb
 diff --git a/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java b/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java
 new file mode 100644
 index 000000000..179d06853
@@ -685,6 +682,9 @@ index 000000000..179d06853
 +        );
 +    }
 +}
+diff --git a/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java.porig b/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java.porig
+new file mode 100644
+index 000000000..e69de29bb
 -- 
 2.13.0
 

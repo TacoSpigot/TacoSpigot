@@ -1,4 +1,4 @@
-From 9fdc27e201c5514241aa4d573523127e70b650b6 Mon Sep 17 00:00:00 2001
+From 2e4c58bfd6ec68704bbdc930587a11c53b035a33 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 24 Apr 2017 11:12:40 -0700
 Subject: [PATCH] Better version checking
@@ -6,7 +6,7 @@ Subject: [PATCH] Better version checking
 Checks for outdated versions on startup, and warns on custom versions.
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index ad3dd94fa..74ae873a2 100644
+index b1533c140..76d29f6b8 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -15,6 +15,12 @@ import joptsimple.OptionParser;
@@ -22,7 +22,7 @@ index ad3dd94fa..74ae873a2 100644
  
  public class Main {
      public static boolean useJline = true;
-@@ -201,6 +207,8 @@ public class Main {
+@@ -202,6 +208,8 @@ public class Main {
                      useConsole = false;
                  }
  
@@ -31,7 +31,7 @@ index ad3dd94fa..74ae873a2 100644
                  if (Main.class.getPackage().getImplementationVendor() != null && System.getProperty("IReallyKnowWhatIAmDoingISwear") == null) {
                      Date buildDate = new SimpleDateFormat("yyyyMMdd-HHmm").parse(Main.class.getPackage().getImplementationVendor());
  
-@@ -213,6 +221,42 @@ public class Main {
+@@ -214,6 +222,42 @@ public class Main {
                          Thread.sleep(TimeUnit.SECONDS.toMillis(15));
                      }
                  }
