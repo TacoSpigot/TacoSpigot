@@ -1,4 +1,4 @@
-From 7fee9dc3034109162551f2a2470f26ad2d0ce71b Mon Sep 17 00:00:00 2001
+From ffe864216f308380e78fc7cdc36d13000aebb758 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 16 Aug 2015 12:18:44 -0700
 Subject: [PATCH] NMS Imports
@@ -8,7 +8,7 @@ Only use code decompiled with BuildTools
 
 diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
 new file mode 100644
-index 0000000..3cada5a
+index 00000000..3cada5af
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/BlockState.java
 @@ -0,0 +1,42 @@
@@ -56,7 +56,7 @@ index 0000000..3cada5a
 +}
 diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
 new file mode 100644
-index 0000000..7fb0960
+index 00000000..7fb09600
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
 @@ -0,0 +1,29 @@
@@ -91,7 +91,7 @@ index 0000000..7fb0960
 +}
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
 new file mode 100644
-index 0000000..0b555df
+index 00000000..0b555dff
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
 @@ -0,0 +1,63 @@
@@ -160,7 +160,7 @@ index 0000000..0b555df
 +}
 diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
 new file mode 100644
-index 0000000..4e7e489
+index 00000000..4e7e489c
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
 @@ -0,0 +1,67 @@
@@ -233,7 +233,7 @@ index 0000000..4e7e489
 +}
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
 new file mode 100644
-index 0000000..8a815a6
+index 00000000..8a815a64
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
 @@ -0,0 +1,191 @@
@@ -430,7 +430,7 @@ index 0000000..8a815a6
 +}
 diff --git a/src/main/java/net/minecraft/server/CommandScoreboard.java b/src/main/java/net/minecraft/server/CommandScoreboard.java
 new file mode 100644
-index 0000000..27d08a7
+index 00000000..27d08a7d
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/CommandScoreboard.java
 @@ -0,0 +1,1003 @@
@@ -1439,7 +1439,7 @@ index 0000000..27d08a7
 +}
 diff --git a/src/main/java/net/minecraft/server/EULA.java b/src/main/java/net/minecraft/server/EULA.java
 new file mode 100644
-index 0000000..c872029
+index 00000000..c872029d
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/EULA.java
 @@ -0,0 +1,62 @@
@@ -1507,7 +1507,7 @@ index 0000000..c872029
 +}
 diff --git a/src/main/java/net/minecraft/server/IBlockState.java b/src/main/java/net/minecraft/server/IBlockState.java
 new file mode 100644
-index 0000000..7e35d33
+index 00000000..7e35d335
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/IBlockState.java
 @@ -0,0 +1,14 @@
@@ -1525,9 +1525,60 @@ index 0000000..7e35d33
 +
 +    String a(T t0);
 +}
+diff --git a/src/main/java/net/minecraft/server/PacketDecoder.java b/src/main/java/net/minecraft/server/PacketDecoder.java
+new file mode 100644
+index 00000000..bbebe3a9
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/PacketDecoder.java
+@@ -0,0 +1,45 @@
++package net.minecraft.server;
++
++import io.netty.buffer.ByteBuf;
++import io.netty.channel.ChannelHandlerContext;
++import io.netty.handler.codec.ByteToMessageDecoder;
++import java.io.IOException;
++import java.util.List;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++import org.apache.logging.log4j.Marker;
++import org.apache.logging.log4j.MarkerManager;
++
++public class PacketDecoder extends ByteToMessageDecoder {
++
++    private static final Logger a = LogManager.getLogger();
++    private static final Marker b = MarkerManager.getMarker("PACKET_RECEIVED", NetworkManager.b);
++    private final EnumProtocolDirection c;
++
++    public PacketDecoder(EnumProtocolDirection enumprotocoldirection) {
++        this.c = enumprotocoldirection;
++    }
++
++    protected void decode(ChannelHandlerContext channelhandlercontext, ByteBuf bytebuf, List<Object> list) throws Exception {
++        if (bytebuf.readableBytes() != 0) {
++            PacketDataSerializer packetdataserializer = new PacketDataSerializer(bytebuf);
++            int i = packetdataserializer.e();
++            Packet packet = ((EnumProtocol) channelhandlercontext.channel().attr(NetworkManager.c).get()).a(this.c, i);
++
++            if (packet == null) {
++                throw new IOException("Bad packet id " + i);
++            } else {
++                packet.a(packetdataserializer);
++                if (packetdataserializer.readableBytes() > 0) {
++                    throw new IOException("Packet " + ((EnumProtocol) channelhandlercontext.channel().attr(NetworkManager.c).get()).a() + "/" + i + " (" + packet.getClass().getSimpleName() + ") was larger than I expected, found " + packetdataserializer.readableBytes() + " bytes extra whilst reading packet " + i);
++                } else {
++                    list.add(packet);
++                    if (PacketDecoder.a.isDebugEnabled()) {
++                        PacketDecoder.a.debug(PacketDecoder.b, " IN: [{}:{}] {}", new Object[] { channelhandlercontext.channel().attr(NetworkManager.c).get(), Integer.valueOf(i), packet.getClass().getName()});
++                    }
++
++                }
++            }
++        }
++    }
++}
 diff --git a/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
 new file mode 100644
-index 0000000..6385ab2
+index 00000000..6385ab2d
 --- /dev/null
 +++ b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
 @@ -0,0 +1,39 @@
@@ -1571,5 +1622,5 @@ index 0000000..6385ab2
 +    }
 +}
 -- 
-2.8.0
+2.13.0
 

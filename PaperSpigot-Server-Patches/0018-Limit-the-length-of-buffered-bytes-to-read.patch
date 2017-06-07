@@ -1,25 +1,64 @@
-From 4f0bb86504c547058285f7619d0f45933fd637f8 Mon Sep 17 00:00:00 2001
+From 3900793f7df11ef83cfcd62aaa98fcf1ba72d618 Mon Sep 17 00:00:00 2001
 From: Thinkofdeath <thinkofdeath@spigotmc.org>
 Date: Mon, 28 Mar 2016 15:41:31 -0700
 Subject: [PATCH] Limit the length of buffered bytes to read
 
-This is a particularly severe/exploitable issue -- clients can send packets forcing the server to allocate any valid array size, without actually sending any data for it to fill. This is fixed by limiting the size of read byte arrays to at most Short.MAX_VALUE.
+This is a particularly severe/exploitable issue -- clients can send packets forcing the server to allocate any valid array size, without actually sending any data for it to fill. This is fixed by limiting the size of read byte arrays to at most Short.MAX_VALUE (31 KB).
+
+However, we have to make an exception for 1.7 ProtocolSupport clients,
+or they will crash. For them we limit the packets to 31 MB, which should
+still be plenty although it leaves the server slightly more vulnearable.
 
 The arrays in encryption packets are limited to 256 bytes.
 
 diff --git a/src/main/java/net/minecraft/server/PacketDataSerializer.java b/src/main/java/net/minecraft/server/PacketDataSerializer.java
-index f426c2e..71ec6a7 100644
+index f426c2e1..b3f5c99e 100644
 --- a/src/main/java/net/minecraft/server/PacketDataSerializer.java
 +++ b/src/main/java/net/minecraft/server/PacketDataSerializer.java
-@@ -46,9 +46,17 @@ public class PacketDataSerializer extends ByteBuf {
+@@ -22,12 +22,30 @@ import java.nio.charset.Charset;
+ import java.util.UUID;
+ 
+ import org.bukkit.craftbukkit.inventory.CraftItemStack; // CraftBukkit
++// TacoSpigot start
++import net.techcable.tacospigot.CompatHacks;
++// TacoSpigot end
+ 
+ public class PacketDataSerializer extends ByteBuf {
+ 
+     private final ByteBuf a;
+ 
+-    public PacketDataSerializer(ByteBuf bytebuf) {
++    // TacoSpigot start
++    private final boolean allowLargePackets;
++    public PacketDataSerializer(ByteBuf buf) {
++        this(buf, null);
++    }
++    public PacketDataSerializer(ByteBuf bytebuf, EntityPlayer player) {
++        /*
++         * By default, we limit the size of the received byte array to Short.MAX_VALUE, which is 31 KB.
++         * However, we make an exception for 1.7 clients that are connected via ProtocolSupport,
++         * and limit them to 31 MEGABYTES as they seem to need to send larger packets sometimes.
++         * Although a 31 MB limit leaves the server slightly vulnerable,
++         * it's still much better than the old system of having no limit,
++         * which would leave the server vulnerable to packets up to 2 GIGABYTES in size.
++         */
++        this.allowLargePackets = player != null && CompatHacks.isProtocolSupport17(player);
++        // TacoSpigot end
+         this.a = bytebuf;
+     }
+ 
+@@ -46,9 +64,20 @@ public class PacketDataSerializer extends ByteBuf {
          this.writeBytes(abyte);
      }
  
 +    // TacoSpigot start
++    private static final int DEFAULT_LIMIT = Short.MAX_VALUE;
++    private static final int LARGE_PACKET_LIMIT = Short.MAX_VALUE * 1024;
      public byte[] a() {
 -        byte[] abyte = new byte[this.e()];
-+        // TacoSpigot start - limit the size of the received byte array to Short.MAX_VALUE
-+        return readByteArray(Short.MAX_VALUE);
++        // TacoSpigot start
++        int limit = allowLargePackets ? LARGE_PACKET_LIMIT : DEFAULT_LIMIT;
++        return readByteArray(limit);
 +    }
  
 +    public byte[] readByteArray(int limit) {
@@ -30,8 +69,47 @@ index f426c2e..71ec6a7 100644
          this.readBytes(abyte);
          return abyte;
      }
+diff --git a/src/main/java/net/minecraft/server/PacketDecoder.java b/src/main/java/net/minecraft/server/PacketDecoder.java
+index bbebe3a9..2f63a421 100644
+--- a/src/main/java/net/minecraft/server/PacketDecoder.java
++++ b/src/main/java/net/minecraft/server/PacketDecoder.java
+@@ -9,12 +9,25 @@ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.apache.logging.log4j.Marker;
+ import org.apache.logging.log4j.MarkerManager;
++// TacoSpigot start
++import java.lang.ref.WeakReference;
++// TacoSpigot end
+ 
+ public class PacketDecoder extends ByteToMessageDecoder {
+ 
+     private static final Logger a = LogManager.getLogger();
+     private static final Marker b = MarkerManager.getMarker("PACKET_RECEIVED", NetworkManager.b);
+     private final EnumProtocolDirection c;
++    // TacoSpigot start
++    private WeakReference<EntityPlayer> playerRef;
++    public void setPlayer(EntityPlayer p) {
++        playerRef = new WeakReference<>(p);
++    }
++    public EntityPlayer getPlayer() {
++        WeakReference<EntityPlayer> playerRef = this.playerRef;
++        return playerRef != null ? playerRef.get() : null;
++    }
++    // TacoSpigot end
+ 
+     public PacketDecoder(EnumProtocolDirection enumprotocoldirection) {
+         this.c = enumprotocoldirection;
+@@ -22,7 +35,7 @@ public class PacketDecoder extends ByteToMessageDecoder {
+ 
+     protected void decode(ChannelHandlerContext channelhandlercontext, ByteBuf bytebuf, List<Object> list) throws Exception {
+         if (bytebuf.readableBytes() != 0) {
+-            PacketDataSerializer packetdataserializer = new PacketDataSerializer(bytebuf);
++            PacketDataSerializer packetdataserializer = new PacketDataSerializer(bytebuf, this.getPlayer()); // TacoSpigot - pass player
+             int i = packetdataserializer.e();
+             Packet packet = ((EnumProtocol) channelhandlercontext.channel().attr(NetworkManager.c).get()).a(this.c, i);
+ 
 diff --git a/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
-index a591b2f..2d408b5 100644
+index a591b2f3..2d408b54 100644
 --- a/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
 +++ b/src/main/java/net/minecraft/server/PacketLoginInEncryptionBegin.java
 @@ -12,8 +12,10 @@ public class PacketLoginInEncryptionBegin implements Packet<PacketLoginInListene
@@ -47,6 +125,139 @@ index a591b2f..2d408b5 100644
      }
  
      public void b(PacketDataSerializer packetdataserializer) throws IOException {
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 2aa3efcd..4a0a29da 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -99,6 +99,9 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+ 
+         // CraftBukkit start - add fields and methods
+         this.server = minecraftserver.server;
++        // TacoSpigot start - pass player to the PacketDecoder
++        ((PacketDecoder) networkmanager.channel.pipeline().get("decoder")).setPlayer(entityplayer);
++        // TacoSpigot end
+     }
+ 
+     private final org.bukkit.craftbukkit.CraftServer server;
+diff --git a/src/main/java/net/techcable/tacospigot/CompatHacks.java b/src/main/java/net/techcable/tacospigot/CompatHacks.java
+new file mode 100644
+index 00000000..171849fd
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/CompatHacks.java
+@@ -0,0 +1,73 @@
++package net.techcable.tacospigot;
++
++import java.lang.invoke.MethodHandle;
++import java.lang.invoke.MethodHandles;
++import java.lang.invoke.MethodType;
++import javax.annotation.Nullable;
++
++import org.bukkit.entity.Player;
++
++import net.minecraft.server.EntityPlayer;
++import net.techcable.tacospigot.utils.SneakyThrows;
++
++public class CompatHacks {
++    private CompatHacks() {}
++    @Nullable
++    private static final ProtocolSupportCompat PROTOCOL_SUPPORT_COMPAT = ProtocolSupportCompat.create();
++    public static boolean hasProtocolSupportCompat() {
++        return PROTOCOL_SUPPORT_COMPAT != null;
++    }
++
++    public static boolean isProtocolSupport17(EntityPlayer player) {
++        String protocolVersion = getProtocolSupportVersion(player);
++        return protocolVersion != null && protocolVersion.startsWith("1.7");
++    }
++    @Nullable
++    public static String getProtocolSupportVersion(EntityPlayer player) {
++        if (PROTOCOL_SUPPORT_COMPAT != null) {
++            return PROTOCOL_SUPPORT_COMPAT.getProtocolSupportVersion(player);
++        } else {
++            return null;
++        }
++    }
++    /* package */ static class ProtocolSupportCompat {
++        private final MethodHandle GET_PLAYER_PROTOCOL_VERSION_HANDLE,
++                GET_PROTOCOL_VERSION_NAME_HANLDLE;
++        private ProtocolSupportCompat() throws NoSuchMethodException, ClassNotFoundException, IllegalAccessException {
++            Class<?> protocolApiClass = Class.forName("protocolsupport.api.ProtocolSupportAPI");
++            Class<?> protocolVersionClass = Class.forName("protocolsupport.api.ProtocolVersion");
++            GET_PLAYER_PROTOCOL_VERSION_HANDLE = MethodHandles.publicLookup().findStatic(
++                    protocolApiClass,
++                    "getProtocolVersion",
++                    MethodType.methodType(
++                            protocolVersionClass,
++                            Player.class
++                    )
++            );
++            GET_PROTOCOL_VERSION_NAME_HANLDLE = MethodHandles.publicLookup().findVirtual(
++                    protocolVersionClass,
++                    "getName",
++                    MethodType.methodType(String.class)
++            );
++        }
++        public String getProtocolSupportVersion(EntityPlayer player) {
++            return SneakyThrows.sneakyThrowing(() -> {
++                Object protocolVersion = GET_PLAYER_PROTOCOL_VERSION_HANDLE.invoke(player.getBukkitEntity());
++                if (protocolVersion != null) {
++                    return (String) GET_PROTOCOL_VERSION_NAME_HANLDLE.invoke(protocolVersion);
++                }
++                return null;
++            });
++        }
++        @Nullable
++        /* package */ static ProtocolSupportCompat create() {
++            try {
++                return new ProtocolSupportCompat();
++            } catch (NoSuchMethodException | ClassNotFoundException ignored) {
++                return null;
++            } catch (IllegalAccessException e) {
++                throw new RuntimeException("Unexpected error enabling ProtocolSupport compat", e);
++            }
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/src/main/java/net/techcable/tacospigot/function/CheckedSupplier.java b/src/main/java/net/techcable/tacospigot/function/CheckedSupplier.java
+new file mode 100644
+index 00000000..31216729
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/function/CheckedSupplier.java
+@@ -0,0 +1,5 @@
++package net.techcable.tacospigot.function;
++
++public interface CheckedSupplier<T> {
++    T get() throws Throwable;
++}
+diff --git a/src/main/java/net/techcable/tacospigot/utils/SneakyThrows.java b/src/main/java/net/techcable/tacospigot/utils/SneakyThrows.java
+new file mode 100644
+index 00000000..f5ef6200
+--- /dev/null
++++ b/src/main/java/net/techcable/tacospigot/utils/SneakyThrows.java
+@@ -0,0 +1,22 @@
++package net.techcable.tacospigot.utils;
++
++import net.techcable.tacospigot.function.CheckedSupplier;
++
++public class SneakyThrows {
++    private SneakyThrows() {}
++
++    public static <T> T sneakyThrowing(CheckedSupplier<T> action) {
++        try {
++            return action.get();
++        } catch (Throwable throwable) {
++            throw sneakyThrow0(throwable);
++        }
++    }
++    public static AssertionError sneakyThrow(Throwable t) {
++        throw SneakyThrows.sneakyThrow0(t);
++    }
++    @SuppressWarnings("unchecked") // The one time erasure is actually a good thing
++    private static <T extends Throwable> AssertionError sneakyThrow0(Throwable t) throws T {
++        throw (T) t;
++    }
++}
 -- 
-2.7.4
+2.13.0
 
