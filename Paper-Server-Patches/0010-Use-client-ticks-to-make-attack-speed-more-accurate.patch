@@ -1,14 +1,14 @@
-From 273628d990d4fd060b5498f0900a3d19a127e775 Mon Sep 17 00:00:00 2001
+From 1031758afbd482acbaa76d217e097af76607dcbd Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index af173a13..f12960f4 100644
+index f5e25e63..f13f22ab 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
-@@ -21,6 +21,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
+@@ -22,6 +22,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
  import org.bukkit.util.Vector;
  // CraftBukkit end
  
@@ -17,8 +17,8 @@ index af173a13..f12960f4 100644
  public abstract class EntityHuman extends EntityLiving {
  
      private static final DataWatcherObject<Float> a = DataWatcher.a(EntityHuman.class, DataWatcherRegistry.c);
-@@ -63,6 +65,9 @@ public abstract class EntityHuman extends EntityLiving {
-     private final ItemCooldown bV;
+@@ -64,6 +66,9 @@ public abstract class EntityHuman extends EntityLiving {
+     private final ItemCooldown bW;
      @Nullable
      public EntityFishingHook hookedFish;
 +
@@ -27,38 +27,38 @@ index af173a13..f12960f4 100644
      public boolean affectsSpawning = true;
  
      // CraftBukkit start
-@@ -1889,11 +1894,25 @@ public abstract class EntityHuman extends EntityLiving {
+@@ -1894,11 +1899,25 @@ public abstract class EntityHuman extends EntityLiving {
      }
  
-     public float o(float f) {
--        return MathHelper.a(((float) this.aE + f) / this.dg(), 0.0F, 1.0F);
+     public float n(float f) {
+-        return MathHelper.a(((float) this.aE + f) / this.dr(), 0.0F, 1.0F);
 +        // TacoSpigot start - use both client and server ticks
 +        if (betterPvp) {
 +            return MathHelper.a(
 +                (float) (Math.max(
 +                     this.aE,
 +                     this.clientTicksSinceLastAttack
-+                ) + f) / this.dg(),
++                ) + f) / this.dr(),
 +                0.0F,
 +                1.0F
 +            );
 +        } else {
-+            return MathHelper.a(((float) this.aE + f) / this.dg(), 0.0F, 1.0F);
++            return MathHelper.a(((float) this.aE + f) / this.dr(), 0.0F, 1.0F);
 +        }
 +        // TacoSpigot end
      }
  
-     public void dh() {
+     public void ds() {
          this.aE = 0;
 +        this.clientTicksSinceLastAttack = 0; // TacoSpigot
      }
  
-     public ItemCooldown di() {
+     public ItemCooldown getCooldownTracker() {
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 0e2f43b9..2630053b 100644
+index bcb09b8f..4405c719 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -463,6 +463,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+@@ -494,6 +494,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
                      this.syncPosition();
                  }
  
@@ -82,5 +82,5 @@ index b7699d8c..22c6009a 100644
 +    }
  }
 -- 
-2.12.2
+2.13.1
 

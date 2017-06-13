@@ -1,4 +1,4 @@
-From 9a09243c2c7ba10ca51e0c2904fe1780ccd012fc Mon Sep 17 00:00:00 2001
+From 91aeb15fbfe36bac5af5feee6d880d4ff4ed004f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sat, 7 Mar 2015 22:55:25 -0600
 Subject: [PATCH] Show 'TacoSpigot' in client crashes, server lists, and Mojang
@@ -6,10 +6,10 @@ Subject: [PATCH] Show 'TacoSpigot' in client crashes, server lists, and Mojang
 
 
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index fc5be09ad..e04e7f5ba 100644
+index 8ca8fdce..f9fb09e8 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -1127,7 +1127,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+@@ -1143,7 +1143,7 @@ public abstract class MinecraftServer implements ICommandListener, Runnable, IAs
      }
  
      public String getServerModName() {
@@ -19,5 +19,5 @@ index fc5be09ad..e04e7f5ba 100644
  
      public CrashReport b(CrashReport crashreport) {
 -- 
-2.11.1
+2.13.1
 

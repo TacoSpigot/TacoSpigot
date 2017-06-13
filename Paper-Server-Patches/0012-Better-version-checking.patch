@@ -1,4 +1,4 @@
-From 8fe50b7bff2dbe5220600b9cfd4abda531a6ddca Mon Sep 17 00:00:00 2001
+From 10a0b00dea1c3e9112313b3b556bf8991b4f222e Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 24 Apr 2017 11:12:40 -0700
 Subject: [PATCH] Better version checking
@@ -6,13 +6,13 @@ Subject: [PATCH] Better version checking
 Checks for outdated versions on startup, and warns on custom versions.
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index 5364cb84..0d8ee872 100644
+index 8ce8e354..eb8c579a 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -15,6 +15,12 @@ import joptsimple.OptionParser;
  import joptsimple.OptionSet;
  import net.minecraft.server.MinecraftServer;
- import org.fusesource.jansi.AnsiConsole;
+ import net.minecrell.terminalconsole.TerminalConsoleAppender; // Paper
 +// TacoSpigot start
 +import net.techcable.tacospigot.TacoVersionInfo;
 +import net.techcable.tacospigot.UnknownVersionException;
@@ -22,16 +22,16 @@ index 5364cb84..0d8ee872 100644
  
  public class Main {
      public static boolean useJline = true;
-@@ -201,6 +207,8 @@ public class Main {
-                     useConsole = false;
+@@ -211,6 +217,8 @@ public class Main {
+                     System.setProperty(TerminalConsoleAppender.JLINE_OVERRIDE_PROPERTY, "false"); // Paper
                  }
  
 +                // TacoSpigot start - Actually Check if the version is outdated
 +                /*
-                 if (false && Main.class.getPackage().getImplementationVendor() != null && System.getProperty("IReallyKnowWhatIAmDoingISwear") == null) {
+                 if (Main.class.getPackage().getImplementationVendor() != null && System.getProperty("IReallyKnowWhatIAmDoingISwear") == null) {
                      Date buildDate = new SimpleDateFormat("yyyyMMdd-HHmm").parse(Main.class.getPackage().getImplementationVendor());
  
-@@ -213,6 +221,42 @@ public class Main {
+@@ -223,6 +231,42 @@ public class Main {
                          Thread.sleep(TimeUnit.SECONDS.toMillis(15));
                      }
                  }
@@ -72,8 +72,8 @@ index 5364cb84..0d8ee872 100644
 +                }
 +                // TacoSpigot end
  
-                 // Spigot Start
-                 int maxPermGen = 0; // In kb
+                 net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // TacoSpigot - initalize before library loading so we can access while loading
+                 System.out.println("Loading libraries, please wait...");
 -- 
-2.12.2
+2.13.1
 

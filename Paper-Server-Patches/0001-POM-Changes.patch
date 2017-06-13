@@ -1,11 +1,11 @@
-From faddb4412ea93ac96ff528090c16bc618e7ed67f Mon Sep 17 00:00:00 2001
+From 3afd92d705dfd6718698cd1adb77e81834b9d5a5 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 31b8401aa..e1e580a64 100644
+index 0ae2c9c6..decfff12 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -17,7 +17,7 @@ index 31b8401aa..e1e580a64 100644
 +    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>server</artifactId>
      <packaging>jar</packaging>
-     <version>1.11.2-R0.1-SNAPSHOT</version>
+     <version>1.12-R0.1-SNAPSHOT</version>
 -    <name>Paper</name>
 -    <url>https://github.com/PaperMC/Paper</url>
 +    <name>TacoSpigot</name>
@@ -25,7 +25,7 @@ index 31b8401aa..e1e580a64 100644
  
      <properties>
          <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-@@ -22,16 +22,16 @@
+@@ -21,16 +21,16 @@
      </properties>
  
      <parent>
@@ -46,7 +46,7 @@ index 31b8401aa..e1e580a64 100644
              <version>${project.version}</version>
              <scope>compile</scope>
          </dependency>
-@@ -109,7 +109,7 @@
+@@ -128,7 +128,7 @@
                  <artifactId>gitdescribe-maven-plugin</artifactId>
                  <version>1.3</version>
                  <configuration>
@@ -56,7 +56,7 @@ index 31b8401aa..e1e580a64 100644
                  </configuration>
                  <executions>
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-index 674096cab..4135e72c9 100644
+index 674096ca..4135e72c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 @@ -11,7 +11,7 @@ public final class Versioning {
@@ -69,5 +69,5 @@ index 674096cab..4135e72c9 100644
  
          if (stream != null) {
 -- 
-2.11.0
+2.13.1
 
