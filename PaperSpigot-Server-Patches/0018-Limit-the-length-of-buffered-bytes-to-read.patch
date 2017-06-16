@@ -1,4 +1,4 @@
-From 9b6e7652aca72c87fb444450e07abcb20b54d8fe Mon Sep 17 00:00:00 2001
+From 77477830850d4292aac4ef1d41dd49d002520d52 Mon Sep 17 00:00:00 2001
 From: Thinkofdeath <thinkofdeath@spigotmc.org>
 Date: Mon, 28 Mar 2016 15:41:31 -0700
 Subject: [PATCH] Limit the length of buffered bytes to read
@@ -84,27 +84,18 @@ index a591b2f3..2d408b54 100644
      public void b(PacketDataSerializer packetdataserializer) throws IOException {
 diff --git a/src/main/java/net/techcable/tacospigot/CompatHacks.java b/src/main/java/net/techcable/tacospigot/CompatHacks.java
 new file mode 100644
-index 00000000..73f2924b
+index 00000000..6ebc9c89
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/CompatHacks.java
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,10 @@
 +package net.techcable.tacospigot;
++
++import org.bukkit.Bukkit;
 +
 +public class CompatHacks {
 +    private CompatHacks() {}
-+    private static final boolean HAS_PROTOCOL_SUPPORT;
-+    static {
-+        boolean hasProtocolSupport;
-+        try {
-+            Class.forName("protocolsupport.api.ProtocolSupportAPI");
-+            hasProtocolSupport = true;
-+        } catch (ClassNotFoundException e) {
-+            hasProtocolSupport = false;
-+        }
-+        HAS_PROTOCOL_SUPPORT = hasProtocolSupport;
-+    }
 +    public static boolean hasProtocolSupport() {
-+        return HAS_PROTOCOL_SUPPORT;
++        return Bukkit.getPluginManager().isPluginEnabled("ProtocolSupport");
 +    }
 +}
 \ No newline at end of file
