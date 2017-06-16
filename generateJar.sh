@@ -64,8 +64,13 @@ hash() {
 }
 
 echo "Computing Patch"
-
-java -jar work/jbsdiff.jar diff $VANILLA_JAR $INPUT_JAR work/Paperclip/$PATCH_FILE || exit 1
+if which bsdiff >/dev/null 2>&1; then
+    echo "Using native bsdiff";
+    bsdiff $VANILLA_JAR $INPUT_JAR work/Paperclip/$PATCH_FILE || exit 1
+else
+    echo "Using jbsdiff"
+    java -jar work/jbsdiff.jar diff $VANILLA_JAR $INPUT_JAR work/Paperclip/$PATCH_FILE || exit 1
+fi;
 
 genJson() {
     PATCH=$1
