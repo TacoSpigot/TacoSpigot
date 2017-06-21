@@ -1,11 +1,11 @@
-From 3afd92d705dfd6718698cd1adb77e81834b9d5a5 Mon Sep 17 00:00:00 2001
+From ed064b29fa76b29d264e37f471882f4f859d6f7d Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 0ae2c9c6..decfff12 100644
+index 96f87cb68..f31977bad 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -46,7 +46,7 @@ index 0ae2c9c6..decfff12 100644
              <version>${project.version}</version>
              <scope>compile</scope>
          </dependency>
-@@ -128,7 +128,7 @@
+@@ -136,7 +136,7 @@
                  <artifactId>gitdescribe-maven-plugin</artifactId>
                  <version>1.3</version>
                  <configuration>
@@ -56,7 +56,7 @@ index 0ae2c9c6..decfff12 100644
                  </configuration>
                  <executions>
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-index 674096ca..4135e72c 100644
+index 674096cab..4135e72c9 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 @@ -11,7 +11,7 @@ public final class Versioning {

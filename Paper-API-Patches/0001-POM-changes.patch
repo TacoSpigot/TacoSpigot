@@ -1,4 +1,4 @@
-From f1619209b43d9f9bd7ff9fc10c3216799b76e674 Mon Sep 17 00:00:00 2001
+From e6482d1506a4b49af3e9e5496221e90fae3b4c1f Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 6 Jan 2015 22:12:31 -0600
 Subject: [PATCH] POM changes
@@ -6,7 +6,7 @@ Subject: [PATCH] POM changes
 Add a dependency on jsr305 (@Nullable, @NonNull)
 
 diff --git a/pom.xml b/pom.xml
-index 862910e0..5e7b6c55 100644
+index c2922a7b..498c126e 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -4,18 +4,18 @@
@@ -34,7 +34,7 @@ index 862910e0..5e7b6c55 100644
      <description>An enhanced plugin API for Minecraft servers.</description>
  
      <properties>
-@@ -133,6 +133,12 @@
+@@ -140,6 +140,12 @@
              <artifactId>asm-all</artifactId>
              <version>5.0.4</version>
          </dependency>
