@@ -1,11 +1,11 @@
-From ed064b29fa76b29d264e37f471882f4f859d6f7d Mon Sep 17 00:00:00 2001
+From dfffb9b7f1b3570b3e3a4804f17aebfb6bff9fb0 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
 
 
 diff --git a/pom.xml b/pom.xml
-index 96f87cb68..f31977bad 100644
+index 420a47d94..1297fc74e 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -25,7 +25,7 @@ index 96f87cb68..f31977bad 100644
  
      <properties>
          <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-@@ -21,16 +21,16 @@
+@@ -21,8 +21,8 @@
      </properties>
  
      <parent>
@@ -36,8 +36,9 @@ index 96f87cb68..f31977bad 100644
          <version>dev-SNAPSHOT</version>
          <relativePath>../pom.xml</relativePath>
      </parent>
- 
-     <dependencies>
+@@ -36,8 +36,8 @@
+             <scope>compile</scope>
+         </dependency>
          <dependency>
 -            <groupId>com.destroystokyo.paper</groupId>
 -            <artifactId>paper-api</artifactId>
@@ -69,5 +70,5 @@ index 674096cab..4135e72c9 100644
  
          if (stream != null) {
 -- 
-2.13.1
+2.13.3
 
