@@ -1,0 +1,963 @@
+From 8024651b1e4a0f1d63e6bc63077c2d1e0f070839 Mon Sep 17 00:00:00 2001
+From: Doom <doom@trittybox.Home>
+Date: Sun, 24 Sep 2017 02:56:06 +1000
+Subject: [PATCH] 1.12.2 Update
+
+
+diff --git a/pom.xml b/pom.xml
+index 1297fc74..b361e706 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -4,14 +4,14 @@
+     <groupId>net.techcable.tacospigot</groupId>
+     <artifactId>server</artifactId>
+     <packaging>jar</packaging>
+-    <version>1.12-R0.1-SNAPSHOT</version>
++    <version>1.12.2-R0.1-SNAPSHOT</version>
+     <name>TacoSpigot</name>
+     <url>https://github.com/TacoSpigot/TacoSpigot</url>
+ 
+     <properties>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+         <api.version>unknown</api.version>
+-        <minecraft.version>1.12</minecraft.version>
++        <minecraft.version>1.12.2</minecraft.version>
+         <minecraft_version>1_12_R1</minecraft_version>
+         <buildtag.prefix>git-Bukkit-</buildtag.prefix>
+         <buildtag.suffix></buildtag.suffix>
+@@ -32,7 +32,7 @@
+         <dependency>
+             <groupId>io.netty</groupId>
+             <artifactId>netty-all</artifactId>
+-            <version>4.1.13.Final</version>
++            <version>4.1.15.Final</version>
+             <scope>compile</scope>
+         </dependency>
+         <dependency>
+@@ -50,19 +50,19 @@
+         <dependency>
+             <groupId>net.sf.jopt-simple</groupId>
+             <artifactId>jopt-simple</artifactId>
+-            <version>5.0.3</version>
++            <version>5.0.4</version>
+             <scope>compile</scope>
+         </dependency>
+         <dependency>
+             <groupId>org.xerial</groupId>
+             <artifactId>sqlite-jdbc</artifactId>
+-            <version>3.18.0</version>
++            <version>3.20.0</version>
+             <scope>compile</scope>
+         </dependency>
+         <dependency>
+             <groupId>mysql</groupId>
+             <artifactId>mysql-connector-java</artifactId>
+-            <version>5.1.42</version>
++            <version>5.1.44</version>
+             <scope>compile</scope>
+         </dependency>
+         <dependency>
+@@ -190,7 +190,7 @@
+             <plugin>
+                 <groupId>org.codehaus.mojo</groupId>
+                 <artifactId>animal-sniffer-maven-plugin</artifactId>
+-                <version>1.15</version>
++                <version>1.16</version>
+                 <executions>
+                     <execution>
+                         <phase>process-classes</phase>
+@@ -210,7 +210,7 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-shade-plugin</artifactId>
+-                <version>3.0.0</version>
++                <version>3.1.0</version>
+                 <executions>
+                     <execution>
+                         <phase>package</phase>
+@@ -266,7 +266,7 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
+-                <version>3.6.1</version>
++                <version>3.7.0</version>
+             </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+diff --git a/src/main/java/co/aikar/timings/WorldTimingsHandler.java b/src/main/java/co/aikar/timings/WorldTimingsHandler.java
+index f90f5bf8..ca2a192e 100644
+--- a/src/main/java/co/aikar/timings/WorldTimingsHandler.java
++++ b/src/main/java/co/aikar/timings/WorldTimingsHandler.java
+@@ -40,7 +40,10 @@ public class WorldTimingsHandler {
+     public final Timing syncChunkLoadStructuresTimer;
+     public final Timing syncChunkLoadPostTimer;
+     public final Timing syncChunkLoadNBTTimer;
++    public final Timing syncChunkLoadEntitiesTimer;
+     public final Timing syncChunkLoadPopulateNeighbors;
++    public final Timing syncChunkLoadTileEntitiesTimer;
++    public final Timing syncChunkLoadTileTicksTimer;
+     public final Timing chunkGeneration;
+     public final Timing chunkIOStage1;
+     public final Timing chunkIOStage2;
+@@ -86,6 +89,9 @@ public class WorldTimingsHandler {
+         syncChunkLoadPostTimer = Timings.ofSafe(name + "chunkLoad - Post");
+         syncChunkLoadNBTTimer = Timings.ofSafe(name + "chunkLoad - NBT");
+         syncChunkLoadPopulateNeighbors = Timings.ofSafe(name + "chunkLoad - Populate Neighbors");
++        syncChunkLoadEntitiesTimer = Timings.ofSafe(name + "chunkLoad - Entities");
++        syncChunkLoadTileEntitiesTimer = Timings.ofSafe(name + "chunkLoad - TileEntities");
++        syncChunkLoadTileTicksTimer = Timings.ofSafe(name + "chunkLoad - TileTicks");
+         chunkGeneration = Timings.ofSafe(name + "chunkGeneration");
+         chunkIOStage1 = Timings.ofSafe(name + "ChunkIO Stage 1 - DiskIO");
+         chunkIOStage2 = Timings.ofSafe(name + "ChunkIO Stage 2 - Post Load");
+diff --git a/src/main/java/net/minecraft/server/ChunkProviderServer.java b/src/main/java/net/minecraft/server/ChunkProviderServer.java
+index e54f4f47..ac478fb2 100644
+--- a/src/main/java/net/minecraft/server/ChunkProviderServer.java
++++ b/src/main/java/net/minecraft/server/ChunkProviderServer.java
+@@ -1,6 +1,5 @@
+ package net.minecraft.server;
+ 
+-import com.destroystokyo.paper.PaperConfig;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+@@ -13,7 +12,6 @@ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Set;
+ import javax.annotation.Nullable;
+-import com.destroystokyo.paper.exception.ServerInternalException;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+@@ -25,35 +23,10 @@ import org.bukkit.event.world.ChunkUnloadEvent;
+ public class ChunkProviderServer implements IChunkProvider {
+ 
+     private static final Logger a = LogManager.getLogger();
+-    public final it.unimi.dsi.fastutil.longs.LongSet unloadQueue = new it.unimi.dsi.fastutil.longs.LongArraySet(); // PAIL: private -> public // Paper
++    public final Set<Long> unloadQueue = Sets.newHashSet();
+     public final ChunkGenerator chunkGenerator;
+     private final IChunkLoader chunkLoader;
+-    // Paper start - chunk save stats
+-    private long lastQueuedSaves = 0L; // Paper
+-    private long lastProcessedSaves = 0L; // Paper
+-    private long lastSaveStatPrinted = System.currentTimeMillis();
+-    // Paper end
+-    // Paper start
+-    protected Chunk lastChunkByPos = null;
+-    public Long2ObjectOpenHashMap<Chunk> chunks = new Long2ObjectOpenHashMap<Chunk>(8192) {
+-
+-        @Override
+-        public Chunk get(long key) {
+-            if (lastChunkByPos != null && key == lastChunkByPos.chunkKey) {
+-                return lastChunkByPos;
+-            }
+-            return lastChunkByPos = super.get(key);
+-        }
+-
+-        @Override
+-        public Chunk remove(long key) {
+-            if (lastChunkByPos != null && key == lastChunkByPos.chunkKey) {
+-                lastChunkByPos = null;
+-            }
+-            return super.remove(key);
+-        }
+-    }; // CraftBukkit
+-    // Paper end
++    public final Long2ObjectMap<Chunk> chunks = new Long2ObjectOpenHashMap(8192);
+     public final WorldServer world;
+ 
+     public ChunkProviderServer(WorldServer worldserver, IChunkLoader ichunkloader, ChunkGenerator chunkgenerator) {
+@@ -216,41 +189,28 @@ public class ChunkProviderServer implements IChunkProvider {
+ 
+             return chunk;
+         } catch (Exception exception) {
+-            // Paper start
+-            String msg = "Couldn\'t load chunk";
+-            ChunkProviderServer.a.error(msg, exception);
+-            ServerInternalException.reportInternalException(exception);
+-            // Paper end
++            ChunkProviderServer.a.error("Couldn\'t load chunk", exception);
+             return null;
+         }
+     }
+ 
+     public void saveChunkNOP(Chunk chunk) {
+-        try (co.aikar.timings.Timing timed = world.timings.chunkSaveNop.startTiming()) {
+-            this.chunkLoader.b(this.world, chunk);
++        try {
++            // this.chunkLoader.b(this.world, chunk); // Spigot
+         } catch (Exception exception) {
+-            // Paper start
+-            String msg = "Couldn\'t save entities";
+-            ChunkProviderServer.a.error(msg, exception);
+-            ServerInternalException.reportInternalException(exception);
+-            // Paper end
++            ChunkProviderServer.a.error("Couldn\'t save entities", exception);
+         }
+ 
+     }
+ 
+-    public void saveChunk(Chunk chunk) {
+-        try (co.aikar.timings.Timing timed = world.timings.chunkSaveData.startTiming()) {
++    public void saveChunk(Chunk chunk, boolean unloaded) { // Spigot
++        try {
+             chunk.setLastSaved(this.world.getTime());
+-            this.chunkLoader.a(this.world, chunk);
++            this.chunkLoader.saveChunk(this.world, chunk, unloaded); // Spigot
+         } catch (IOException ioexception) {
+-            // Paper start
+-            String msg = "Couldn\'t save chunk";
+-            ChunkProviderServer.a.error(msg, ioexception);
+-            ServerInternalException.reportInternalException(ioexception);
++            ChunkProviderServer.a.error("Couldn\'t save chunk", ioexception);
+         } catch (ExceptionWorldConflict exceptionworldconflict) {
+-            String msg = "Couldn\'t save chunk; already in use by another instance of Minecraft?";
+-            ChunkProviderServer.a.error(msg, exceptionworldconflict);
+-            ServerInternalException.reportInternalException(exceptionworldconflict);
++            ChunkProviderServer.a.error("Couldn\'t save chunk; already in use by another instance of Minecraft?", exceptionworldconflict);
+         }
+ 
+     }
+@@ -259,38 +219,6 @@ public class ChunkProviderServer implements IChunkProvider {
+         int i = 0;
+ 
+         // CraftBukkit start
+-        // Paper start
+-        final ChunkRegionLoader chunkLoader = (ChunkRegionLoader) world.getChunkProviderServer().chunkLoader;
+-        final int queueSize = chunkLoader.getQueueSize();
+-
+-        final long now = System.currentTimeMillis();
+-        final long timeSince = (now - lastSaveStatPrinted) / 1000;
+-        final Integer printRateSecs = Integer.getInteger("printSaveStats");
+-        if (printRateSecs != null && timeSince >= printRateSecs) {
+-            final String timeStr = "/" + timeSince  +"s";
+-            final long queuedSaves = chunkLoader.getQueuedSaves();
+-            long queuedDiff = queuedSaves - lastQueuedSaves;
+-            lastQueuedSaves = queuedSaves;
+-
+-            final long processedSaves = chunkLoader.getProcessedSaves();
+-            long processedDiff = processedSaves - lastProcessedSaves;
+-            lastProcessedSaves = processedSaves;
+-
+-            lastSaveStatPrinted = now;
+-            if (processedDiff > 0 || queueSize > 0 || queuedDiff > 0) {
+-                System.out.println("[Chunk Save Stats] " + world.worldData.getName() +
+-                    " - Current: " + queueSize +
+-                    " - Queued: " + queuedDiff + timeStr +
+-                    " - Processed: " +processedDiff + timeStr
+-                );
+-            }
+-        }
+-
+-        if (queueSize > world.paperConfig.queueSizeAutoSaveThreshold){
+-            return false;
+-        }
+-        final int autoSaveLimit = world.paperConfig.maxAutoSaveChunksPerTick;
+-        // Paper end
+         Iterator iterator = this.chunks.values().iterator();
+         while (iterator.hasNext()) {
+             Chunk chunk = (Chunk) iterator.next();
+@@ -301,10 +229,10 @@ public class ChunkProviderServer implements IChunkProvider {
+             }
+ 
+             if (chunk.a(flag)) {
+-                this.saveChunk(chunk);
++                this.saveChunk(chunk, false); // Spigot
+                 chunk.f(false);
+                 ++i;
+-                if (!flag && i >= autoSaveLimit) { // Spigot - // Paper - Incremental Auto Save - cap max per tick
++                if (i == 24 && !flag && false) { // Spigot
+                     return false;
+                 }
+             }
+@@ -325,7 +253,7 @@ public class ChunkProviderServer implements IChunkProvider {
+                 // Spigot start
+                 org.spigotmc.SlackActivityAccountant activityAccountant = this.world.getMinecraftServer().slackActivityAccountant;
+                 activityAccountant.startActivity(0.5);
+-                int targetSize = Math.min(this.unloadQueue.size() - 100,  (int) (this.unloadQueue.size() * UNLOAD_QUEUE_RESIZE_FACTOR)); // Paper - Make more aggressive
++                int targetSize = (int) (this.unloadQueue.size() * UNLOAD_QUEUE_RESIZE_FACTOR);
+                 // Spigot end
+ 
+                 Iterator iterator = this.unloadQueue.iterator();
+@@ -337,7 +265,6 @@ public class ChunkProviderServer implements IChunkProvider {
+ 
+                     if (chunk != null && chunk.d) {
+                         // CraftBukkit start - move unload logic to own method
+-                        chunk.setShouldUnload(false); // Paper
+                         if (!unloadChunk(chunk, true)) {
+                             continue;
+                         }
+@@ -353,19 +280,6 @@ public class ChunkProviderServer implements IChunkProvider {
+ 
+                 activityAccountant.endActivity(); // Spigot
+             }
+-            // Paper start - delayed chunk unloads
+-            long now = System.currentTimeMillis();
+-            long unloadAfter = world.paperConfig.delayChunkUnloadsBy;
+-            if (unloadAfter > 0) {
+-                //noinspection Convert2streamapi
+-                for (Chunk chunk : chunks.values()) {
+-                    if (chunk.scheduledForUnload != null && now - chunk.scheduledForUnload > unloadAfter) {
+-                        chunk.scheduledForUnload = null;
+-                        unload(chunk);
+-                    }
+-                }
+-            }
+-            // Paper end
+ 
+             this.chunkLoader.b();
+         }
+@@ -381,7 +295,6 @@ public class ChunkProviderServer implements IChunkProvider {
+             return false;
+         }
+         save = event.isSaveChunk();
+-        chunk.lightingQueue.processUnload(); // Paper
+ 
+         // Update neighbor counts
+         for (int x = -2; x < 3; x++) {
+@@ -400,7 +313,7 @@ public class ChunkProviderServer implements IChunkProvider {
+         // Moved from unloadChunks above
+         chunk.removeEntities();
+         if (save) {
+-            this.saveChunk(chunk);
++            this.saveChunk(chunk, true); // Spigot
+             this.saveChunkNOP(chunk);
+         }
+         this.chunks.remove(chunk.chunkKey);
+diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+index d275eb19..d6518130 100644
+--- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
++++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+@@ -12,34 +12,30 @@ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
+ import javax.annotation.Nullable;
+-import java.util.concurrent.ConcurrentLinkedQueue; // Paper
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++// Spigot start
++import java.util.function.Supplier;
++import org.spigotmc.SupplierUtils;
++// Spigot end
+ 
+ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+ 
+-    private ConcurrentLinkedQueue<QueuedChunk> queue = new ConcurrentLinkedQueue<>(); // Paper - Chunk queue improvements
+-    private final Object lock = new Object(); // Paper - Chunk queue improvements
+     private static final Logger a = LogManager.getLogger();
+-    private final Map<ChunkCoordIntPair, NBTTagCompound> b = Maps.newConcurrentMap();
+-    //private final Set<ChunkCoordIntPair> c = Collections.newSetFromMap(Maps.newConcurrentMap()); // Paper - Chunk queue improvements
++    private final Map<ChunkCoordIntPair, Supplier<NBTTagCompound>> b = Maps.newConcurrentMap(); // Spigot
++    // CraftBukkit
++    // private final Set<ChunkCoordIntPair> c = Collections.newSetFromMap(Maps.newConcurrentMap());
+     private final File d;
+     private final DataConverterManager e;
+-    private boolean f;
++    // private boolean f;
++    // CraftBukkit
++    private static final double SAVE_QUEUE_TARGET_SIZE = 625; // Spigot
+ 
+     public ChunkRegionLoader(File file, DataConverterManager dataconvertermanager) {
+         this.d = file;
+         this.e = dataconvertermanager;
+     }
+ 
+-    // Paper start
+-    private long queuedSaves = 0;
+-    private final java.util.concurrent.atomic.AtomicLong processedSaves = new java.util.concurrent.atomic.AtomicLong(0L);
+-    public int getQueueSize() { return queue.size(); }
+-    public long getQueuedSaves() { return queuedSaves; }
+-    public long getProcessedSaves() { return processedSaves.longValue(); }
+-    // Paper end
+-
+     // CraftBukkit start - Add async variant, provide compatibility
+     @Nullable
+     public Chunk a(World world, int i, int j) throws IOException {
+@@ -56,10 +52,40 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+         return null;
+     }
+ 
++    @Override
++    public void saveChunk(World world, Chunk chunk, boolean unloaded) throws IOException, ExceptionWorldConflict { // Spigot
++        world.checkSession();
++
++        try {
++            NBTTagCompound nbttagcompound = new NBTTagCompound();
++            NBTTagCompound nbttagcompound1 = new NBTTagCompound();
++
++            nbttagcompound.set("Level", nbttagcompound1);
++            nbttagcompound.setInt("DataVersion", 1343);
++
++            // Spigot start
++            final long worldTime = world.getTime();
++            final boolean worldHasSkyLight = world.worldProvider.m();
++            saveEntities(nbttagcompound1, chunk, world);
++            Supplier<NBTTagCompound> completion = new Supplier<NBTTagCompound>() {
++                public NBTTagCompound get() {
++                    saveBody(nbttagcompound1, chunk, worldTime, worldHasSkyLight);
++                    return nbttagcompound;
++                }
++            };
++
++            this.a(chunk.k(), SupplierUtils.createUnivaluedSupplier(completion, unloaded && this.b.size() < SAVE_QUEUE_TARGET_SIZE));
++            // Spigot end
++        } catch (Exception exception) {
++            ChunkRegionLoader.a.error("Failed to save chunk", exception);
++        }
++
++    }
++
+     public Object[] loadChunk(World world, int i, int j) throws IOException {
+         // CraftBukkit end
+         ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(i, j);
+-        NBTTagCompound nbttagcompound = (NBTTagCompound) this.b.get(chunkcoordintpair);
++        NBTTagCompound nbttagcompound = SupplierUtils.getIfExists(this.b.get(chunkcoordintpair)); // Spigot
+ 
+         if (nbttagcompound == null) {
+             // CraftBukkit start
+@@ -78,7 +104,7 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+ 
+     public boolean chunkExists(int i, int j) {
+         ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(i, j);
+-        NBTTagCompound nbttagcompound = (NBTTagCompound) this.b.get(chunkcoordintpair);
++        Supplier<NBTTagCompound> nbttagcompound = this.b.get(chunkcoordintpair); // Spigot
+ 
+         return nbttagcompound != null ? true : RegionFileCache.chunkExists(this.d, i, j);
+     }
+@@ -127,70 +153,57 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+         }
+     }
+ 
+-    public void a(World world, Chunk chunk) throws IOException, ExceptionWorldConflict {
+-        world.checkSession();
+-
+-        try {
+-            NBTTagCompound nbttagcompound = new NBTTagCompound();
+-            NBTTagCompound nbttagcompound1 = new NBTTagCompound();
+-
+-            nbttagcompound.set("Level", nbttagcompound1);
+-            nbttagcompound.setInt("DataVersion", 1139);
+-            this.a(chunk, world, nbttagcompound1);
+-            this.a(chunk.k(), nbttagcompound);
+-        } catch (Exception exception) {
+-            ChunkRegionLoader.a.error("Failed to save chunk", exception);
+-        }
+ 
+-    }
+ 
+-    protected void a(ChunkCoordIntPair chunkcoordintpair, NBTTagCompound nbttagcompound) {
+-        synchronized (lock) {  // Paper - Chunk queue improvements
++    protected void a(ChunkCoordIntPair chunkcoordintpair, Supplier<NBTTagCompound> nbttagcompound) { // Spigot
++        // CraftBukkit
++        // if (!this.c.contains(chunkcoordintpair))
++        {
+             this.b.put(chunkcoordintpair, nbttagcompound);
+         }
+-        queuedSaves++; // Paper
+-        queue.add(new QueuedChunk(chunkcoordintpair, nbttagcompound)); // Paper - Chunk queue improvements
+ 
+         FileIOThread.a().a(this);
+     }
+ 
+     public boolean a() {
+-        // Paper start - Chunk queue improvements
+-        QueuedChunk chunk = queue.poll();
+-        if (chunk == null) {
+-            // Paper - end
+-            if (this.f) {
++        // CraftBukkit start
++        return this.processSaveQueueEntry(false);
++    }
++
++    private synchronized boolean processSaveQueueEntry(boolean logCompletion) {
++        Iterator<Map.Entry<ChunkCoordIntPair, Supplier<NBTTagCompound>>> iter = this.b.entrySet().iterator(); // Spigot
++        if (!iter.hasNext()) {
++            if (logCompletion) {
++                // CraftBukkit end
+                 ChunkRegionLoader.a.info("ThreadedAnvilChunkStorage ({}): All chunks are saved", this.d.getName());
+             }
+ 
+             return false;
+         } else {
+-            ChunkCoordIntPair chunkcoordintpair = chunk.coords; // Paper - Chunk queue improvements
+-            processedSaves.incrementAndGet(); // Paper
++            // CraftBukkit start
++            Map.Entry<ChunkCoordIntPair, Supplier<NBTTagCompound>> entry = iter.next(); // Spigot
++            ChunkCoordIntPair chunkcoordintpair = entry.getKey();
++            Supplier<NBTTagCompound> value = entry.getValue(); // Spigot
++            // CraftBukkit end
+ 
+             boolean flag;
+ 
+             try {
+-                //this.c.add(chunkcoordintpair);
+-                NBTTagCompound nbttagcompound = chunk.compound; // Paper - Chunk queue improvements
++                // this.c.add(chunkcoordintpair);
++                NBTTagCompound nbttagcompound = SupplierUtils.getIfExists(value); // Spigot
++                // CraftBukkit
+ 
+                 if (nbttagcompound != null) {
+-                    int attempts = 0; Exception laste = null; while (attempts++ < 5) { // Paper
+                     try {
+                         this.b(chunkcoordintpair, nbttagcompound);
+-                        laste = null; break; // Paper
+                     } catch (Exception exception) {
+-                        //ChunkRegionLoader.a.error("Failed to save chunk", exception); // Paper
+-                        laste = exception; // Paper
++                        ChunkRegionLoader.a.error("Failed to save chunk", exception);
+                     }
+-                    try {Thread.sleep(10);} catch (InterruptedException e) {e.printStackTrace();} } // Paper
+-                    if (laste != null) { com.destroystokyo.paper.exception.ServerInternalException.reportInternalException(laste); MinecraftServer.LOGGER.error("Failed to save chunk", laste); } // Paper
+                 }
+-                synchronized (lock) { if (this.b.get(chunkcoordintpair) == nbttagcompound) { this.b.remove(chunkcoordintpair); } }// Paper - This will not equal if a newer version is still pending
+ 
+                 flag = true;
+             } finally {
+-                //this.c.remove(chunkcoordintpair); // Paper
++                this.b.remove(chunkcoordintpair, value); // CraftBukkit // Spigot
+             }
+ 
+             return flag;
+@@ -214,16 +227,16 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+ 
+     public void c() {
+         try {
+-            this.f = true;
++            // this.f = true; // CraftBukkit
+ 
+             while (true) {
+-                if (this.a()) {
++                if (this.processSaveQueueEntry(true)) { // CraftBukkit
+                     continue;
+                 }
+                 break; // CraftBukkit - Fix infinite loop when saving chunks
+             }
+         } finally {
+-            this.f = false;
++            // this.f = false; // CraftBukkit
+         }
+ 
+     }
+@@ -258,17 +271,17 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+         });
+     }
+ 
+-    private void a(Chunk chunk, World world, NBTTagCompound nbttagcompound) {
++    private static void saveBody(NBTTagCompound nbttagcompound, Chunk chunk, long worldTime, boolean worldHasSkyLight) { // Spigot
+         nbttagcompound.setInt("xPos", chunk.locX);
+         nbttagcompound.setInt("zPos", chunk.locZ);
+-        nbttagcompound.setLong("LastUpdate", world.getTime());
++        nbttagcompound.setLong("LastUpdate", worldTime); // Spigot
+         nbttagcompound.setIntArray("HeightMap", chunk.r());
+         nbttagcompound.setBoolean("TerrainPopulated", chunk.isDone());
+         nbttagcompound.setBoolean("LightPopulated", chunk.v());
+         nbttagcompound.setLong("InhabitedTime", chunk.x());
+         ChunkSection[] achunksection = chunk.getSections();
+         NBTTagList nbttaglist = new NBTTagList();
+-        boolean flag = world.worldProvider.m();
++        boolean flag = worldHasSkyLight; // Spigot
+         ChunkSection[] achunksection1 = achunksection;
+         int i = achunksection.length;
+ 
+@@ -303,6 +316,15 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+ 
+         nbttagcompound.set("Sections", nbttaglist);
+         nbttagcompound.setByteArray("Biomes", chunk.getBiomeIndex());
++
++        // Spigot start - End this method here and split off entity saving to another method
++    }
++
++    private static void saveEntities(NBTTagCompound nbttagcompound, Chunk chunk, World world) {
++        int i;
++        NBTTagCompound nbttagcompound1;
++        // Spigot end
++
+         chunk.g(false);
+         NBTTagList nbttaglist1 = new NBTTagList();
+ 
+@@ -404,7 +426,7 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+ 
+     public void loadEntities(Chunk chunk, NBTTagCompound nbttagcompound, World world) {
+         // CraftBukkit end
+-        world.timings.syncChunkLoadNBTTimer.startTiming(); // Spigot
++        world.timings.syncChunkLoadEntitiesTimer.startTiming(); // Spigot
+         NBTTagList nbttaglist1 = nbttagcompound.getList("Entities", 10);
+ 
+         for (int l = 0; l < nbttaglist1.size(); ++l) {
+@@ -413,16 +435,20 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+             a(nbttagcompound2, world, chunk);
+             chunk.g(true);
+         }
++        world.timings.syncChunkLoadEntitiesTimer.stopTiming(); // Spigot
++        world.timings.syncChunkLoadTileEntitiesTimer.startTiming(); // Spigot
+         NBTTagList nbttaglist2 = nbttagcompound.getList("TileEntities", 10);
+ 
+         for (int i1 = 0; i1 < nbttaglist2.size(); ++i1) {
+             NBTTagCompound nbttagcompound3 = nbttaglist2.get(i1);
+-            TileEntity tileentity = TileEntity.a(world, nbttagcompound3);
++            TileEntity tileentity = TileEntity.create(world, nbttagcompound3);
+ 
+             if (tileentity != null) {
+                 chunk.a(tileentity);
+             }
+         }
++        world.timings.syncChunkLoadTileEntitiesTimer.stopTiming(); // Spigot
++        world.timings.syncChunkLoadTileTicksTimer.startTiming(); // Spigot
+ 
+         if (nbttagcompound.hasKeyOfType("TileTicks", 9)) {
+             NBTTagList nbttaglist3 = nbttagcompound.getList("TileTicks", 10);
+@@ -440,7 +466,7 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+                 world.b(new BlockPosition(nbttagcompound4.getInt("x"), nbttagcompound4.getInt("y"), nbttagcompound4.getInt("z")), block, nbttagcompound4.getInt("t"), nbttagcompound4.getInt("p"));
+             }
+         }
+-        world.timings.syncChunkLoadNBTTimer.stopTiming(); // Spigot
++        world.timings.syncChunkLoadTileTicksTimer.stopTiming(); // Spigot
+ 
+         // return chunk; // CraftBukkit
+     }
+@@ -518,7 +544,7 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+     }
+ 
+     public static void a(Entity entity, World world, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason reason) {
+-        if (!entity.valid && world.addEntity(entity, reason) && entity.isVehicle()) { // Paper
++        if (world.addEntity(entity, reason) && entity.isVehicle()) {
+             // CraftBukkit end
+             Iterator iterator = entity.bF().iterator();
+ 
+@@ -555,16 +581,4 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+             return entity;
+         }
+     }
+-
+-    // Paper start - Chunk queue improvements
+-    private static class QueuedChunk {
+-        public ChunkCoordIntPair coords;
+-        public NBTTagCompound compound;
+-
+-        public QueuedChunk(ChunkCoordIntPair coords, NBTTagCompound compound) {
+-            this.coords = coords;
+-            this.compound = compound;
+-        }
+-    }
+-    // Paper end
+ }
+diff --git a/src/main/java/net/minecraft/server/CrashReport.java b/src/main/java/net/minecraft/server/CrashReport.java
+index d622b1dc..436bbc0f 100644
+--- a/src/main/java/net/minecraft/server/CrashReport.java
++++ b/src/main/java/net/minecraft/server/CrashReport.java
+@@ -38,7 +38,7 @@ public class CrashReport {
+     private void h() {
+         this.d.a("Minecraft Version", new CrashReportCallable() {
+             public String a() {
+-                return "1.12";
++                return "1.12.2";
+             }
+ 
+             public Object call() throws Exception {
+diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
+index 3266df1f..aedd244f 100644
+--- a/src/main/java/net/minecraft/server/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/DedicatedServer.java
+@@ -135,7 +135,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+ 
+         thread.setDaemon(true);
+         thread.start();
+-        DedicatedServer.LOGGER.info("Starting minecraft server version 1.12");
++        DedicatedServer.LOGGER.info("Starting minecraft server version 1.12.2");
+         if (Runtime.getRuntime().maxMemory() / 1024L / 1024L < 512L) {
+             DedicatedServer.LOGGER.warn("To start the server with more ram, launch it as \"java -Xmx1024M -Xms1024M -jar minecraft_server.jar\"");
+         }
+diff --git a/src/main/java/net/minecraft/server/HandshakeListener.java b/src/main/java/net/minecraft/server/HandshakeListener.java
+index 1cf64c5b..309ab18d 100644
+--- a/src/main/java/net/minecraft/server/HandshakeListener.java
++++ b/src/main/java/net/minecraft/server/HandshakeListener.java
+@@ -62,12 +62,12 @@ public class HandshakeListener implements PacketHandshakingInListener {
+             }
+             // CraftBukkit end
+ 
+-            if (packethandshakinginsetprotocol.b() > 335) {
+-                chatmessage = new ChatMessage( java.text.MessageFormat.format( org.spigotmc.SpigotConfig.outdatedServerMessage.replaceAll("'", "''"), "1.12" ) ); // Spigot
++            if (packethandshakinginsetprotocol.b() > 340) {
++                chatmessage = new ChatMessage( java.text.MessageFormat.format( org.spigotmc.SpigotConfig.outdatedServerMessage.replaceAll("'", "''"), "1.12.2" ) ); // Spigot
+                 this.b.sendPacket(new PacketLoginOutDisconnect(chatmessage));
+                 this.b.close(chatmessage);
+-            } else if (packethandshakinginsetprotocol.b() < 335) {
+-                chatmessage = new ChatMessage( java.text.MessageFormat.format( org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), "1.12" ) ); // Spigot
++            } else if (packethandshakinginsetprotocol.b() < 340) {
++                chatmessage = new ChatMessage( java.text.MessageFormat.format( org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), "1.12.2" ) ); // Spigot
+                 this.b.sendPacket(new PacketLoginOutDisconnect(chatmessage));
+                 this.b.close(chatmessage);
+             } else {
+diff --git a/src/main/java/net/minecraft/server/IChunkLoader.java b/src/main/java/net/minecraft/server/IChunkLoader.java
+new file mode 100644
+index 00000000..f9b80ffc
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/IChunkLoader.java
+@@ -0,0 +1,20 @@
++package net.minecraft.server;
++
++import java.io.IOException;
++import javax.annotation.Nullable;
++
++public interface IChunkLoader {
++
++    @Nullable
++    Chunk a(World world, int i, int j) throws IOException;
++
++    void saveChunk(World world, Chunk chunk, boolean unloaded) throws IOException, ExceptionWorldConflict; // Spigot
++
++    // void b(World world, Chunk chunk) throws IOException; // Spigot
++
++    void b();
++
++    void c();
++
++    boolean chunkExists(int i, int j);
++}
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index d94d15dc..0dbb3361 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -617,7 +617,7 @@ public abstract class MinecraftServer implements ICommandListener, Runnable, IAs
+                 long i = 0L;
+ 
+                 this.q.setMOTD(new ChatComponentText(this.motd));
+-                this.q.setServerInfo(new ServerPing.ServerData("1.12", 335));
++                this.q.setServerInfo(new ServerPing.ServerData("1.12.2", 340));
+                 this.a(this.q);
+ 
+                 // Spigot start
+@@ -1109,7 +1109,7 @@ public abstract class MinecraftServer implements ICommandListener, Runnable, IAs
+     }
+ 
+     public String getVersion() {
+-        return "1.12";
++        return "1.12.2";
+     }
+ 
+     public int H() {
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 5bab793b..3051c90e 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -99,6 +99,7 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+     private int receivedMovePackets;
+     private int processedMovePackets;
+     private boolean processedDisconnect; // CraftBukkit - Added
++    private AutoRecipe H = new AutoRecipe();
+ 
+     public PlayerConnection(MinecraftServer minecraftserver, NetworkManager networkmanager, EntityPlayer entityplayer) {
+         this.minecraftServer = minecraftserver;
+@@ -2029,68 +2030,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+     public void a(PacketPlayInAutoRecipe packetplayinautorecipe) {
+         PlayerConnectionUtils.ensureMainThread(packetplayinautorecipe, this, this.player.x());
+         this.player.resetIdleTimer();
+-        // CraftBukkit start
+-        if (!player.getBukkitEntity().hasPermission("minecraft.autocraft")) {
+-            player.getBukkitEntity().updateInventory();
+-            return;
+-        }
+-        // CraftBukkit end
+-        if (this.player.activeContainer.windowId == packetplayinautorecipe.a() && this.player.activeContainer.c(this.player)) {
+-            this.player.playerConnection.sendPacket(new PacketPlayOutTransaction(packetplayinautorecipe.a(), packetplayinautorecipe.b(), true));
+-            Iterator iterator;
+-            PacketPlayInAutoRecipe.a packetplayinautorecipe_a;
+-            ItemStack itemstack;
+-            int i;
+-
+-            if (!packetplayinautorecipe.d().isEmpty()) {
+-                iterator = packetplayinautorecipe.d().iterator();
+-
+-                while (iterator.hasNext()) {
+-                    packetplayinautorecipe_a = (PacketPlayInAutoRecipe.a) iterator.next();
+-                    itemstack = this.player.activeContainer.getSlot(packetplayinautorecipe_a.b).getItem();
+-                    if (this.a(packetplayinautorecipe_a.a, itemstack)) {
+-                        i = packetplayinautorecipe_a.a.getCount();
+-                        if (packetplayinautorecipe_a.c == -1) {
+-                            this.player.drop(packetplayinautorecipe_a.a, true);
+-                        } else {
+-                            ItemStack itemstack1 = this.player.inventory.getItem(packetplayinautorecipe_a.c);
+-
+-                            if (itemstack1.isEmpty()) {
+-                                this.player.inventory.setItem(packetplayinautorecipe_a.c, packetplayinautorecipe_a.a);
+-                            } else {
+-                                itemstack1.add(i);
+-                            }
+-                        }
+-
+-                        if (itemstack.getCount() == i) {
+-                            this.player.activeContainer.setItem(packetplayinautorecipe_a.b, ItemStack.a);
+-                        } else {
+-                            itemstack.subtract(i);
+-                        }
+-                    }
+-                }
+-            }
+-
+-            if (!packetplayinautorecipe.c().isEmpty()) {
+-                iterator = packetplayinautorecipe.c().iterator();
+-
+-                while (iterator.hasNext()) {
+-                    packetplayinautorecipe_a = (PacketPlayInAutoRecipe.a) iterator.next();
+-                    itemstack = this.player.inventory.getItem(packetplayinautorecipe_a.c);
+-                    if (this.a(packetplayinautorecipe_a.a, itemstack)) {
+-                        i = packetplayinautorecipe_a.a.getCount();
+-                        if (itemstack.getCount() == i) {
+-                            this.player.inventory.splitWithoutUpdate(packetplayinautorecipe_a.c);
+-                        } else {
+-                            itemstack.subtract(i);
+-                        }
+-
+-                        this.player.activeContainer.b(packetplayinautorecipe_a.b, packetplayinautorecipe_a.a);
+-                    }
+-                }
+-            }
+-
+-            this.player.activeContainer.b();
++        if (!this.player.isSpectator() && this.player.activeContainer.windowId == packetplayinautorecipe.a() && this.player.activeContainer.c(this.player)) {
++            this.H.a(this.player, packetplayinautorecipe.b(), packetplayinautorecipe.c());
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
+index ddea15cf..4374f269 100644
+--- a/src/main/java/net/minecraft/server/TileEntity.java
++++ b/src/main/java/net/minecraft/server/TileEntity.java
+@@ -51,6 +51,10 @@ public abstract class TileEntity {
+         this.position = new BlockPosition(nbttagcompound.getInt("x"), nbttagcompound.getInt("y"), nbttagcompound.getInt("z"));
+     }
+ 
++    public void load(NBTTagCompound nbttagcompound) {
++        this.position = new BlockPosition(nbttagcompound.getInt("x"), nbttagcompound.getInt("y"), nbttagcompound.getInt("z"));
++    }
++
+     public NBTTagCompound save(NBTTagCompound nbttagcompound) {
+         return this.c(nbttagcompound);
+     }
+@@ -69,6 +73,36 @@ public abstract class TileEntity {
+         }
+     }
+ 
++    @Nullable
++    public static TileEntity create(World world, NBTTagCompound nbttagcompound) {
++        TileEntity tileentity = null;
++        String s = nbttagcompound.getString("id");
++
++        try {
++            Class oclass = (Class) TileEntity.f.get(new MinecraftKey(s));
++
++            if (oclass != null) {
++                tileentity = (TileEntity) oclass.newInstance();
++            }
++        } catch (Throwable throwable) {
++            TileEntity.a.error("Failed to create block entity {}", s, throwable);
++        }
++
++        if (tileentity != null) {
++            try {
++                tileentity.b(world);
++                tileentity.load(nbttagcompound);
++            } catch (Throwable throwable1) {
++                TileEntity.a.error("Failed to load data for block entity {}", s, throwable1);
++                tileentity = null;
++            }
++        } else {
++            TileEntity.a.warn("Skipping BlockEntity with id {}", s);
++        }
++
++        return tileentity;
++    }
++
+     @Nullable
+     public static TileEntity a(World world, NBTTagCompound nbttagcompound) {
+         TileEntity tileentity = null;
+diff --git a/src/main/java/net/minecraft/server/WorldData.java b/src/main/java/net/minecraft/server/WorldData.java
+index 2b23954b..de256e6c 100644
+--- a/src/main/java/net/minecraft/server/WorldData.java
++++ b/src/main/java/net/minecraft/server/WorldData.java
+@@ -313,7 +313,7 @@ public class WorldData {
+     private void a(NBTTagCompound nbttagcompound, NBTTagCompound nbttagcompound1) {
+         NBTTagCompound nbttagcompound2 = new NBTTagCompound();
+ 
+-        nbttagcompound2.setString("Name", "1.12");
++        nbttagcompound2.setString("Name", "1.12.2");
+         nbttagcompound2.setInt("Id", 1139);
+         nbttagcompound2.setBoolean("Snapshot", false);
+         nbttagcompound.set("Version", nbttagcompound2);
+diff --git a/src/main/java/org/spigotmc/SupplierUtils.java b/src/main/java/org/spigotmc/SupplierUtils.java
+new file mode 100644
+index 00000000..f63ce98b
+--- /dev/null
++++ b/src/main/java/org/spigotmc/SupplierUtils.java
+@@ -0,0 +1,69 @@
++package org.spigotmc;
++
++import java.util.function.Supplier;
++import javax.annotation.Nullable;
++
++/**
++ * Utilities for creating and working with {@code Supplier} instances.
++ */
++public class SupplierUtils {
++
++    /**
++     * Repeatedly supplies the first value from a given sequence; the value is
++     * obtained only when required.
++     */
++    public static class LazyHeadSupplier<V> implements Supplier<V> {
++
++        private @Nullable Supplier<V> completion;
++        private @Nullable V value;
++
++        public LazyHeadSupplier(Supplier<V> completion) {
++            this.completion = completion;
++        }
++
++        public synchronized @Nullable V get() {
++            if (this.completion != null) {
++                this.value = this.completion.get();
++                this.completion = null;
++            }
++
++            return this.value;
++        }
++    }
++
++    /**
++     * Repeatedly supplies the given value.
++     */
++    public static class ValueSupplier<V> implements Supplier<V> {
++
++        private final @Nullable V value;
++
++        public ValueSupplier(@Nullable V value) {
++            this.value = value;
++        }
++
++        public @Nullable V get() {
++            return this.value;
++        }
++    }
++
++    /**
++     * Creates a new {@code Supplier} that supplies the given {@code Supplier}'s
++     * first value.
++     *
++     * @param doLazily {@code false}, if {@code completion.get()} should be
++     * called immediately, or {@code true}, if {@code completion.get()} should
++     * be called only when the value is first needed.
++     */
++    public static <V> Supplier<V> createUnivaluedSupplier(Supplier<V> completion, boolean doLazily) {
++        return doLazily ? new LazyHeadSupplier<V>(completion) : new ValueSupplier<V>(completion.get());
++    }
++
++    /**
++     * Returns {@code supplier.get()}, if {@code supplier} is non-{@code null}
++     * (or {@code null}, otherwise).
++     */
++    public static @Nullable <V> V getIfExists(@Nullable Supplier<V> supplier) {
++        return supplier != null ? supplier.get() : null;
++    }
++}
+-- 
+2.14.1
+
