@@ -11,7 +11,7 @@ accesstransforms=work/BuildData/mappings/$(cat work/BuildData/info.json | grep a
 classmappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep classMappings | cut -d '"' -f 4)
 membermappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep memberMappings | cut -d '"' -f 4)
 packagemappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep packageMappings | cut -d '"' -f 4)
-jarpath=$workdir/$minecraftversion/$minecraftversion
+jarpath=$workdir/Minecraft/$minecraftversion/$minecraftversion
 
 echo "Downloading unmapped vanilla jar..."
 if [ ! -f  "$jarpath.jar" ]; then

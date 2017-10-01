@@ -1,4 +1,4 @@
-From e1cb60e11d97ce556411d6deb8960f9366a01935 Mon Sep 17 00:00:00 2001
+From 28a0be447dc706c0958034644c9edb1c15122696 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Tue, 4 Aug 2015 20:45:22 -0700
 Subject: [PATCH] Metrics
@@ -6,10 +6,10 @@ Subject: [PATCH] Metrics
 Uses bStats since mcstats is dead.
 
 diff --git a/src/main/java/com/destroystokyo/paper/Metrics.java b/src/main/java/com/destroystokyo/paper/Metrics.java
-index 9389f9a8..14db0377 100644
+index e257d6b3..bcb813ef 100644
 --- a/src/main/java/com/destroystokyo/paper/Metrics.java
 +++ b/src/main/java/com/destroystokyo/paper/Metrics.java
-@@ -576,7 +576,7 @@ public class Metrics {
+@@ -578,7 +578,7 @@ public class Metrics {
              boolean logFailedRequests = config.getBoolean("logFailedRequests", false);
              // Only start Metrics, if it's enabled in the config
              if (config.getBoolean("enabled", true)) {
@@ -18,7 +18,7 @@ index 9389f9a8..14db0377 100644
  
                  metrics.addCustomChart(new Metrics.SimplePie("minecraft_version", () -> {
                      String minecraftVersion = Bukkit.getVersion();
-@@ -586,7 +586,7 @@ public class Metrics {
+@@ -588,7 +588,7 @@ public class Metrics {
  
                  metrics.addCustomChart(new Metrics.SingleLineChart("players", () -> Bukkit.getOnlinePlayers().size()));
                  metrics.addCustomChart(new Metrics.SimplePie("online_mode", () -> Bukkit.getOnlineMode() ? "online" : "offline"));
@@ -28,5 +28,5 @@ index 9389f9a8..14db0377 100644
                  metrics.addCustomChart(new Metrics.DrilldownPie("java_version", () -> {
                      Map<String, Map<String, Integer>> map = new HashMap<>();
 -- 
-2.12.2
+2.14.2
 
