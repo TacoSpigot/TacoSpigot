@@ -1,14 +1,14 @@
-From b987ab018a0b5003373c563c9faf6b31bf57a552 Mon Sep 17 00:00:00 2001
+From bd5adc709161bcf58b928630091fb122980ad2cd Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 294615858..6717ad87c 100644
+index f690aaa1..da6b7b29 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -136,6 +136,7 @@ public abstract class World implements IBlockAccess {
+@@ -138,6 +138,7 @@ public abstract class World implements IBlockAccess {
      public final org.spigotmc.SpigotWorldConfig spigotConfig; // Spigot
  
      public final com.destroystokyo.paper.PaperWorldConfig paperConfig; // Paper
@@ -16,7 +16,7 @@ index 294615858..6717ad87c 100644
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Paper
      private boolean guardEntityList; // Spigot
-@@ -167,6 +168,7 @@ public abstract class World implements IBlockAccess {
+@@ -169,6 +170,7 @@ public abstract class World implements IBlockAccess {
      protected World(IDataManager idatamanager, WorldData worlddata, WorldProvider worldprovider, MethodProfiler methodprofiler, boolean flag, ChunkGenerator gen, org.bukkit.World.Environment env) {
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
          this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig(worlddata.getName(), this.spigotConfig); // Paper
@@ -26,7 +26,7 @@ index 294615858..6717ad87c 100644
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 new file mode 100644
-index 000000000..ce66b1c35
+index 00000000..ce66b1c3
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -0,0 +1,105 @@
@@ -137,7 +137,7 @@ index 000000000..ce66b1c35
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 new file mode 100644
-index 000000000..2bc587722
+index 00000000..2bc58772
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 @@ -0,0 +1,65 @@
@@ -207,10 +207,10 @@ index 000000000..2bc587722
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 9ef2e4a55..e39bd3477 100644
+index b42f4e9e..d2916f56 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -728,6 +728,7 @@ public final class CraftServer implements Server {
+@@ -734,6 +734,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
@@ -218,7 +218,7 @@ index 9ef2e4a55..e39bd3477 100644
          for (WorldServer world : console.worlds) {
              world.worldData.setDifficulty(difficulty);
              world.setSpawnFlags(monsters, animals);
-@@ -744,6 +745,7 @@ public final class CraftServer implements Server {
+@@ -750,6 +751,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperConfig.init(); // Paper
@@ -226,7 +226,7 @@ index 9ef2e4a55..e39bd3477 100644
          }
  
          Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
-@@ -1403,7 +1405,7 @@ public final class CraftServer implements Server {
+@@ -1418,7 +1420,7 @@ public final class CraftServer implements Server {
  
          for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
              result.add(getOfflinePlayer((GameProfile) entry.getKey()));
@@ -236,7 +236,7 @@ index 9ef2e4a55..e39bd3477 100644
          return result;
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index d3d848f8c..e83f4f570 100644
+index 21628e19..9f27e129 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -142,6 +142,14 @@ public class Main {
@@ -254,7 +254,7 @@ index d3d848f8c..e83f4f570 100644
              }
          };
  
-@@ -216,6 +224,7 @@ public class Main {
+@@ -218,6 +226,7 @@ public class Main {
                      }
                  }
  
@@ -263,5 +263,5 @@ index d3d848f8c..e83f4f570 100644
                  MinecraftServer.main(options);
              } catch (Throwable t) {
 -- 
-2.13.3
+2.14.2
 

@@ -7,7 +7,7 @@ basedir=`pwd`
 
 workdir=$basedir/Paper/work
 minecraftversion=$(cat Paper/work/BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
-decompiledir=$workdir/$minecraftversion
+decompiledir=$workdir/Minecraft/$minecraftversion
 
 export importedmcdev=""
 function import {

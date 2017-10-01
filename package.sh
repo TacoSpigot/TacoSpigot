@@ -3,7 +3,7 @@
 pushd Paper
 MINECRAFT_VERSION=$(cat work/BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
 popd
-VANILLA_JAR=Paper/work/$MINECRAFT_VERSION/$MINECRAFT_VERSION.jar
+VANILLA_JAR=Paper/work/Minecraft/$MINECRAFT_VERSION/$MINECRAFT_VERSION.jar
 
 VANILLA_URL="https://s3.amazonaws.com/Minecraft.Download/versions/$MINECRAFT_VERSION/minecraft_server.$MINECRAFT_VERSION.jar"
 
