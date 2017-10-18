@@ -1,0 +1,97 @@
+From 1b5f0e142d9dbf3b1583ef719f9f15c1a7ca65a5 Mon Sep 17 00:00:00 2001
+From: June <junehanabi@gmail.com>
+Date: Wed, 18 Oct 2017 04:44:21 -0500
+Subject: [PATCH] Allow -1 values in flow speeds to disable
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index 54d081fd..c1583584 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -428,4 +428,12 @@ public class PaperWorldConfig {
+         disableCreeperLingeringEffect = getBoolean("disable-creeper-lingering-effect", false);
+         log("Creeper lingering effect: " + disableCreeperLingeringEffect);
+     }
++    
++    // TacoSpigot start - Made exception to place with existing group
++    public int waterFlowSpeed;
++    private void waterFlowSpeed() {
++        waterFlowSpeed = getInt("water-flow-speed", 5);
++        log("Water flow speed: " + waterFlowSpeed);
++    }
++    // TacoSpigot end
+ }
+diff --git a/src/main/java/net/minecraft/server/BlockFlowing.java b/src/main/java/net/minecraft/server/BlockFlowing.java
+index ff90e08e..47ebcbe4 100644
+--- a/src/main/java/net/minecraft/server/BlockFlowing.java
++++ b/src/main/java/net/minecraft/server/BlockFlowing.java
+@@ -23,6 +23,12 @@ public class BlockFlowing extends BlockFluids {
+     }
+ 
+     public void b(World world, BlockPosition blockposition, IBlockData iblockdata, Random random) {
++        
++        // TacoSpigot start - don't flow if disabled
++        if (this.isFlowDisabled(world, world.getWorld().getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ()), blockposition))
++            return;
++        // TacoSpigot end
++        
+         int i = ((Integer) iblockdata.get(BlockFlowing.LEVEL)).intValue();
+         byte b0 = 1;
+ 
+@@ -155,6 +161,41 @@ public class BlockFlowing extends BlockFluids {
+         return source.getWorld().isChunkLoaded((source.getX() + face.getModX()) >> 4, (source.getZ() + face.getModZ()) >> 4);
+     }
+     // Paper end
++    
++    // TacoSpigot start - Allow disabling of specific flows with -1 values
++    private boolean isFlowDisabled(World world, org.bukkit.block.Block block, 
++            BlockPosition blockposition) {
++        
++        // Is lava disabled in nether?
++        if (this.material == Material.LAVA &&
++                world.worldProvider.isSkyMissing() &&
++                world.paperConfig.lavaFlowSpeedNether == -1)
++            return true;
++        
++        // Is lava disabled in overworld
++        if (this.material == Material.LAVA &&
++                !world.worldProvider.isSkyMissing() &&
++                world.paperConfig.lavaFlowSpeedNormal == -1)
++            return true;
++ 
++        // Is water disabled over lava
++        if (this.material == Material.WATER &&
++                (world.getType(blockposition.north(1)).getBlock().material == Material.LAVA ||
++                        world.getType(blockposition.south(1)).getBlock().material == Material.LAVA ||
++                        world.getType(blockposition.west(1)).getBlock().material == Material.LAVA ||
++                        world.getType(blockposition.east(1)).getBlock().material == Material.LAVA) &&
++                world.paperConfig.waterOverLavaFlowSpeed == -1) {
++            return true;
++        }
++        
++        // Is water disabled not over lava
++        if(this.material == Material.WATER &&
++                world.paperConfig.waterFlowSpeed == -1)
++            return true;
++        
++        return false;
++    }
++    // TacoSpigot end
+ 
+     private void flow(World world, BlockPosition blockposition, IBlockData iblockdata, int i) {
+         if (/*world.isLoaded(blockposition) &&*/ this.h(world, blockposition, iblockdata)) { // CraftBukkit - add isLoaded check // Paper - Already checked before we get here for isLoaded
+@@ -290,6 +331,11 @@ public class BlockFlowing extends BlockFluids {
+                         world.getType(blockposition.east(1)).getBlock().material == Material.LAVA)) {
+             return world.paperConfig.waterOverLavaFlowSpeed;
+         }
++        // TacoSpigot start - Allow water speed not over lava
++        else if (this.material == Material.WATER)
++            return world.paperConfig.waterFlowSpeed;
++        // TacoSpigot end
++        
+         return super.a(world);
+     }
+ 
+-- 
+2.14.2
+
