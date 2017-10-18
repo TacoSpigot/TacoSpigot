@@ -1,0 +1,206 @@
+From 637f23940adebea51668f343e569ea1da92cbac9 Mon Sep 17 00:00:00 2001
+From: June <junehanabi@gmail.com>
+Date: Wed, 18 Oct 2017 02:21:32 -0500
+Subject: [PATCH] Added biome replacement to the config file
+
+
+diff --git a/src/main/java/net/minecraft/server/Biomes.java b/src/main/java/net/minecraft/server/Biomes.java
+new file mode 100644
+index 00000000..59ad26d8
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/Biomes.java
+@@ -0,0 +1,152 @@
++package net.minecraft.server;
++
++import net.techcable.tacospigot.TacoSpigotConfig;
++
++public abstract class Biomes {
++
++    public static final BiomeBase a;
++    public static final BiomeBase b;
++    public static final BiomeBase c;
++    public static final BiomeBase d;
++    public static final BiomeBase e;
++    public static final BiomeBase f;
++    public static final BiomeBase g;
++    public static final BiomeBase h;
++    public static final BiomeBase i;
++    public static final BiomeBase j;
++    public static final BiomeBase k;
++    public static final BiomeBase l;
++    public static final BiomeBase m;
++    public static final BiomeBase n;
++    public static final BiomeBase o;
++    public static final BiomeBase p;
++    public static final BiomeBase q;
++    public static final BiomeBase r;
++    public static final BiomeBase s;
++    public static final BiomeBase t;
++    public static final BiomeBase u;
++    public static final BiomeBase v;
++    public static final BiomeBase w;
++    public static final BiomeBase x;
++    public static final BiomeBase y;
++    public static final BiomeBase z;
++    public static final BiomeBase A;
++    public static final BiomeBase B;
++    public static final BiomeBase C;
++    public static final BiomeBase D;
++    public static final BiomeBase E;
++    public static final BiomeBase F;
++    public static final BiomeBase G;
++    public static final BiomeBase H;
++    public static final BiomeBase I;
++    public static final BiomeBase J;
++    public static final BiomeBase K;
++    public static final BiomeBase L;
++    public static final BiomeBase M;
++    public static final BiomeBase N;
++    public static final BiomeBase O;
++    public static final BiomeBase P;
++    public static final BiomeBase Q;
++    public static final BiomeBase R;
++    public static final BiomeBase S;
++    public static final BiomeBase T;
++    public static final BiomeBase U;
++    public static final BiomeBase V;
++    public static final BiomeBase W;
++    public static final BiomeBase X;
++    public static final BiomeBase Y;
++    public static final BiomeBase Z;
++    public static final BiomeBase aa;
++    public static final BiomeBase ab;
++    public static final BiomeBase ac;
++    public static final BiomeBase ad;
++    public static final BiomeBase ae;
++    public static final BiomeBase af;
++    public static final BiomeBase ag;
++    public static final BiomeBase ah;
++    public static final BiomeBase ai;
++    public static final BiomeBase aj;
++    public static final BiomeBase ak;
++
++    private static BiomeBase a(String s) {
++        BiomeBase biomebase = (BiomeBase) BiomeBase.REGISTRY_ID.get(new MinecraftKey(s));
++
++        if (biomebase == null) {
++            throw new IllegalStateException("Invalid Biome requested: " + s);
++        } else {
++            return biomebase;
++        }
++    }
++
++    static {
++        if (!DispenserRegistry.a()) {
++            throw new RuntimeException("Accessed Biomes before Bootstrap!");
++        } else {
++            // TacoSpigot start - Biome Replacement from config
++            a = a(TacoSpigotConfig.biomeReplacement.getOrDefault("ocean", "ocean"));
++            b = Biomes.a;
++            c = a(TacoSpigotConfig.biomeReplacement.getOrDefault("plains", "plains"));
++            d = a(TacoSpigotConfig.biomeReplacement.getOrDefault("desert", "desert"));
++            e = a(TacoSpigotConfig.biomeReplacement.getOrDefault("extreme_hills", "extreme_hills"));
++            f = a(TacoSpigotConfig.biomeReplacement.getOrDefault("forest", "forest"));
++            g = a(TacoSpigotConfig.biomeReplacement.getOrDefault("taiga", "taiga"));
++            h = a(TacoSpigotConfig.biomeReplacement.getOrDefault("swampland", "swampland"));
++            i = a(TacoSpigotConfig.biomeReplacement.getOrDefault("river", "river"));
++            j = a(TacoSpigotConfig.biomeReplacement.getOrDefault("hell", "hell"));
++            k = a(TacoSpigotConfig.biomeReplacement.getOrDefault("sky", "sky"));
++            l = a(TacoSpigotConfig.biomeReplacement.getOrDefault("frozen_ocean", "frozen_ocean"));
++            m = a(TacoSpigotConfig.biomeReplacement.getOrDefault("frozen_river", "frozen_river"));
++            n = a(TacoSpigotConfig.biomeReplacement.getOrDefault("ice_flats", "ice_flats"));
++            o = a(TacoSpigotConfig.biomeReplacement.getOrDefault("ice_mountains", "ice_mountains"));
++            p = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mushroom_island", "mushroom_island"));
++            q = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mushroom_island_shore", "mushroom_island_shore"));
++            r = a(TacoSpigotConfig.biomeReplacement.getOrDefault("beaches", "beaches"));
++            s = a(TacoSpigotConfig.biomeReplacement.getOrDefault("desert_hills", "desert_hills"));
++            t = a(TacoSpigotConfig.biomeReplacement.getOrDefault("forest_hills", "forest_hills"));
++            u = a(TacoSpigotConfig.biomeReplacement.getOrDefault("taiga_hills", "taiga_hills"));
++            v = a(TacoSpigotConfig.biomeReplacement.getOrDefault("smaller_extreme_hills", "smaller_extreme_hills"));
++            w = a(TacoSpigotConfig.biomeReplacement.getOrDefault("jungle", "jungle"));
++            x = a(TacoSpigotConfig.biomeReplacement.getOrDefault("jungle_hills", "jungle_hills"));
++            y = a(TacoSpigotConfig.biomeReplacement.getOrDefault("jungle_edge", "jungle_edge"));
++            z = a(TacoSpigotConfig.biomeReplacement.getOrDefault("deep_ocean", "deep_ocean"));
++            A = a(TacoSpigotConfig.biomeReplacement.getOrDefault("stone_beach", "stone_beach"));
++            B = a(TacoSpigotConfig.biomeReplacement.getOrDefault("cold_beach", "cold_beach"));
++            C = a(TacoSpigotConfig.biomeReplacement.getOrDefault("birch_forest", "birch_forest"));
++            D = a(TacoSpigotConfig.biomeReplacement.getOrDefault("birch_forest_hills", "birch_forest_hills"));
++            E = a(TacoSpigotConfig.biomeReplacement.getOrDefault("roofed_forest", "roofed_forest"));
++            F = a(TacoSpigotConfig.biomeReplacement.getOrDefault("taiga_cold", "taiga_cold"));
++            G = a(TacoSpigotConfig.biomeReplacement.getOrDefault("taiga_cold_hills", "taiga_cold_hills"));
++            H = a(TacoSpigotConfig.biomeReplacement.getOrDefault("redwood_taiga", "redwood_taiga"));
++            I = a(TacoSpigotConfig.biomeReplacement.getOrDefault("redwood_taiga_hills", "redwood_taiga_hills"));
++            J = a(TacoSpigotConfig.biomeReplacement.getOrDefault("extreme_hills_with_trees", "extreme_hills_with_trees"));
++            K = a(TacoSpigotConfig.biomeReplacement.getOrDefault("savanna", "savanna"));
++            L = a(TacoSpigotConfig.biomeReplacement.getOrDefault("savanna_rock", "savanna_rock"));
++            M = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mesa", "mesa"));
++            N = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mesa_rock", "mesa_rock"));
++            O = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mesa_clear_rock", "mesa_clear_rock"));
++            P = a(TacoSpigotConfig.biomeReplacement.getOrDefault("void", "void"));
++            Q = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_plains", "mutated_plains"));
++            R = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_desert", "mutated_desert"));
++            S = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_extreme_hills", "mutated_extreme_hills"));
++            T = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_forest", "mutated_forest"));
++            U = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_taiga", "mutated_taiga"));
++            V = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_swampland", "mutated_swampland"));
++            W = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_ice_flats", "mutated_ice_flats"));
++            X = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_jungle", "mutated_jungle"));
++            Y = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_jungle_edge", "mutated_jungle_edge"));
++            Z = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_birch_forest", "mutated_birch_forest"));
++            aa = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_birch_forest_hills", "mutated_birch_forest_hills"));
++            ab = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_roofed_forest", "mutated_roofed_forest"));
++            ac = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_taiga_cold", "mutated_taiga_cold"));
++            ad = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_redwood_taiga", "mutated_redwood_taiga"));
++            ae = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_redwood_taiga_hills", "mutated_redwood_taiga_hills"));
++            af = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_extreme_hills_with_trees", "mutated_extreme_hills_with_trees"));
++            ag = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_savanna", "mutated_savanna"));
++            ah = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_savanna_rock", "mutated_savanna_rock"));
++            ai = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_mesa", "mutated_mesa"));
++            aj = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_mesa_rock", "mutated_mesa_rock"));
++            ak = a(TacoSpigotConfig.biomeReplacement.getOrDefault("mutated_mesa_clear_rock", "mutated_mesa_clear_rock"));
++            // TacoSpigot end
++        }
++    }
++}
+diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
+index 300d5066..da270b1d 100644
+--- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
++++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
+@@ -13,6 +13,10 @@ import org.bukkit.configuration.InvalidConfigurationException;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ 
+ import com.google.common.base.Throwables;
++import java.util.Arrays;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.Map;
+ 
+ public class TacoSpigotConfig {
+ 
+@@ -117,5 +121,22 @@ public class TacoSpigotConfig {
+     private static void disableDataWatcherReadLocking() {
+         disableDataWatcherReadLocking = getBoolean("disableDataWatcherReadLocking", false);
+     }
+-
++    
++    // Allow built-in biome replacement
++    public static Map<String,String> biomeReplacement = new HashMap<String, String>();
++    private static void biomeReplacement() {
++        List<String> biomes = getList("biomeReplacement", Arrays.asList(new String[]{}));
++        
++        // Stop here if list is empty
++        if(biomes.isEmpty())
++            return;
++        
++        for(String biome : biomes) {
++            String[] keyValue = biome.split(":");
++            if(keyValue.length != 2)
++                continue; // Ignore, should be exactly 2 elements
++            
++            biomeReplacement.put(keyValue[0].toLowerCase().trim(), keyValue[1].toLowerCase().trim());
++        }
++    }
+ }
+-- 
+2.14.2
+
