@@ -1,4 +1,4 @@
-From 5461d0f060b72099ba3fac9ce077e7aaa0033dac Mon Sep 17 00:00:00 2001
+From 58e13b834f4c78b25e51f7afeb4f158929c23dcf Mon Sep 17 00:00:00 2001
 From: Aikar <aikar@aikar.co>
 Date: Wed, 30 Mar 2016 02:13:24 -0400
 Subject: [PATCH] Use Fastutil Collections
@@ -15,23 +15,23 @@ These collections are super fast as seen
 http://java-performance.info/hashmap-overview-jdk-fastutil-goldman-sachs-hppc-koloboke-trove-january-2015/
 
 diff --git a/pom.xml b/pom.xml
-index 286b9c8..d116fa4 100644
+index 286b9c88..d116fa45 100644
 --- a/pom.xml
 +++ b/pom.xml
-@@ -35,6 +35,11 @@
+@@ -34,6 +34,11 @@
+             <artifactId>trove4j</artifactId>
              <version>3.0.3</version>
          </dependency>
-         <dependency>
++        <dependency>
 +            <groupId>it.unimi.dsi</groupId>
 +            <artifactId>fastutil</artifactId>
 +            <version>7.0.12</version>
 +        </dependency>
-+        <dependency>
+         <dependency>
              <groupId>net.techcable.tacospigot</groupId>
              <artifactId>api</artifactId>
-             <version>${project.version}</version>
 diff --git a/src/main/java/net/minecraft/server/ChunkProviderServer.java b/src/main/java/net/minecraft/server/ChunkProviderServer.java
-index 0e6a37f..9753401 100644
+index 0e6a37f7..9753401b 100644
 --- a/src/main/java/net/minecraft/server/ChunkProviderServer.java
 +++ b/src/main/java/net/minecraft/server/ChunkProviderServer.java
 @@ -22,16 +22,23 @@ import org.bukkit.craftbukkit.util.LongHashSet;
@@ -112,7 +112,7 @@ index 0e6a37f..9753401 100644
                  if (chunk == null) continue;
  
 diff --git a/src/main/java/net/minecraft/server/DataWatcher.java b/src/main/java/net/minecraft/server/DataWatcher.java
-index dec091e..1fbbfaa 100644
+index dec091e7..1fbbfaae 100644
 --- a/src/main/java/net/minecraft/server/DataWatcher.java
 +++ b/src/main/java/net/minecraft/server/DataWatcher.java
 @@ -10,17 +10,26 @@ import java.util.Map;
@@ -174,7 +174,7 @@ index dec091e..1fbbfaa 100644
          for ( int i = 0; i < arraylist.size(); i++ )
          {
 diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
-index 8752955..40a066c 100644
+index 87529552..40a066ca 100644
 --- a/src/main/java/net/minecraft/server/WorldServer.java
 +++ b/src/main/java/net/minecraft/server/WorldServer.java
 @@ -402,7 +402,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
@@ -187,7 +187,7 @@ index 8752955..40a066c 100644
                      iter.remove();
                      continue;
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 72c0b17..958fe4f 100644
+index 72c0b177..958fe4ff 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -218,7 +218,7 @@ public class CraftWorld implements World {
@@ -227,5 +227,5 @@ index 72c0b17..958fe4f 100644
              }
  
 -- 
-2.8.3
+2.14.3
 

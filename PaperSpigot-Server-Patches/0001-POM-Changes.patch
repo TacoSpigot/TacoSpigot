@@ -1,4 +1,4 @@
-From 22c3980575292da4da4ff7c66387323a43008401 Mon Sep 17 00:00:00 2001
+From 3156e9a366520d1e7ccd4545db46d595dac3bcad Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Thu, 19 Mar 2015 19:41:15 -0500
 Subject: [PATCH] POM Changes
@@ -6,7 +6,7 @@ Subject: [PATCH] POM Changes
 Use java 8
 
 diff --git a/pom.xml b/pom.xml
-index 6aaba50..286b9c8 100644
+index 6aaba502..286b9c88 100644
 --- a/pom.xml
 +++ b/pom.xml
 @@ -1,12 +1,12 @@
@@ -49,18 +49,18 @@ index 6aaba50..286b9c8 100644
              <version>${project.version}</version>
              <type>jar</type>
              <scope>compile</scope>
-@@ -84,6 +84,11 @@
+@@ -83,6 +83,11 @@
+             <version>${junit.version}</version>
              <scope>test</scope>
          </dependency>
-         <dependency>
++        <dependency>
 +            <groupId>org.mockito</groupId>
 +            <artifactId>mockito-core</artifactId>
 +            <version>1.10.19</version>
 +        </dependency>
-+        <dependency>
+         <dependency>
              <groupId>org.hamcrest</groupId>
              <artifactId>hamcrest-library</artifactId>
-             <version>1.3</version>
 @@ -113,7 +118,7 @@
              <artifactId>gitdescribe-maven-plugin</artifactId>
              <version>1.3</version>
@@ -71,7 +71,7 @@ index 6aaba50..286b9c8 100644
              </configuration>
              <executions>
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index c936219..5def35a 100644
+index c9362191..5def35a3 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -10,6 +10,9 @@ import java.util.logging.Logger;
@@ -99,7 +99,7 @@ index c936219..5def35a 100644
          OptionParser parser = new OptionParser() {
              {
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
-index 3a4b142..6549e73 100644
+index 3a4b1424..6549e73b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 +++ b/src/main/java/org/bukkit/craftbukkit/util/Versioning.java
 @@ -11,7 +11,7 @@ public final class Versioning {
@@ -112,5 +112,5 @@ index 3a4b142..6549e73 100644
  
          if (stream != null) {
 -- 
-2.7.1
+2.14.3
 
