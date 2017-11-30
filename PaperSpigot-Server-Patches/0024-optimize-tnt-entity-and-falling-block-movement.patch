@@ -1,36 +1,48 @@
-From b6b625a5bb4aeffd73c1559275af4695e711dc2b Mon Sep 17 00:00:00 2001
+From af5960c7f755434cd20925c847d208a39a9ed099 Mon Sep 17 00:00:00 2001
 From: nirmal <upwardshybriding@gmail.com>
 Date: Wed, 29 Nov 2017 22:14:32 -0500
 Subject: [PATCH] optimize tnt entity and falling block movement
 
 
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 2da303f..b32ffa9 100644
+index 2da303f..884eca8 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
-@@ -515,7 +515,7 @@ public abstract class Entity implements ICommandListener {
+@@ -515,7 +515,15 @@ public abstract class Entity implements ICommandListener {
                  }
              }
  
 -            List list = this.world.getCubes(this, this.getBoundingBox().a(d0, d1, d2));
-+            List list = this.world.getCubes(this, this.getBoundingBox().a(0, d1, 0)); // TacoSpigot - get y axis blocks
++            boolean axisScan = d0 * d1 * d2 > 25; // TacoSpigot - do axis by axis scan if the entity is travelling a large area
++
++            List list;
++            if(axisScan) {
++                list = this.world.getCubes(this, this.getBoundingBox().a(0, d1, 0)); // TacoSpigot - get y axis blocks
++            } else {
++                list = this.world.getCubes(this, this.getBoundingBox().a(d0, d1, d2));
++            }
++
              AxisAlignedBB axisalignedbb = this.getBoundingBox();
  
              AxisAlignedBB axisalignedbb1;
-@@ -527,6 +527,8 @@ public abstract class Entity implements ICommandListener {
+@@ -527,6 +535,10 @@ public abstract class Entity implements ICommandListener {
              this.a(this.getBoundingBox().c(0.0D, d1, 0.0D));
              boolean flag1 = this.onGround || d7 != d1 && d7 < 0.0D;
  
-+            list = this.world.getCubes(this, this.getBoundingBox().a(d0, 0, 0)); // TacoSpigot - get x axis blocks
++            if(axisScan) {
++                list = this.world.getCubes(this, this.getBoundingBox().a(d0, 0, 0)); // TacoSpigot - get x axis blocks
++            }
 +
              AxisAlignedBB axisalignedbb2;
              Iterator iterator1;
  
-@@ -536,6 +538,8 @@ public abstract class Entity implements ICommandListener {
+@@ -536,6 +548,10 @@ public abstract class Entity implements ICommandListener {
  
              this.a(this.getBoundingBox().c(d0, 0.0D, 0.0D));
  
-+            list = this.world.getCubes(this, this.getBoundingBox().a(0, 0, d2)); // TacoSpigot - get z axis blocks
++            if(axisScan) {
++                list = this.world.getCubes(this, this.getBoundingBox().a(0, 0, d2)); // TacoSpigot - get z axis blocks
++            }
 +
              for (iterator1 = list.iterator(); iterator1.hasNext(); d2 = axisalignedbb2.c(this.getBoundingBox(), d2)) {
                  axisalignedbb2 = (AxisAlignedBB) iterator1.next();
