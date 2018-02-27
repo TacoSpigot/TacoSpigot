@@ -1,11 +1,11 @@
-From 0d727c41620681c443516a513702cd8fa2bc4d6d Mon Sep 17 00:00:00 2001
+From 80c0e0bdbb9b0f7434c1e2c29e8fd524ad7345c9 Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index 00fe92fa..fda9dffc 100644
+index e983831b..962f0440 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
 @@ -22,6 +22,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
@@ -27,7 +27,7 @@ index 00fe92fa..fda9dffc 100644
      public boolean affectsSpawning = true;
  
      // CraftBukkit start
-@@ -1922,11 +1927,25 @@ public abstract class EntityHuman extends EntityLiving {
+@@ -1931,11 +1936,25 @@ public abstract class EntityHuman extends EntityLiving {
      }
  
      public float n(float f) {
@@ -55,10 +55,10 @@ index 00fe92fa..fda9dffc 100644
  
      public ItemCooldown getCooldownTracker() {
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 37a59de5..52928c4a 100644
+index 35774f8b..bd35dbb9 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -502,6 +502,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+@@ -509,6 +509,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
                      this.syncPosition();
                  }
  
@@ -82,5 +82,5 @@ index b7699d8c..22c6009a 100644
 +    }
  }
 -- 
-2.14.2
+2.16.2
 
