@@ -1,11 +1,11 @@
-From 77eafdc87fb649505b5f77633586895c62f2a12e Mon Sep 17 00:00:00 2001
+From 1c0054d71f36cf78a0642ef509d776dba1544f26 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 072b1201..ad538536 100644
+index 9f5388ed..5c52633f 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -141,6 +141,7 @@ public abstract class World implements IBlockAccess {
@@ -207,10 +207,10 @@ index 00000000..2bc58772
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 09eb7943..90b8419f 100644
+index 090a4d2f..5456046c 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -732,6 +732,7 @@ public final class CraftServer implements Server {
+@@ -735,6 +735,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
@@ -218,7 +218,7 @@ index 09eb7943..90b8419f 100644
          for (WorldServer world : console.worlds) {
              world.worldData.setDifficulty(difficulty);
              world.setSpawnFlags(monsters, animals);
-@@ -748,6 +749,7 @@ public final class CraftServer implements Server {
+@@ -751,6 +752,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperConfig.init(); // Paper
@@ -226,7 +226,7 @@ index 09eb7943..90b8419f 100644
          }
  
          Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
-@@ -1416,7 +1418,7 @@ public final class CraftServer implements Server {
+@@ -1419,7 +1421,7 @@ public final class CraftServer implements Server {
  
          for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
              result.add(getOfflinePlayer((GameProfile) entry.getKey()));

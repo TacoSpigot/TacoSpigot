@@ -1,4 +1,4 @@
-From c967022339574936c281f5bf6aa317042fad5473 Mon Sep 17 00:00:00 2001
+From 15faec3adce1e9a2a205a94387b68d9d63fd286b Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -9,7 +9,7 @@ This data structure is usualy faster than a hashmap (especially when using the l
 Should help with redstone.
 
 diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
-index 60703c62..0b370d82 100644
+index 1d626ce2..02c5339f 100644
 --- a/src/main/java/net/minecraft/server/BlockState.java
 +++ b/src/main/java/net/minecraft/server/BlockState.java
 @@ -2,14 +2,60 @@ package net.minecraft.server;
@@ -74,13 +74,21 @@ index 60703c62..0b370d82 100644
  
      public String a() {
 diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
-index 5b193f48..0a2aa9b5 100644
+index 02b4956e..63e592ac 100644
 --- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
 +++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
-@@ -40,6 +40,25 @@ public class BlockStateBoolean extends BlockState<Boolean> {
-         }
-     }
+@@ -42,6 +42,7 @@ public class BlockStateBoolean extends BlockState<Boolean> {
  
+     // Spigot start
+     private int hashCode;
++
+     public int hashCode() {
+         int hash = hashCode;
+         if (hash == 0) {
+@@ -51,4 +52,22 @@ public class BlockStateBoolean extends BlockState<Boolean> {
+         return hash;
+     }
+     // Spigot end
 +    // TacoSpigot start
 +    @Override
 +    public int getValueId(Boolean value) {
@@ -99,12 +107,9 @@ index 5b193f48..0a2aa9b5 100644
 +        }
 +    }
 +    // TacoSpigot end
-+
-     public int hashCode() {
-         return 31 * super.hashCode() + this.a.hashCode();
-     }
+ }
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index 9f43b2bb..af448621 100644
+index 2118587e..d12c5456 100644
 --- a/src/main/java/net/minecraft/server/BlockStateEnum.java
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
 @@ -43,7 +43,6 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
@@ -140,7 +145,7 @@ index 9f43b2bb..af448621 100644
      public boolean equals(Object object) {
         return this == object;
 diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
-index 2b7870ea..7f05581a 100644
+index 403fa144..b6e144e8 100644
 --- a/src/main/java/net/minecraft/server/BlockStateInteger.java
 +++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
 @@ -9,9 +9,40 @@ import java.util.HashSet;
@@ -683,5 +688,5 @@ index 00000000..179d0685
 +    }
 +}
 -- 
-2.13.1
+2.16.2
 

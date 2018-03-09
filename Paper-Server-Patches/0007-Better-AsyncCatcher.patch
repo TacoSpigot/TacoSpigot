@@ -1,4 +1,4 @@
-From 751756d4c9e38623aa47b0155a67a2cc60a72f5d Mon Sep 17 00:00:00 2001
+From 973ab605e764629288e49712172be0a4130aff01 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Fri, 18 Mar 2016 13:56:01 -0700
 Subject: [PATCH] Better AsyncCatcher
@@ -6,7 +6,7 @@ Subject: [PATCH] Better AsyncCatcher
 Async catching for PlayerChunkMap
 
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index d3c454cb5..e26005a0c 100644
+index 99652ae3..727cf319 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
 @@ -19,6 +19,9 @@ import javax.annotation.Nullable;
@@ -40,7 +40,7 @@ index d3c454cb5..e26005a0c 100644
      private long k;
      private boolean l = true;
 diff --git a/src/main/java/org/spigotmc/AsyncCatcher.java b/src/main/java/org/spigotmc/AsyncCatcher.java
-index 4b3aa85c9..8a5159fdf 100644
+index e44c2301..26a72ada 100644
 --- a/src/main/java/org/spigotmc/AsyncCatcher.java
 +++ b/src/main/java/org/spigotmc/AsyncCatcher.java
 @@ -1,6 +1,13 @@
@@ -57,7 +57,7 @@ index 4b3aa85c9..8a5159fdf 100644
  
  public class AsyncCatcher
  {
-@@ -11,7 +18,30 @@ public class AsyncCatcher
+@@ -12,7 +19,30 @@ public class AsyncCatcher
      {
          if ( enabled && Thread.currentThread() != MinecraftServer.getServer().primaryThread )
          {
@@ -90,5 +90,5 @@ index 4b3aa85c9..8a5159fdf 100644
 +    // TacoSpigot end
  }
 -- 
-2.11.0
+2.16.2
 
