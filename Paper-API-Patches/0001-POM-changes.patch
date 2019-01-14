@@ -8,7 +8,7 @@ diff --git a/pom.xml b/pom.xml
 index b83c6eb1..8fd5d4c0 100644
 --- a/pom.xml
 +++ b/pom.xml
-@@ -4,18 +4,18 @@
+@@ -4,16 +4,16 @@
      <modelVersion>4.0.0</modelVersion>
  
      <parent>
@@ -18,12 +18,10 @@ index b83c6eb1..8fd5d4c0 100644
 +        <artifactId>parent</artifactId>
          <version>dev-SNAPSHOT</version>
      </parent>
- 
--    <groupId>com.destroystokyo.paper</groupId>
+
 -    <artifactId>paper-api</artifactId>
-+    <groupId>net.techcable.tacospigot</groupId>
 +    <artifactId>tacospigot-api</artifactId>
-     <version>1.12.2-R0.1-SNAPSHOT</version>
+     <version>1.13.2-R0.1-SNAPSHOT</version>
      <packaging>jar</packaging>
  
 -    <name>Paper-API</name>

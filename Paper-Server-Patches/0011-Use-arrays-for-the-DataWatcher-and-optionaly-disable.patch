@@ -38,24 +38,6 @@ index 820c15278..ac728575b 100644
      private boolean f = true;
      private boolean g;
  
-@@ -89,7 +96,7 @@ public class DataWatcher {
-         DataWatcher.Item datawatcher_item = new DataWatcher.Item(datawatcherobject, t0);
- 
-         this.e.writeLock().lock();
--        this.d.put(Integer.valueOf(datawatcherobject.a()), datawatcher_item);
-+        this.d.put(datawatcherobject.a(), datawatcher_item); // TacoSpigot - primitives
-         this.f = false;
-         this.e.writeLock().unlock();
-     }
-@@ -100,7 +107,7 @@ public class DataWatcher {
-         DataWatcher.Item datawatcher_item;
- 
-         try {
--            datawatcher_item = (DataWatcher.Item) this.d.get(Integer.valueOf(datawatcherobject.a()));
-+            datawatcher_item = (DataWatcher.Item) this.d.get(datawatcherobject.a()); // TacoSpigot - use primitives
-         } catch (Throwable throwable) {
-             CrashReport crashreport = CrashReport.a(throwable, "Getting synched entity data");
-             CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Synched entity data");
 diff --git a/src/main/java/net/techcable/tacospigot/ArrayMap.java b/src/main/java/net/techcable/tacospigot/ArrayMap.java
 new file mode 100644
 index 000000000..36c9fd252

@@ -19,14 +19,14 @@ index 99652ae3..727cf319 100644
  
  public class PlayerChunkMap {
  
-@@ -41,12 +44,14 @@ public class PlayerChunkMap {
-         }
-     };
+@@ -27,12 +30,14 @@ public class PlayerChunkMap {
+         return entityplayer != null && (!entityplayer.isSpectator() || entityplayer.getWorldServer().getGameRules().getBoolean("spectatorsGenerateChunks"));
+     }; static final Predicate<EntityPlayer> CAN_GEN_CHUNKS = b; // Paper - OBFHELPER
      private final WorldServer world;
 -    private final List<EntityPlayer> managedPlayers = Lists.newArrayList();
 +    // TacoSpigot start - catch async access
 +    private final List<EntityPlayer> managedPlayers = AsyncCatcher.catchAsyncUsage(Lists.newArrayList(), "list access PlayerChunkMap.managedPlayers");
-     private final Long2ObjectMap<PlayerChunk> e = new Long2ObjectOpenHashMap(4096);
+     private final Long2ObjectMap<PlayerChunk> e = new Long2ObjectOpenHashMap(4096); Long2ObjectMap<PlayerChunk> getChunks() { return e; } // Paper - OBFHELPER
 -    private final Set<PlayerChunk> f = Sets.newHashSet();
 -    private final List<PlayerChunk> g = Lists.newLinkedList();
 -    private final List<PlayerChunk> h = Lists.newLinkedList();

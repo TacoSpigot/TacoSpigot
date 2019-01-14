@@ -8,15 +8,15 @@ diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/m
 index 9f5388ed..5c52633f 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -141,6 +141,7 @@ public abstract class World implements IBlockAccess {
+@@ -160,6 +160,7 @@ public abstract class World implements IBlockAccess {
  
      public final com.destroystokyo.paper.PaperWorldConfig paperConfig; // Paper
      public final ChunkPacketBlockController chunkPacketBlockController; // Paper - Anti-Xray
 +    public final net.techcable.tacospigot.TacoSpigotWorldConfig tacoSpigotConfig; // TacoSpigot
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Paper
-     private boolean guardEntityList; // Spigot
-@@ -173,6 +174,7 @@ public abstract class World implements IBlockAccess {
+     public boolean guardEntityList; // Spigot // Paper - public
+@@ -186,6 +187,7 @@ public abstract class World implements IBlockAccess {
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
          this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig(worlddata.getName(), this.spigotConfig); // Paper
          this.chunkPacketBlockController = this.paperConfig.antiXray ? new ChunkPacketBlockControllerAntiXray(this.paperConfig) : ChunkPacketBlockController.NO_OPERATION_INSTANCE; // Paper - Anti-Xray
@@ -210,15 +210,15 @@ diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/ja
 index 80702f6f..434dfff8 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -743,6 +743,7 @@ public final class CraftServer implements Server {
+@@ -791,6 +791,7 @@ public final class CraftServer implements Server {
  
          org.spigotmc.SpigotConfig.init((File) console.options.valueOf("spigot-settings")); // Spigot
          com.destroystokyo.paper.PaperConfig.init((File) console.options.valueOf("paper-settings")); // Paper
 +        net.techcable.tacospigot.TacoSpigotConfig.init((File) console.options.valueOf("taco-settings")); // TacoSpigot
-         for (WorldServer world : console.worlds) {
+         for (WorldServer world : console.getWorlds()) {
              world.worldData.setDifficulty(difficulty);
              world.setSpawnFlags(monsters, animals);
-@@ -759,6 +760,7 @@ public final class CraftServer implements Server {
+@@ -807,6 +808,7 @@ public final class CraftServer implements Server {
              }
              world.spigotConfig.init(); // Spigot
              world.paperConfig.init(); // Paper
@@ -226,7 +226,7 @@ index 80702f6f..434dfff8 100644
          }
  
          Plugin[] pluginClone = pluginManager.getPlugins().clone(); // Paper
-@@ -1447,7 +1449,7 @@ public final class CraftServer implements Server {
+@@ -1521,7 +1523,7 @@ public final class CraftServer implements Server {
  
          for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
              result.add(getOfflinePlayer((GameProfile) entry.getKey()));
@@ -239,7 +239,7 @@ diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/
 index 21628e19..9f27e129 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
-@@ -142,6 +142,14 @@ public class Main {
+@@ -144,6 +144,14 @@ public class Main {
                          .defaultsTo("Unknown Server")
                          .describedAs("Name");
                  // Paper end
@@ -254,9 +254,9 @@ index 21628e19..9f27e129 100644
              }
          };
  
-@@ -218,6 +226,7 @@ public class Main {
-                     }
+@@ -239,6 +247,7 @@ public class Main {
                  }
+                 // Paper end
  
 +                net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // TacoSpigot - initalize before library loading so we can access while loading
                  System.out.println("Loading libraries, please wait...");

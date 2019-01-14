@@ -260,8 +260,8 @@ index c45faf4c..bfb4ef63 100644
 +import java.util.Objects;
  import java.util.Set;
  import java.util.concurrent.locks.ReentrantLock;
- import java.util.logging.Level;
-@@ -33,6 +34,12 @@ import java.io.InputStreamReader;
+ import org.json.simple.JSONObject;
+@@ -31,6 +32,12 @@ import java.io.InputStreamReader;
  import java.net.HttpURLConnection;
  import com.destroystokyo.paper.VersionHistoryManager;
  // Paper end
@@ -274,10 +274,10 @@ index c45faf4c..bfb4ef63 100644
  
  public class VersionCommand extends BukkitCommand {
      public VersionCommand(String name) {
-@@ -205,6 +212,24 @@ public class VersionCommand extends BukkitCommand {
+@@ -203,6 +210,24 @@ public class VersionCommand extends BukkitCommand {
          }
      }
- 
+
 +    // TacoSpigot start - Delegate to our version-checking logic
 +    private void obtainVersion() {
 +        try {
@@ -299,34 +299,34 @@ index c45faf4c..bfb4ef63 100644
      // Paper start
      private void obtainVersion() {
          String version = Bukkit.getVersion();
-@@ -242,6 +267,9 @@ public class VersionCommand extends BukkitCommand {
+@@ -240,6 +265,9 @@ public class VersionCommand extends BukkitCommand {
              setVersionMessage("Unknown version, custom build?");
          }
      }
 +    */
 +    // TacoSpigot end
 +
- 
+
      private void setVersionMessage(String msg) {
          lastCheck = System.currentTimeMillis();
-@@ -259,6 +287,8 @@ public class VersionCommand extends BukkitCommand {
+@@ -257,6 +285,8 @@ public class VersionCommand extends BukkitCommand {
          }
      }
- 
+
 +    // TacoSpigot start - remove Paper's check
 +    /*
      // Paper start
      private static int getDistance(String repo, String verInfo) {
          try {
-@@ -282,7 +312,6 @@ public class VersionCommand extends BukkitCommand {
+@@ -280,7 +310,6 @@ public class VersionCommand extends BukkitCommand {
              } finally {
                  reader.close();
              }
 -            */
      }
- 
+
      private static int getFromJenkins(int currentVer) {
-@@ -336,4 +365,6 @@ public class VersionCommand extends BukkitCommand {
+@@ -333,4 +362,6 @@ public class VersionCommand extends BukkitCommand {
          }
      }
      // Paper end
