@@ -19,7 +19,7 @@ if [[ "x$patch" == "x" ]]; then
 fi
 
 echo "Applying CraftBukkit patches to NMS..."
-cd "$basedir/work/CraftBukkit"
+cd "$workdir/CraftBukkit"
 ${gitcmd} checkout -B patched HEAD >/dev/null 2>&1
 rm -rf "$cb"
 mkdir -p "$cb"
