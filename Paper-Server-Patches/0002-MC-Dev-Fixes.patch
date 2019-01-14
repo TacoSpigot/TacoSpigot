@@ -1,4 +1,4 @@
-From eccb425149abe6997262ff353c20126d2ebaa6c8 Mon Sep 17 00:00:00 2001
+From e1112a0a7fa710e5689a7cd489ee6c01297a98fe Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Sun, 3 Apr 2016 14:05:27 -0700
 Subject: [PATCH] MC-Dev Fixes
@@ -6,13 +6,13 @@ Subject: [PATCH] MC-Dev Fixes
 Sometimes fernflower makes mistakes too
 
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index a7846b84..b666c099 100644
+index 47b528b0a..9e2c21627 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
-@@ -31,17 +31,13 @@
+@@ -31,17 +31,13 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
          List<A> list = Lists.newArrayList();
          Stream<List<Comparable<?>>> stream = Stream.of(Collections.emptyList());
-
+ 
 -        IBlockState iblockstate;
 -
 -        for (UnmodifiableIterator unmodifiableiterator = this.c.values().iterator(); unmodifiableiterator.hasNext();stream = stream.flatMap((list1) -> {
@@ -20,7 +20,7 @@ index a7846b84..b666c099 100644
 +        for (IBlockState<?> iblockstate : this.c.values()) {
 +            stream = stream.flatMap((list1) -> iblockstate.d().stream().map((comparable) -> {
                  List<Comparable<?>> list2 = Lists.newArrayList(list1);
-
+ 
                  list2.add(comparable);
                  return list2;
 -            });
@@ -28,54 +28,54 @@ index a7846b84..b666c099 100644
 -            iblockstate = (IBlockState) unmodifiableiterator.next();
 +            }));
          }
-
+ 
          stream.forEach((list1) -> {
-@@ -51,15 +47,15 @@
+@@ -51,15 +47,15 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
              map1.put(map2, a0);
              list.add(a0);
          });
 -        Iterator iterator = list.iterator();
 +        Iterator<A> iterator = list.iterator();
-
+ 
          while (iterator.hasNext()) {
 -            A a0 = (BlockDataAbstract) iterator.next();
 +            A a0 = iterator.next();
-
+ 
              a0.a((Map) map1);
          }
-
+ 
 -        this.d = ImmutableList.copyOf(list);
 +        this.d = ImmutableList.copyOf((Iterable<S>)list);
      }
-
+ 
      public ImmutableList<S> a() {
-@@ -67,7 +63,7 @@
+@@ -67,7 +63,7 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
      }
-
+ 
      public S getBlockData() {
 -        return (IBlockDataHolder) this.d.get(0);
 +        return this.d.get(0);
      }
-
+ 
      public O getBlock() {
-@@ -121,7 +117,7 @@
+@@ -121,7 +117,7 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
                  if (collection.size() <= 1) {
                      throw new IllegalArgumentException(this.a + " attempted use property " + s + " with <= 1 possible values");
                  } else {
 -                    Iterator iterator = collection.iterator();
 +                    Iterator<T> iterator = collection.iterator();
-
+ 
                      String s1;
-
-@@ -134,7 +130,7 @@
+ 
+@@ -134,7 +130,7 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
                              return;
                          }
-
+ 
 -                        T t0 = (Comparable) iterator.next();
 +                        T t0 = iterator.next();
-
+ 
                          s1 = iblockstate.a(t0);
                      } while (BlockStateList.a.matcher(s1).matches());
 -- 
-2.13.1
+2.15.1.windows.2
 

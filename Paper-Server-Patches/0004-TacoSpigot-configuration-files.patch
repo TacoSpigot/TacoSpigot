@@ -1,14 +1,14 @@
-From 272f3ba5e22196674af2c47f63f931de44d73d48 Mon Sep 17 00:00:00 2001
+From e85f39c8d6024e07704d6df2e540f2d400e9ec79 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@outlook.com>
 Date: Sun, 26 Jul 2015 16:50:26 -0700
 Subject: [PATCH] TacoSpigot configuration files
 
 
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 9f5388ed..5c52633f 100644
+index e11e22836..8b013dadb 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
-@@ -160,6 +160,7 @@ public abstract class World implements IBlockAccess {
+@@ -160,6 +160,7 @@ public abstract class World implements IEntityAccess, GeneratorAccess, IIBlockAc
  
      public final com.destroystokyo.paper.PaperWorldConfig paperConfig; // Paper
      public final ChunkPacketBlockController chunkPacketBlockController; // Paper - Anti-Xray
@@ -16,7 +16,7 @@ index 9f5388ed..5c52633f 100644
  
      public final co.aikar.timings.WorldTimingsHandler timings; // Paper
      public boolean guardEntityList; // Spigot // Paper - public
-@@ -186,6 +187,7 @@ public abstract class World implements IBlockAccess {
+@@ -186,6 +187,7 @@ public abstract class World implements IEntityAccess, GeneratorAccess, IIBlockAc
          this.spigotConfig = new org.spigotmc.SpigotWorldConfig( worlddata.getName() ); // Spigot
          this.paperConfig = new com.destroystokyo.paper.PaperWorldConfig(worlddata.getName(), this.spigotConfig); // Paper
          this.chunkPacketBlockController = this.paperConfig.antiXray ? new ChunkPacketBlockControllerAntiXray(this.paperConfig) : ChunkPacketBlockController.NO_OPERATION_INSTANCE; // Paper - Anti-Xray
@@ -26,7 +26,7 @@ index 9f5388ed..5c52633f 100644
          this.ticksPerAnimalSpawns = this.getServer().getTicksPerAnimalSpawns(); // CraftBukkit
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 new file mode 100644
-index 00000000..ce66b1c3
+index 000000000..ce66b1c35
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -0,0 +1,105 @@
@@ -137,7 +137,7 @@ index 00000000..ce66b1c3
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 new file mode 100644
-index 00000000..2bc58772
+index 000000000..2bc587722
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotWorldConfig.java
 @@ -0,0 +1,65 @@
@@ -207,7 +207,7 @@ index 00000000..2bc58772
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 80702f6f..434dfff8 100644
+index 92c429dde..7727e0952 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -791,6 +791,7 @@ public final class CraftServer implements Server {
@@ -236,7 +236,7 @@ index 80702f6f..434dfff8 100644
          return result;
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
-index 21628e19..9f27e129 100644
+index c9a6b5afb..3252dda0a 100644
 --- a/src/main/java/org/bukkit/craftbukkit/Main.java
 +++ b/src/main/java/org/bukkit/craftbukkit/Main.java
 @@ -144,6 +144,14 @@ public class Main {
@@ -263,5 +263,5 @@ index 21628e19..9f27e129 100644
                  MinecraftServer.main(options);
              } catch (Throwable t) {
 -- 
-2.17.0
+2.15.1.windows.2
 

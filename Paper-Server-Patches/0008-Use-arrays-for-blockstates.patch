@@ -1,4 +1,4 @@
-From 15faec3adce1e9a2a205a94387b68d9d63fd286b Mon Sep 17 00:00:00 2001
+From 16920e397ef785fb38a3544d5fa54ffd8a5423f4 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -9,7 +9,7 @@ This data structure is usualy faster than a hashmap (especially when using the l
 Should help with redstone.
 
 diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
-index 1d626ce2..02c5339f 100644
+index d95c0955a..7f18997db 100644
 --- a/src/main/java/net/minecraft/server/BlockState.java
 +++ b/src/main/java/net/minecraft/server/BlockState.java
 @@ -2,15 +2,61 @@ package net.minecraft.server;
@@ -75,7 +75,7 @@ index 1d626ce2..02c5339f 100644
  
      public String a() {
 diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
-index 02b4956e..63e592ac 100644
+index 4c1d39d67..9c2dc5893 100644
 --- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
 +++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
 @@ -43,4 +43,22 @@ public class BlockStateBoolean extends BlockState<Boolean> {
@@ -102,7 +102,7 @@ index 02b4956e..63e592ac 100644
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index 2118587e..d12c5456 100644
+index 259da0aa0..cbe36b8d7 100644
 --- a/src/main/java/net/minecraft/server/BlockStateEnum.java
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
 @@ -44,7 +44,6 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
@@ -136,15 +136,12 @@ index 2118587e..d12c5456 100644
 +
      @Override // Paper start - override equals as BlockStateEnum is a singleton
      public boolean equals(Object object) {
-        return this == object;
+         return this == object;
 diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
-index 403fa144..b6e144e8 100644
+index 2f12e15e0..9fd2fe451 100644
 --- a/src/main/java/net/minecraft/server/BlockStateInteger.java
 +++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
-@@ -9,15 +9,43 @@ import java.util.HashSet;
- public class BlockStateInteger extends BlockState<Integer> {
- 
-     private final ImmutableSet<Integer> a;
+@@ -12,12 +12,40 @@ public class BlockStateInteger extends BlockState<Integer> {
      // CraftBukkit start
      public final int min;
      public final int max;
@@ -186,10 +183,10 @@ index 403fa144..b6e144e8 100644
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index b666c099..15b8c398 100644
+index 9e2c21627..be1b1065c 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
-@@ -17,6 +17,14 @@ import java.util.Map.Entry;
+@@ -17,6 +17,14 @@ import java.util.stream.Collectors;
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  
@@ -205,7 +202,7 @@ index b666c099..15b8c398 100644
  
      private static final Pattern a = Pattern.compile("^[a-z0-9_]+$");
 diff --git a/src/main/java/net/minecraft/server/IBlockState.java b/src/main/java/net/minecraft/server/IBlockState.java
-index de548018..51143a6a 100644
+index 5afc16e33..a33a51339 100644
 --- a/src/main/java/net/minecraft/server/IBlockState.java
 +++ b/src/main/java/net/minecraft/server/IBlockState.java
 @@ -14,4 +14,12 @@ public interface IBlockState<T extends Comparable<T>> {
@@ -223,7 +220,7 @@ index de548018..51143a6a 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
 new file mode 100644
-index 00000000..6fc4c57a
+index 000000000..6fc4c57a6
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
 @@ -0,0 +1,143 @@
@@ -372,7 +369,7 @@ index 00000000..6fc4c57a
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java b/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java
 new file mode 100644
-index 00000000..aa37b2f4
+index 000000000..aa37b2f45
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java
 @@ -0,0 +1,36 @@
@@ -414,7 +411,7 @@ index 00000000..aa37b2f4
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/SimpleMap.java b/src/main/java/net/techcable/tacospigot/SimpleMap.java
 new file mode 100644
-index 00000000..27559ee6
+index 000000000..27559ee67
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/SimpleMap.java
 @@ -0,0 +1,10 @@
@@ -430,7 +427,7 @@ index 00000000..27559ee6
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/SimpleTable.java b/src/main/java/net/techcable/tacospigot/SimpleTable.java
 new file mode 100644
-index 00000000..f76ad60b
+index 000000000..f76ad60b0
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/SimpleTable.java
 @@ -0,0 +1,10 @@
@@ -445,7 +442,7 @@ index 00000000..f76ad60b
 +    public V get(@Nonnull R row, @Nonnull C column);
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index ce66b1c3..b7699d8c 100644
+index ce66b1c35..b7699d8c4 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -102,4 +102,9 @@ public class TacoSpigotConfig {
@@ -460,7 +457,7 @@ index ce66b1c3..b7699d8c 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java b/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java
 new file mode 100644
-index 00000000..87a50a3d
+index 000000000..87a50a3dc
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java
 @@ -0,0 +1,6 @@
@@ -472,7 +469,7 @@ index 00000000..87a50a3d
 +}
 diff --git a/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java b/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java
 new file mode 100644
-index 00000000..179d0685
+index 000000000..179d06853
 --- /dev/null
 +++ b/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java
 @@ -0,0 +1,119 @@
@@ -596,5 +593,5 @@ index 00000000..179d0685
 +    }
 +}
 -- 
-2.16.2
+2.15.1.windows.2
 
