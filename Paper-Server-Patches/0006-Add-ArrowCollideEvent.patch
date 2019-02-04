@@ -8,7 +8,7 @@ diff --git a/src/main/java/net/minecraft/server/EntityArrow.java b/src/main/java
 index 79ca071bc..38461bb81 100644
 --- a/src/main/java/net/minecraft/server/EntityArrow.java
 +++ b/src/main/java/net/minecraft/server/EntityArrow.java
-@@ -11,6 +11,11 @@ import org.bukkit.event.entity.EntityCombustByEntityEvent;
+@@ -13,6 +13,11 @@ import org.bukkit.event.entity.EntityCombustByEntityEvent;
  import org.bukkit.event.entity.EntityCombustEvent;
  import org.bukkit.event.player.PlayerPickupArrowEvent;
  // CraftBukkit end
@@ -20,7 +20,7 @@ index 79ca071bc..38461bb81 100644
  
  public abstract class EntityArrow extends Entity implements IProjectile {
  
-@@ -199,6 +204,16 @@ public abstract class EntityArrow extends Entity implements IProjectile {
+@@ -205,6 +210,16 @@ public abstract class EntityArrow extends Entity implements IProjectile {
              }
              // Paper end
  
@@ -34,9 +34,9 @@ index 79ca071bc..38461bb81 100644
 +            }
 +            // TacoSpigot end
 +
-             if (movingobjectposition != null) {
+             if (movingobjectposition != null && !flag) {
                  this.a(movingobjectposition);
-             }
+                 this.impulse = true;
 -- 
 2.11.0
 

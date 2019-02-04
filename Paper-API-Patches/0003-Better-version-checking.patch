@@ -1,4 +1,4 @@
-From a6e285cb74b857ff3824c0ca15c54395f9ff5755 Mon Sep 17 00:00:00 2001
+From 1b2f53cd31cd5e72beb7b379315c6863a3261403 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Mon, 24 Apr 2017 11:07:19 -0700
 Subject: [PATCH] Better version checking
@@ -250,7 +250,7 @@ index 00000000..d68c6e0e
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
-index c45faf4c..bfb4ef63 100644
+index 5cebb245..7785ff8c 100644
 --- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 +++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
 @@ -20,6 +20,7 @@ import java.io.IOException;
@@ -260,8 +260,8 @@ index c45faf4c..bfb4ef63 100644
 +import java.util.Objects;
  import java.util.Set;
  import java.util.concurrent.locks.ReentrantLock;
- import java.util.logging.Level;
-@@ -33,6 +34,12 @@ import java.io.InputStreamReader;
+ import org.json.simple.JSONObject;
+@@ -31,6 +32,12 @@ import java.io.InputStreamReader;
  import java.net.HttpURLConnection;
  import com.destroystokyo.paper.VersionHistoryManager;
  // Paper end
@@ -274,7 +274,7 @@ index c45faf4c..bfb4ef63 100644
  
  public class VersionCommand extends BukkitCommand {
      public VersionCommand(String name) {
-@@ -205,6 +212,24 @@ public class VersionCommand extends BukkitCommand {
+@@ -203,6 +210,24 @@ public class VersionCommand extends BukkitCommand {
          }
      }
  
@@ -299,7 +299,7 @@ index c45faf4c..bfb4ef63 100644
      // Paper start
      private void obtainVersion() {
          String version = Bukkit.getVersion();
-@@ -242,6 +267,9 @@ public class VersionCommand extends BukkitCommand {
+@@ -240,6 +265,9 @@ public class VersionCommand extends BukkitCommand {
              setVersionMessage("Unknown version, custom build?");
          }
      }
@@ -309,7 +309,7 @@ index c45faf4c..bfb4ef63 100644
  
      private void setVersionMessage(String msg) {
          lastCheck = System.currentTimeMillis();
-@@ -259,6 +287,8 @@ public class VersionCommand extends BukkitCommand {
+@@ -257,6 +285,8 @@ public class VersionCommand extends BukkitCommand {
          }
      }
  
@@ -318,7 +318,7 @@ index c45faf4c..bfb4ef63 100644
      // Paper start
      private static int getDistance(String repo, String verInfo) {
          try {
-@@ -282,7 +312,6 @@ public class VersionCommand extends BukkitCommand {
+@@ -280,7 +310,6 @@ public class VersionCommand extends BukkitCommand {
              } finally {
                  reader.close();
              }
@@ -326,7 +326,7 @@ index c45faf4c..bfb4ef63 100644
      }
  
      private static int getFromJenkins(int currentVer) {
-@@ -336,4 +365,6 @@ public class VersionCommand extends BukkitCommand {
+@@ -333,4 +362,6 @@ public class VersionCommand extends BukkitCommand {
          }
      }
      // Paper end
@@ -334,5 +334,5 @@ index c45faf4c..bfb4ef63 100644
 +    // TacoSpigot end
  }
 -- 
-2.17.0
+2.15.1.windows.2
 

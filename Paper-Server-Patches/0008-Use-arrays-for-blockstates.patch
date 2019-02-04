@@ -1,4 +1,4 @@
-From 15faec3adce1e9a2a205a94387b68d9d63fd286b Mon Sep 17 00:00:00 2001
+From 16920e397ef785fb38a3544d5fa54ffd8a5423f4 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Thu, 31 Mar 2016 14:13:07 -0700
 Subject: [PATCH] Use arrays for blockstates
@@ -9,10 +9,10 @@ This data structure is usualy faster than a hashmap (especially when using the l
 Should help with redstone.
 
 diff --git a/src/main/java/net/minecraft/server/BlockState.java b/src/main/java/net/minecraft/server/BlockState.java
-index 1d626ce2..02c5339f 100644
+index d95c0955a..7f18997db 100644
 --- a/src/main/java/net/minecraft/server/BlockState.java
 +++ b/src/main/java/net/minecraft/server/BlockState.java
-@@ -2,14 +2,60 @@ package net.minecraft.server;
+@@ -2,15 +2,61 @@ package net.minecraft.server;
  
  import com.google.common.base.MoreObjects;
  
@@ -26,6 +26,7 @@ index 1d626ce2..02c5339f 100644
  
      private final Class<T> a;
      private final String b;
+     private Integer c;
 +    // TacoSpigot start
 +    private final int id;
 +
@@ -74,21 +75,13 @@ index 1d626ce2..02c5339f 100644
  
      public String a() {
 diff --git a/src/main/java/net/minecraft/server/BlockStateBoolean.java b/src/main/java/net/minecraft/server/BlockStateBoolean.java
-index 02b4956e..63e592ac 100644
+index 4c1d39d67..9c2dc5893 100644
 --- a/src/main/java/net/minecraft/server/BlockStateBoolean.java
 +++ b/src/main/java/net/minecraft/server/BlockStateBoolean.java
-@@ -42,6 +42,7 @@ public class BlockStateBoolean extends BlockState<Boolean> {
- 
-     // Spigot start
-     private int hashCode;
-+
-     public int hashCode() {
-         int hash = hashCode;
-         if (hash == 0) {
-@@ -51,4 +52,22 @@ public class BlockStateBoolean extends BlockState<Boolean> {
-         return hash;
+@@ -43,4 +43,22 @@ public class BlockStateBoolean extends BlockState<Boolean> {
+     public int c() {
+         return 31 * super.c() + this.a.hashCode();
      }
-     // Spigot end
 +    // TacoSpigot start
 +    @Override
 +    public int getValueId(Boolean value) {
@@ -109,18 +102,18 @@ index 02b4956e..63e592ac 100644
 +    // TacoSpigot end
  }
 diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
-index 2118587e..d12c5456 100644
+index 259da0aa0..cbe36b8d7 100644
 --- a/src/main/java/net/minecraft/server/BlockStateEnum.java
 +++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
-@@ -43,7 +43,6 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
-     public Collection<T> c() {
+@@ -44,7 +44,6 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+     public Collection<T> d() {
          return this.a;
      }
 -
      public Optional<T> b(String s) {
-         return Optional.fromNullable(this.b.get(s));
+         return Optional.ofNullable(this.b.get(s));
      }
-@@ -52,6 +51,23 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+@@ -53,6 +52,23 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
          return ((INamable) t0).getName();
      }
  
@@ -141,19 +134,18 @@ index 2118587e..d12c5456 100644
 +    }
 +    // TacoSpigot end
 +
-     @Override // Paper - override equals as BlockStateEnum is a singleton
+     @Override // Paper start - override equals as BlockStateEnum is a singleton
      public boolean equals(Object object) {
-        return this == object;
+         return this == object;
 diff --git a/src/main/java/net/minecraft/server/BlockStateInteger.java b/src/main/java/net/minecraft/server/BlockStateInteger.java
-index 403fa144..b6e144e8 100644
+index 2f12e15e0..9fd2fe451 100644
 --- a/src/main/java/net/minecraft/server/BlockStateInteger.java
 +++ b/src/main/java/net/minecraft/server/BlockStateInteger.java
-@@ -9,9 +9,40 @@ import java.util.HashSet;
- public class BlockStateInteger extends BlockState<Integer> {
- 
-     private final ImmutableSet<Integer> a;
+@@ -12,12 +12,40 @@ public class BlockStateInteger extends BlockState<Integer> {
+     // CraftBukkit start
+     public final int min;
+     public final int max;
 +    // TacoSpigot start
-+    private final int min, max;
 +    private final int range;
 +
 +    @Override
@@ -181,20 +173,21 @@ index 403fa144..b6e144e8 100644
  
      protected BlockStateInteger(String s, int i, int j) {
          super(s, Integer.class);
+         this.min = i;
+         this.max = j;
+         // CraftBukkit end
 +        // TacoSpigot start
-+        this.min = i;
-+        this.max = j;
 +        this.range = (max - min); // min and max are _both_ inclusive (there's a reason you're not supposed to do this :p)
 +        // TacoSpigot end
          if (i < 0) {
              throw new IllegalArgumentException("Min value of " + s + " must be 0 or greater");
          } else if (j <= i) {
 diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index b666c099..15b8c398 100644
+index 9e2c21627..be1b1065c 100644
 --- a/src/main/java/net/minecraft/server/BlockStateList.java
 +++ b/src/main/java/net/minecraft/server/BlockStateList.java
-@@ -24,6 +24,14 @@ import java.util.Map.Entry;
- import java.util.regex.Pattern;
+@@ -17,6 +17,14 @@ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
  import javax.annotation.Nullable;
  
 +// TacoSpigot start
@@ -205,99 +198,11 @@ index b666c099..15b8c398 100644
 +import net.techcable.tacospigot.TacoSpigotConfig;
 +// TacoSpigot end
 +
- public class BlockStateList {
+ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
  
      private static final Pattern a = Pattern.compile("^[a-z0-9_]+$");
-@@ -147,16 +155,27 @@ public class BlockStateList {
-     static class BlockData extends BlockDataAbstract {
- 
-         private final Block a;
--        private final ImmutableMap<IBlockState<?>, Comparable<?>> b;
--        private ImmutableTable<IBlockState<?>, Comparable<?>, IBlockData> c;
-+        // TacoSpigot start
-+        private final ImmutableMap<IBlockState<?>, Comparable<?>> bAsImmutableMap;
-+        private final SimpleMap<IBlockState<?>, Comparable<?>> b;
-+        private SimpleTable<IBlockState, Comparable, IBlockData> c;
-+        // TacoSpigot end
- 
-         private BlockData(Block block, ImmutableMap<IBlockState<?>, Comparable<?>> immutablemap) {
-             this.a = block;
--            this.b = immutablemap;
-+            // TacoSpigot start
-+            this.bAsImmutableMap = immutablemap;
-+            if (TacoSpigotConfig.useArraysForBlockStates) {
-+                ImmutableArrayMap<IBlockState, Comparable> arrayMap = new ImmutableArrayMap<IBlockState, Comparable>(IBlockState::getId, BlockState::getById, (ImmutableMap) immutablemap);
-+                b = (key) -> arrayMap.get(key.getId());
-+            } else {
-+                b = immutablemap::get;
-+            }
-+            // TacoSpigot end
-         }
- 
-         public Collection<IBlockState<?>> s() {
--            return Collections.unmodifiableCollection(this.b.keySet());
-+            return Collections.unmodifiableCollection(this.bAsImmutableMap.keySet()); // TacoSpigot - use bAsImmutableMap
-         }
- 
-         public <T extends Comparable<T>> T get(IBlockState<T> iblockstate) {
-@@ -188,7 +207,7 @@ public class BlockStateList {
-         }
- 
-         public ImmutableMap<IBlockState<?>, Comparable<?>> t() {
--            return this.b;
-+            return this.bAsImmutableMap; // TacoSpigot
-         }
- 
-         public Block getBlock() {
-@@ -208,7 +227,7 @@ public class BlockStateList {
-                 throw new IllegalStateException();
-             } else {
-                 HashBasedTable hashbasedtable = HashBasedTable.create();
--                UnmodifiableIterator unmodifiableiterator = this.b.entrySet().iterator();
-+                UnmodifiableIterator unmodifiableiterator = this.bAsImmutableMap.entrySet().iterator(); // TacoSpigot - use bAsImmutableMap
- 
-                 while (unmodifiableiterator.hasNext()) {
-                     Entry entry = (Entry) unmodifiableiterator.next();
-@@ -218,18 +237,34 @@ public class BlockStateList {
-                     while (iterator.hasNext()) {
-                         Comparable comparable = (Comparable) iterator.next();
- 
--                        if (comparable != entry.getValue()) {
-+                        if (true) { // TacoSpigot - include everything in the table
-                             hashbasedtable.put(iblockstate, comparable, map.get(this.b(iblockstate, comparable)));
-                         }
-                     }
-                 }
- 
--                this.c = ImmutableTable.copyOf(hashbasedtable);
-+                // TacoSpigot start
-+                if (TacoSpigotConfig.useArraysForBlockStates) {
-+                    // I had some 'fun' getting this to work >:(
-+                    ImmutableArrayTable<IBlockState, Comparable, IBlockData> arrayTable = new ImmutableArrayTable<IBlockState, Comparable, IBlockData> (
-+                            IBlockState::getId,
-+                            BlockState::getById,
-+                            IBlockState::getValueId,
-+                            IBlockState::getByValueId,
-+                            hashbasedtable
-+                    );
-+                    this.c = (row, column) -> arrayTable.get(row.getId(), row.getValueId(column));
-+                } else {
-+                    ImmutableTable<IBlockState, Comparable, IBlockData> immutableTable = ImmutableTable.copyOf(hashbasedtable);
-+                    this.c = immutableTable::get;
-+                }
-+                // TacoSpigot end
-             }
-         }
- 
-         private Map<IBlockState<?>, Comparable<?>> b(IBlockState<?> iblockstate, Comparable<?> comparable) {
--            HashMap hashmap = Maps.newHashMap(this.b);
-+            HashMap hashmap = Maps.newHashMap(this.bAsImmutableMap); // TacoSpigot - use 'bAsImmutableMap'
-+
- 
-             hashmap.put(iblockstate, comparable);
-             return hashmap;
 diff --git a/src/main/java/net/minecraft/server/IBlockState.java b/src/main/java/net/minecraft/server/IBlockState.java
-index de548018..51143a6a 100644
+index 5afc16e33..a33a51339 100644
 --- a/src/main/java/net/minecraft/server/IBlockState.java
 +++ b/src/main/java/net/minecraft/server/IBlockState.java
 @@ -14,4 +14,12 @@ public interface IBlockState<T extends Comparable<T>> {
@@ -315,7 +220,7 @@ index de548018..51143a6a 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
 new file mode 100644
-index 00000000..6fc4c57a
+index 000000000..6fc4c57a6
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ImmutableArrayMap.java
 @@ -0,0 +1,143 @@
@@ -464,7 +369,7 @@ index 00000000..6fc4c57a
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java b/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java
 new file mode 100644
-index 00000000..aa37b2f4
+index 000000000..aa37b2f45
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/ImmutableArrayTable.java
 @@ -0,0 +1,36 @@
@@ -506,7 +411,7 @@ index 00000000..aa37b2f4
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/SimpleMap.java b/src/main/java/net/techcable/tacospigot/SimpleMap.java
 new file mode 100644
-index 00000000..27559ee6
+index 000000000..27559ee67
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/SimpleMap.java
 @@ -0,0 +1,10 @@
@@ -522,7 +427,7 @@ index 00000000..27559ee6
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/SimpleTable.java b/src/main/java/net/techcable/tacospigot/SimpleTable.java
 new file mode 100644
-index 00000000..f76ad60b
+index 000000000..f76ad60b0
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/SimpleTable.java
 @@ -0,0 +1,10 @@
@@ -537,7 +442,7 @@ index 00000000..f76ad60b
 +    public V get(@Nonnull R row, @Nonnull C column);
 +}
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index ce66b1c3..b7699d8c 100644
+index ce66b1c35..b7699d8c4 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -102,4 +102,9 @@ public class TacoSpigotConfig {
@@ -552,7 +457,7 @@ index ce66b1c3..b7699d8c 100644
  }
 diff --git a/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java b/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java
 new file mode 100644
-index 00000000..87a50a3d
+index 000000000..87a50a3dc
 --- /dev/null
 +++ b/src/main/java/net/techcable/tacospigot/function/ObjIntBiFunction.java
 @@ -0,0 +1,6 @@
@@ -564,7 +469,7 @@ index 00000000..87a50a3d
 +}
 diff --git a/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java b/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java
 new file mode 100644
-index 00000000..179d0685
+index 000000000..179d06853
 --- /dev/null
 +++ b/src/test/java/net/techcable/tacospigot/ImmutableArrayMapTest.java
 @@ -0,0 +1,119 @@
@@ -688,5 +593,5 @@ index 00000000..179d0685
 +    }
 +}
 -- 
-2.16.2
+2.15.1.windows.2
 

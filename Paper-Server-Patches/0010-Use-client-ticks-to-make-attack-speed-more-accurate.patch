@@ -1,14 +1,14 @@
-From abbdcf27311db1f9d2ff46cb3f611f267be3ca48 Mon Sep 17 00:00:00 2001
+From 5172236989bcedc019ee72c7032390f68bb8fefe Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Tue, 19 Apr 2016 20:30:55 -0400
 Subject: [PATCH] Use client ticks to make attack speed more accurate
 
 
 diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
-index 0b51903e..5f4b81dd 100644
+index 4510ed805..0650fd0ac 100644
 --- a/src/main/java/net/minecraft/server/EntityHuman.java
 +++ b/src/main/java/net/minecraft/server/EntityHuman.java
-@@ -22,6 +22,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
+@@ -24,6 +24,8 @@ import org.bukkit.event.player.PlayerVelocityEvent;
  import org.bukkit.util.Vector;
  // CraftBukkit end
  
@@ -17,48 +17,49 @@ index 0b51903e..5f4b81dd 100644
  public abstract class EntityHuman extends EntityLiving {
  
      private static final DataWatcherObject<Float> a = DataWatcher.a(EntityHuman.class, DataWatcherRegistry.c);
-@@ -64,6 +66,9 @@ public abstract class EntityHuman extends EntityLiving {
-     private final ItemCooldown bW;
+@@ -68,6 +70,9 @@ public abstract class EntityHuman extends EntityLiving {
+     private final ItemCooldown ce;
      @Nullable
      public EntityFishingHook hookedFish;
 +
 +    public int clientTicksSinceLastAttack; // TacoSpigot
 +
+     // Paper start
      public boolean affectsSpawning = true;
+     // Paper end
+@@ -2067,12 +2072,26 @@ public abstract class EntityHuman extends EntityLiving {
  
-     // CraftBukkit start
-@@ -1939,11 +1944,25 @@ public abstract class EntityHuman extends EntityLiving {
-     }
- 
-     public float n(float f) {
--        return MathHelper.a(((float) this.aE + f) / this.dr(), 0.0F, 1.0F);
+     public float getCooledAttackStrength(float adjustTicks) { return r(adjustTicks); } // Paper - OBFHELPER
+     public float r(float f) {
+-        return MathHelper.a(((float) this.aH + f) / this.dG(), 0.0F, 1.0F);
 +        // TacoSpigot start - use both client and server ticks
 +        if (betterPvp) {
 +            return MathHelper.a(
 +                (float) (Math.max(
-+                     this.aE,
++                     this.aH,
 +                     this.clientTicksSinceLastAttack
-+                ) + f) / this.dr(),
++                ) + f) / this.dG(),
 +                0.0F,
 +                1.0F
 +            );
 +        } else {
-+            return MathHelper.a(((float) this.aE + f) / this.dr(), 0.0F, 1.0F);
++            return MathHelper.a(((float) this.aH + f) / this.dG(), 0.0F, 1.0F);
 +        }
 +        // TacoSpigot end
      }
  
-     public void ds() {
-         this.aE = 0;
+     public void resetCooldown() { dH(); } // Paper - OBFHELPER
+     public void dH() {
+         this.aH = 0;
 +        this.clientTicksSinceLastAttack = 0; // TacoSpigot
      }
  
      public ItemCooldown getCooldownTracker() {
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index a5faa6a0..2ec63775 100644
+index a8a6e236e..f1a0bb2a1 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -510,6 +510,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
+@@ -872,6 +872,8 @@ public class PlayerConnection implements PacketListenerPlayIn, ITickable {
                      this.syncPosition();
                  }
  
@@ -68,7 +69,7 @@ index a5faa6a0..2ec63775 100644
                      if (this.e - this.A > 20) {
                          this.A = this.e;
 diff --git a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
-index b7699d8c..22c6009a 100644
+index b7699d8c4..22c6009ab 100644
 --- a/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 +++ b/src/main/java/net/techcable/tacospigot/TacoSpigotConfig.java
 @@ -107,4 +107,9 @@ public class TacoSpigotConfig {
@@ -82,5 +83,5 @@ index b7699d8c..22c6009a 100644
 +    }
  }
 -- 
-2.17.0
+2.15.1.windows.2
 
