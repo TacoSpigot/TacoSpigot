@@ -17,7 +17,7 @@ git checkout version/1.13.2 && \
 # cd ../Paperclip && \
 # git checkout ver/1.12.2 && \
 cd ../../.. && \
-./remap.sh && ./decompile.sh && ./init.sh && ./applyPatches.sh
+./remap.sh && ./decompile.sh && ./init.sh && ./applyPatches.sh || exit 1
 
 # Generate paperclip jar in this stage
 mkdir -p work/Paperclip

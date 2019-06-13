@@ -12,12 +12,13 @@ classmappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep clas
 membermappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep memberMappings | cut -d '"' -f 4)
 packagemappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep packageMappings | cut -d '"' -f 4)
 jarpath=$workdir/Minecraft/$minecraftversion/$minecraftversion
-minecrafturl=https://launcher.mojang.com/v1/objects/3737db93722a9e39eeada7c27e7aca28b144ffa7/server.jar
+minecrafturl=https://theseedmc.com/mirrors/vanilla_1.13.2.jar
+useragent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
 
 echo "Downloading unmapped vanilla jar from $minecrafturl to $jarpath..."
 if [ ! -f  "$jarpath.jar" ]; then
     mkdir -p "$workdir/Minecraft/$minecraftversion"
-    curl -s -o "$jarpath.jar" "$minecrafturl"
+    curl -A "$useragent" -s -o "$jarpath.jar" "$minecrafturl"
     if [ "$?" != "0" ]; then
         echo "Failed to download the vanilla server jar. Check connectivity or try again later."
         exit 1
