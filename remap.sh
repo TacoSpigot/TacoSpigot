@@ -12,7 +12,7 @@ classmappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep clas
 membermappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep memberMappings | cut -d '"' -f 4)
 packagemappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep packageMappings | cut -d '"' -f 4)
 jarpath=$workdir/Minecraft/$minecraftversion/$minecraftversion
-minecrafturl=https://s3.amazonaws.com/Minecraft.Download/versions/$minecraftversion/minecraft_server.$minecraftversion.jar
+minecrafturl=https://launcher.mojang.com/v1/objects/3737db93722a9e39eeada7c27e7aca28b144ffa7/server.jar
 
 echo "Downloading unmapped vanilla jar from $minecrafturl to $jarpath..."
 if [ ! -f  "$jarpath.jar" ]; then
