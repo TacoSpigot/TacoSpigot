@@ -12,11 +12,12 @@ classmappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep clas
 membermappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep memberMappings | cut -d '"' -f 4)
 packagemappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep packageMappings | cut -d '"' -f 4)
 jarpath=$workdir/Minecraft/$minecraftversion/$minecraftversion
+minecrafturl=https://s3.amazonaws.com/Minecraft.Download/versions/$minecraftversion/minecraft_server.$minecraftversion.jar
 
-echo "Downloading unmapped vanilla jar..."
+echo "Downloading unmapped vanilla jar from $minecrafturl to $jarpath..."
 if [ ! -f  "$jarpath.jar" ]; then
     mkdir -p "$workdir/Minecraft/$minecraftversion"
-    curl -s -o "$jarpath.jar" "https://s3.amazonaws.com/Minecraft.Download/versions/$minecraftversion/minecraft_server.$minecraftversion.jar"
+    curl -s -o "$jarpath.jar" "$minecrafturl"
     if [ "$?" != "0" ]; then
         echo "Failed to download the vanilla server jar. Check connectivity or try again later."
         exit 1
@@ -38,7 +39,11 @@ fi
 
 echo "Applying class mappings..."
 if [ ! -f "$jarpath-cl.jar" ]; then
-    java -jar work/BuildData/bin/SpecialSource-2.jar map -i "$jarpath.jar" -m "$classmappings" -o "$jarpath-cl.jar" 1>/dev/null
+    if [ ! -f "$classmappings" ]; then
+        echo "Class mappings not found!"
+        exit 1
+    fi
+    java -jar work/BuildData/bin/SpecialSource-2.jar map -i "$jarpath.jar" -m "$classmappings" -o "$jarpath-cl.jar"
     if [ "$?" != "0" ]; then
         echo "Failed to apply class mappings."
         exit 1
@@ -47,7 +52,11 @@ fi
 
 echo "Applying member mappings..."
 if [ ! -f "$jarpath-m.jar" ]; then
-    java -jar work/BuildData/bin/SpecialSource-2.jar map -i "$jarpath-cl.jar" -m "$membermappings" -o "$jarpath-m.jar" 1>/dev/null
+    if [ ! -f "$membermappings" ]; then
+        echo "Member mappings not found!"
+        exit 1
+    fi
+    java -jar work/BuildData/bin/SpecialSource-2.jar map -i "$jarpath-cl.jar" -m "$membermappings" -o "$jarpath-m.jar"
     if [ "$?" != "0" ]; then
         echo "Failed to apply member mappings."
         exit 1
