@@ -32,7 +32,7 @@ fi
 
 checksum=$(md5sum "$jarpath.jar" | cut -d ' ' -f 1)
 if [ "$checksum" != "$minecrafthash" ]; then
-    echo "The MD5 checksum of the downloaded server jar does not match the work/BuildData hash."
+    echo "The MD5 checksum of the downloaded server jar ($checksum) does not match the work/BuildData hash ($minecrafthash)."
     exit 1
 fi
 
