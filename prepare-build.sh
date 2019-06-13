@@ -1,6 +1,10 @@
 #!/bin/bash
 
-git submodule update --recursive --init && ./remap.sh && ./decompile.sh && ./init.sh && ./applyPatches.sh
+git submodule update --recursive --init && \
+cd Paper/work/BuildData && \
+git checkout 8eaf2804afba334ca73c3e190cf092064c631692 && \
+cd ../../.. && \
+./remap.sh && ./decompile.sh && ./init.sh && ./applyPatches.sh
 
 # Generate paperclip jar in this stage
 mkdir -p work/Paperclip
