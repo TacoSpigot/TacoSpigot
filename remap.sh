@@ -66,7 +66,7 @@ fi
 
 echo "[TacoSpigot/remap.sh] Creating remapped jar..."
 if [ ! -f "$jarpath-mapped.jar" ]; then
-    java -jar work/BuildData/bin/SpecialSource.jar --kill-lvt -i "$jarpath-m.jar" --access-transformer "$accesstransforms" -m "$packagemappings" -o "$jarpath-mapped.jar" 1>/dev/null
+    java -jar work/BuildData/bin/SpecialSource.jar --kill-lvt -i "$jarpath-m.jar" --access-transformer "$accesstransforms" -m "$packagemappings" -o "$jarpath-mapped.jar"
     if [ "$?" != "0" ]; then
         echo "[TacoSpigot/remap.sh] Failed to create remapped jar."
         exit 1
