@@ -4,12 +4,13 @@ git submodule update --recursive --init && \
 mkdir -p BuildTools-work && \
 cd BuildTools-work &&\
 java -jar ../BuildTools.jar --rev 1.13 && \
-rm -rf ../Paper/Bukkit && \
-mv Bukkit ../Paper && \
-rm -rf ../Paper/Spigot && \
-mv Spigot ../Paper && \
-rm -rf ../Paper/BuildData && \
-mv BuildData ../Paper && \
+rm -rf ../Paper/work/Bukkit && \
+mv Bukkit ../Paper/work && \
+rm -rf ../Paper/work/Spigot && \
+mv Spigot ../Paper/work && \
+rm -rf ../Paper/work/BuildData && \
+mv BuildData ../Paper/work && \
+cp ../info.json ../Paper/work/BuildData
 rm -rf ../Paper/CraftBukkit && \
 mv CraftBukkit ../Paper && \
 # echo "Updating Paperclip..." && \

@@ -1,0 +1,10 @@
+{
+	"minecraftVersion": "1.13.2",
+	"serverUrl": "https://theseedmc.com/mirrors/vanilla_1.13.2.jar",
+	"minecraftHash": "dc51d617728fdccac2082220aaaf7188",
+	"accessTransforms": "bukkit-1.12.2.at",
+	"classMappings": "bukkit-1.12.2-cl.csrg",
+	"memberMappings": "bukkit-1.12.2-members.csrg",
+	"packageMappings": "package.srg",
+	"decompileCommand": "java -jar BuildData/bin/fernflower.jar -dgs=1 -hdc=0 -asc=1 -udv=0 {0} {1}"
+}
