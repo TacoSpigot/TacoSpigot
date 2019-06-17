@@ -1,8 +1,13 @@
 #!/bin/bash
 
 git submodule update --recursive --init && \
-cd Paper && \
+mkdir BuildTools-work && \
+cd BuildTools-work &&\
 java -jar ../BuildTools.jar --rev 1.13 && \
+mv Bukkit ../Paper && \
+mv Spigot ../Paper && \
+mv BuildData ../Paper && \
+mv CraftBukkit ../Paper && \
 # echo "Updating Paperclip..." && \
 # cd ../Paperclip && \
 # git checkout ver/1.12.2 && \
