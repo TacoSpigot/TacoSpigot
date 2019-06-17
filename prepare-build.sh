@@ -8,9 +8,8 @@ rm -rf ../Paper/work/Bukkit && \
 mv Bukkit ../Paper/work && \
 rm -rf ../Paper/work/Spigot && \
 mv Spigot ../Paper/work && \
-# rm -rf ../Paper/work/BuildData && \
-# mv BuildData ../Paper/work && \
-# cp ../info.json ../Paper/work/BuildData
+rm -rf ../Paper/work/BuildData && \
+mv BuildData ../Paper/work && \
 rm -rf ../Paper/CraftBukkit && \
 mv CraftBukkit ../Paper && \
 # echo "Updating Paperclip..." && \

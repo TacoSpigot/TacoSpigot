@@ -12,7 +12,7 @@ classmappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep clas
 membermappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep memberMappings | cut -d '"' -f 4)
 packagemappings=work/BuildData/mappings/$(cat work/BuildData/info.json | grep packageMappings | cut -d '"' -f 4)
 jarpath=$workdir/Minecraft/$minecraftversion/$minecraftversion
-minecrafturl=https://theseedmc.com/mirrors/vanilla_1.13.2.jar
+minecrafturl=https://theseedmc.com/mirrors/vanilla_1.13.jar
 useragent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
 
 echo "[TacoSpigot/remap.sh] Downloading unmapped vanilla jar from $minecrafturl to $jarpath..."
