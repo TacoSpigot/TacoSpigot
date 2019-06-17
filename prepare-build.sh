@@ -1,7 +1,7 @@
 #!/bin/bash
 
 git submodule update --recursive --init && \
-mkdir BuildTools-work && \
+mkdir -p BuildTools-work && \
 cd BuildTools-work &&\
 java -jar ../BuildTools.jar --rev 1.13 && \
 rm -rf ../Paper/Bukkit && \
