@@ -28,7 +28,8 @@ function applyPatch {
     git am --abort >/dev/null 2>&1
     git am --3way --ignore-whitespace "$basedir/${what_name}-Patches/"*.patch
     if [ "$?" != "0" ]; then
-        echo "  Something did not apply cleanly to $target."
+        echo -n "  Something did not apply cleanly to $target in "
+        pwd
         echo "  Please review above details and finish the apply then"
         echo "  save the changes with rebuildPatches.sh"
         enableCommitSigningIfNeeded
