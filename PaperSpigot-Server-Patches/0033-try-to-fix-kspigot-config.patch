@@ -1,0 +1,74 @@
+From f579ee357f404e3e813b4042850929ddca2b31e4 Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Sat, 11 Jul 2020 01:03:55 +0200
+Subject: [PATCH] try-to-fix-kspigot-config
+
+
+diff --git a/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java b/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
+index b1eee250..06abaac0 100644
+--- a/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
++++ b/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
+@@ -26,7 +26,6 @@ public class KSpigotConfig {
+     /*========================================================================*/
+     public static YamlConfiguration config;
+     static int version;
+-    static Map<String, Command> commands;
+     /*========================================================================*/
+ 
+     public static void init(File configFile)
+@@ -46,21 +45,11 @@ public class KSpigotConfig {
+         config.options().header( HEADER );
+         config.options().copyDefaults( true );
+ 
+-        commands = new HashMap<String, Command>();
+-
+         version = getInt( "config-version", 9 );
+         set( "config-version", 9 );
+         readConfig( KSpigotConfig.class, null );
+     }
+ 
+-    public static void registerCommands()
+-    {
+-        for ( Map.Entry<String, Command> entry : commands.entrySet() )
+-        {
+-            MinecraftServer.getServer().server.getCommandMap().register( entry.getKey(), "kspigot", entry.getValue() );
+-        }
+-    }
+-
+     static void readConfig(Class<?> clazz, Object instance)
+     {
+         for ( Method method : clazz.getDeclaredMethods() )
+diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
+index 8badb93a..c9bc83c1 100644
+--- a/src/main/java/net/minecraft/server/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/DedicatedServer.java
+@@ -182,11 +182,6 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+             org.github.paperspigot.PaperSpigotConfig.registerCommands();
+             // PaperSpigot end
+ 
+-            // kSpigot start
+-            cc.kasumi.kspigot.KSpigotConfig.init((File) options.valueOf("kspigot-settings"));
+-            cc.kasumi.kspigot.KSpigotConfig.registerCommands();
+-            // kSpigot end
+-
+             DedicatedServer.LOGGER.info("Generating keypair");
+             this.a(MinecraftEncryption.b());
+             DedicatedServer.LOGGER.info("Starting Minecraft server on " + (this.getServerIp().length() == 0 ? "*" : this.getServerIp()) + ":" + this.R());
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index c3f04ced..af5d9a27 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -150,8 +150,8 @@ public class Main {
+                 // TacoSpigot end
+ 
+                 // kSpigot start
+-                acceptsAll(asList("K", "kspigot-settings", "File for kSpigot settings"))
+-                        .withOptionalArg()
++                acceptsAll(asList("K", "kspigot-settings"), "File for kspigot settings")
++                        .withRequiredArg()
+                         .ofType(File.class)
+                         .defaultsTo(new File("kspigot.yml"))
+                         .describedAs("Yml file");
+-- 
+2.27.0.windows.1
+

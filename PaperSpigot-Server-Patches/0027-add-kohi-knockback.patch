@@ -1,0 +1,190 @@
+From 4287fa933cffc22e536674cdb61e1ca20ac379eb Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Fri, 10 Jul 2020 22:46:03 +0200
+Subject: [PATCH] added-kohi-knockback
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
+index 0ad4edb8..a3f8b959 100644
+--- a/src/main/java/net/minecraft/server/EntityHuman.java
++++ b/src/main/java/net/minecraft/server/EntityHuman.java
+@@ -20,6 +20,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
+ import org.bukkit.event.player.PlayerItemConsumeEvent;
+ import org.bukkit.event.player.PlayerVelocityEvent;
+ import org.bukkit.util.Vector;
++import org.spigotmc.SpigotConfig;
+ // CraftBukkit end
+ 
+ public abstract class EntityHuman extends EntityLiving {
+@@ -996,14 +997,17 @@ public abstract class EntityHuman extends EntityLiving {
+                         // CraftBukkit end
+                     }
+ 
+-                    double d0 = entity.motX;
+-                    double d1 = entity.motY;
+-                    double d2 = entity.motZ;
++                    double victimMotX = entity.motX;
++                    double victimMotY = entity.motY;
++                    double victimMotZ = entity.motZ;
+                     boolean flag2 = entity.damageEntity(DamageSource.playerAttack(this), f);
+ 
+                     if (flag2) {
+                         if (i > 0) {
+-                            entity.g((double) (-MathHelper.sin(this.yaw * 3.1415927F / 180.0F) * (float) i * 0.5F), 0.1D, (double) (MathHelper.cos(this.yaw * 3.1415927F / 180.0F) * (float) i * 0.5F));
++                            entity.g(
++                                    (double) (-MathHelper.sin(this.yaw * 3.1415927F / 180.0F) * (float) i * SpigotConfig.knockbackExtraHorizontal),
++                                    SpigotConfig.knockbackExtraVertical,
++                                    (double) (MathHelper.cos(this.yaw * 3.1415927F / 180.0F) * (float) i * SpigotConfig.knockbackExtraHorizontal));
+                             this.motX *= 0.6D;
+                             this.motZ *= 0.6D;
+                             this.setSprinting(false);
+@@ -1013,23 +1017,15 @@ public abstract class EntityHuman extends EntityLiving {
+                             // CraftBukkit start - Add Velocity Event
+                             boolean cancelled = false;
+                             Player player = (Player) entity.getBukkitEntity();
+-                            org.bukkit.util.Vector velocity = new Vector( d0, d1, d2 );
+ 
+-                            PlayerVelocityEvent event = new PlayerVelocityEvent(player, velocity.clone());
++                            PlayerVelocityEvent event = new PlayerVelocityEvent(player, player.getVelocity());
+                             world.getServer().getPluginManager().callEvent(event);
+-
+-                            if (event.isCancelled()) {
+-                                cancelled = true;
+-                            } else if (!velocity.equals(event.getVelocity())) {
+-                                player.setVelocity(event.getVelocity());
+-                            }
+-
+-                            if (!cancelled) {
++                            if (!event.isCancelled()) {
+                                 ( (EntityPlayer) entity ).playerConnection.sendPacket( new PacketPlayOutEntityVelocity( entity ) );
+                                 entity.velocityChanged = false;
+-                                entity.motX = d0;
+-                                entity.motY = d1;
+-                                entity.motZ = d2;
++                                entity.motX = victimMotX;
++                                entity.motY = victimMotY;
++                                entity.motZ = victimMotZ;
+                             }
+                             // CraftBukkit end
+                         }
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 12257ad2..5a5d7e5a 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -27,6 +27,7 @@ import co.aikar.timings.SpigotTimings; // Spigot
+ 
+ // PaperSpigot start
+ import org.bukkit.Bukkit;
++import org.spigotmc.SpigotConfig;
+ import org.spigotmc.event.entity.EntityDismountEvent;
+ // PaperSpigot end
+ 
+@@ -897,19 +898,18 @@ public abstract class EntityLiving extends Entity {
+     public void a(Entity entity, float f, double d0, double d1) {
+         if (this.random.nextDouble() >= this.getAttributeInstance(GenericAttributes.c).getValue()) {
+             this.ai = true;
+-            float f1 = MathHelper.sqrt(d0 * d0 + d1 * d1);
+-            float f2 = 0.4F;
+-
+-            this.motX /= 2.0D;
+-            this.motY /= 2.0D;
+-            this.motZ /= 2.0D;
+-            this.motX -= d0 / (double) f1 * (double) f2;
+-            this.motY += (double) f2;
+-            this.motZ -= d1 / (double) f1 * (double) f2;
+-            if (this.motY > 0.4000000059604645D) {
+-                this.motY = 0.4000000059604645D;
+-            }
++            double magnitude = MathHelper.sqrt(d0 * d0 + d1 * d1);
++            this.motX /= SpigotConfig.knockbackFriction;
++            this.motY /= SpigotConfig.knockbackFriction;
++            this.motZ /= SpigotConfig.knockbackFriction;
++
++            this.motX -= d0 / magnitude * SpigotConfig.knockbackHorizontal;
++            this.motY += SpigotConfig.knockbackVertical;
++            this.motZ -= d1 / magnitude * SpigotConfig.knockbackHorizontal;
+ 
++            if (this.motY > SpigotConfig.knockbackVerticalLimit) {
++                this.motY = SpigotConfig.knockbackVerticalLimit;
++            }
+         }
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index ad07563d..620b2f2f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -53,10 +53,7 @@ import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+-import org.bukkit.event.player.PlayerGameModeChangeEvent;
+-import org.bukkit.event.player.PlayerRegisterChannelEvent;
+-import org.bukkit.event.player.PlayerTeleportEvent;
+-import org.bukkit.event.player.PlayerUnregisterChannelEvent;
++import org.bukkit.event.player.*;
+ import org.bukkit.inventory.InventoryView.Property;
+ import org.bukkit.map.MapCursor;
+ import org.bukkit.map.MapView;
+@@ -65,6 +62,7 @@ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.messaging.StandardMessenger;
+ import org.bukkit.scoreboard.Scoreboard;
+ // PaperSpigot start
++import org.bukkit.util.Vector;
+ import org.github.paperspigot.Title;
+ // PaperSpigot end
+ 
+@@ -1637,4 +1635,31 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         return spigot;
+     }
+     // Spigot end
++
++    // KSpigot start
++
++    @Override
++    public void setVelocity(Vector vel) {
++        this.setVelocityDirect(vel);
++
++        PlayerVelocityEvent event = new PlayerVelocityEvent(this, vel.clone());
++        this.getServer().getPluginManager().callEvent(event);
++
++        if (!event.isCancelled()) {
++            this.setVelocityDirect(vel);
++
++            this.getHandle().playerConnection.sendPacket(new PacketPlayOutEntityVelocity(this.getHandle()));
++        }
++    }
++
++    public void setVelocityDirect(Vector vel) {
++        entity.motX = vel.getX();
++        entity.motY = vel.getY();
++        entity.motZ = vel.getZ();
++        if (entity.motY == 0) {
++            entity.fallDistance = 0.0F;
++        }
++    }
++
++    // KSpigot end
+ }
+diff --git a/src/main/java/org/spigotmc/SpigotConfig.java b/src/main/java/org/spigotmc/SpigotConfig.java
+index b9d185d9..8e72b3fc 100644
+--- a/src/main/java/org/spigotmc/SpigotConfig.java
++++ b/src/main/java/org/spigotmc/SpigotConfig.java
+@@ -34,6 +34,14 @@ import co.aikar.timings.TimingsManager;
+ public class SpigotConfig
+ {
+ 
++    public static final double knockbackFriction = 2.0D;
++    public static final double knockbackHorizontal = 0.35D;
++    public static final double knockbackVertical = 0.35D;
++    public static final double knockbackVerticalLimit = 0.4D;
++    public static final double knockbackExtraHorizontal = 0.425D;
++    public static final double knockbackExtraVertical = 0.085D;
++
++
+     private static File CONFIG_FILE;
+     private static final String HEADER = "This is the main configuration file for Spigot.\n"
+             + "As you can see, there's tons to configure. Some options may impact gameplay, so use\n"
+-- 
+2.27.0.windows.1
+

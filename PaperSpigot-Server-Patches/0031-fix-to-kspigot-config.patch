@@ -1,0 +1,21 @@
+From 8b9b62de59cf4e267078f0e8b50bdbad672eef8f Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Sat, 11 Jul 2020 00:28:50 +0200
+Subject: [PATCH] fix-to-kspigot-config
+
+
+diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
+index 66165453..8badb93a 100644
+--- a/src/main/java/net/minecraft/server/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/DedicatedServer.java
+@@ -184,6 +184,7 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+ 
+             // kSpigot start
+             cc.kasumi.kspigot.KSpigotConfig.init((File) options.valueOf("kspigot-settings"));
++            cc.kasumi.kspigot.KSpigotConfig.registerCommands();
+             // kSpigot end
+ 
+             DedicatedServer.LOGGER.info("Generating keypair");
+-- 
+2.27.0.windows.1
+
