@@ -1,0 +1,57 @@
+From b33d3b41eff48ca1b2c7575c124b0079cf3ae8a3 Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Mon, 13 Jul 2020 20:17:11 +0200
+Subject: [PATCH] changed-memory-command-message
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index d3d88a11..a2fb0398 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1571,12 +1571,6 @@ public final class CraftServer implements Server {
+         return new CraftInventoryCustom(owner, size, title);
+     }
+ 
+-    @Override
+-    public Inventory createInventory(InventoryHolder owner, int size, String title, UUID uuid) throws IllegalArgumentException {
+-        Validate.isTrue(size % 9 == 0, "Chests must have a size that is a multiple of 9!");
+-        return new CraftInventoryCustom(owner, size, title, uuid);
+-    }
+-
+     @Override
+     public HelpMap getHelpMap() {
+         return helpMap;
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
+index 0129af20..a1789966 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
+@@ -34,11 +34,6 @@ public class CraftInventory implements Inventory {
+         this.uuid = UUID.randomUUID();
+     }
+ 
+-    public CraftInventory(IInventory inventory, UUID uuid) {
+-        this.inventory = inventory;
+-        this.uuid = uuid;
+-    }
+-
+     public IInventory getInventory() {
+         return inventory;
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
+index 4598829c..a8c30dfe 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
+@@ -34,10 +34,6 @@ public class CraftInventoryCustom extends CraftInventory {
+         super(new MinecraftInventory(owner, size, title));
+     }
+ 
+-    public CraftInventoryCustom(InventoryHolder owner, int size, String title, UUID uuid) {
+-        super(new MinecraftInventory(owner, size, title), uuid);
+-    }
+-
+     static class MinecraftInventory implements IInventory {
+         private final ItemStack[] items;
+         private int maxStack = MAX_STACK;
+-- 
+2.27.0.windows.1
+

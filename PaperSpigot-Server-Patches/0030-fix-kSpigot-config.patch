@@ -1,0 +1,66 @@
+From 55f23dbef7343bc47edfe0e91daa8d7cd4f2025a Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Sat, 11 Jul 2020 00:11:56 +0200
+Subject: [PATCH] fixed-kspigt-config
+
+
+diff --git a/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java b/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
+index 6567f454..b1eee250 100644
+--- a/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
++++ b/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
+@@ -40,7 +40,7 @@ public class KSpigotConfig {
+         {
+         } catch ( InvalidConfigurationException ex )
+         {
+-            Bukkit.getLogger().log( Level.SEVERE, "Could not load kasumi.yml, please correct your syntax errors", ex );
++            Bukkit.getLogger().log( Level.SEVERE, "Could not load kspigot.yml, please correct your syntax errors", ex );
+             throw Throwables.propagate( ex );
+         }
+         config.options().header( HEADER );
+@@ -57,7 +57,7 @@ public class KSpigotConfig {
+     {
+         for ( Map.Entry<String, Command> entry : commands.entrySet() )
+         {
+-            MinecraftServer.getServer().server.getCommandMap().register( entry.getKey(), "kSpigot", entry.getValue() );
++            MinecraftServer.getServer().server.getCommandMap().register( entry.getKey(), "kspigot", entry.getValue() );
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
+index a131ec8f..66165453 100644
+--- a/src/main/java/net/minecraft/server/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/DedicatedServer.java
+@@ -181,7 +181,10 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+             org.github.paperspigot.PaperSpigotConfig.init((File) options.valueOf("paper-settings"));
+             org.github.paperspigot.PaperSpigotConfig.registerCommands();
+             // PaperSpigot end
+-            cc.kasumi.kspigot.KSpigotConfig.init((File) options.valueOf("kasumi-settings"));
++
++            // kSpigot start
++            cc.kasumi.kspigot.KSpigotConfig.init((File) options.valueOf("kspigot-settings"));
++            // kSpigot end
+ 
+             DedicatedServer.LOGGER.info("Generating keypair");
+             this.a(MinecraftEncryption.b());
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index a5bbd8b7..04b0143d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -148,6 +148,14 @@ public class Main {
+                         .defaultsTo(new File("taco.yml"))
+                         .describedAs("Yml file");
+                 // TacoSpigot end
++
++                // kSpigot start
++                acceptsAll(asList("K", "kspigot-settings", "File for kSpigot settings"))
++                        .withOptionalArg()
++                        .ofType(File.class)
++                        .defaultsTo(new File("kspigot.yml"))
++                        .describedAs("Yml file");
++                // kSpigot end
+             }
+         };
+ 
+-- 
+2.27.0.windows.1
+

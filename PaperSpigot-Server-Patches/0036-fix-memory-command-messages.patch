@@ -1,0 +1,35 @@
+From 8668d1018f2c8c2e23ac7a27f467f426a68fc89a Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Mon, 13 Jul 2020 19:41:23 +0200
+Subject: [PATCH] fix-memory-command-messages
+
+
+diff --git a/src/main/java/cc/kasumi/kspigot/MemoryCommand.java b/src/main/java/cc/kasumi/kspigot/MemoryCommand.java
+index 2e1c75b6..45eedb8d 100644
+--- a/src/main/java/cc/kasumi/kspigot/MemoryCommand.java
++++ b/src/main/java/cc/kasumi/kspigot/MemoryCommand.java
+@@ -23,16 +23,17 @@ public class MemoryCommand extends Command {
+         long bytesToMBDivider = 1048576;
+         long usedMemory = runtime.totalMemory() / bytesToMBDivider;
+         long maxMemory = runtime.maxMemory() / bytesToMBDivider;
+-        long freeMemory = runtime.freeMemory() / bytesToMBDivider;
++        long freeMemory = (runtime.maxMemory() - runtime.totalMemory()) / bytesToMBDivider;
+ 
+         ChatColor color = getColor(freeMemory);
++        String unit = ChatColor.WHITE + "MB";
+ 
+-        sender.sendMessage(ChatColor.GOLD + "Memory Usage: " + color + usedMemory + "MB" + ChatColor.GRAY + " / " + ChatColor.GOLD + maxMemory + "MB");
+-        sender.sendMessage(ChatColor.GOLD + "Free Memory" + color + freeMemory + "MB");
++        sender.sendMessage(ChatColor.GOLD + "Memory Usage: " + color + usedMemory + unit + ChatColor.GRAY + " / " + ChatColor.GOLD + maxMemory + unit);
++        sender.sendMessage(ChatColor.GOLD + "Free Memory " + color + freeMemory + unit);
+         return true;
+     }
+ 
+     private static ChatColor getColor(long mb) {
+-        return mb > 1536 ? ChatColor.GREEN : mb > 512 ? ChatColor.YELLOW : ChatColor.RED;
++        return mb > 1024 ? ChatColor.GREEN : mb > 512 ? ChatColor.YELLOW : ChatColor.RED;
+     }
+ }
+-- 
+2.27.0.windows.1
+

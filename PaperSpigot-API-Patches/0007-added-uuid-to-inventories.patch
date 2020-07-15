@@ -1,0 +1,33 @@
+From 1be6bb08337af37e73d3c193d329859effbc8124 Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Sat, 11 Jul 2020 00:13:53 +0200
+Subject: [PATCH] added-uuid-to-inventories
+
+
+diff --git a/src/main/java/org/bukkit/inventory/Inventory.java b/src/main/java/org/bukkit/inventory/Inventory.java
+index da5d83e0..b5010b2b 100644
+--- a/src/main/java/org/bukkit/inventory/Inventory.java
++++ b/src/main/java/org/bukkit/inventory/Inventory.java
+@@ -3,6 +3,7 @@ package org.bukkit.inventory;
+ import java.util.HashMap;
+ import java.util.List;
+ import java.util.ListIterator;
++import java.util.UUID;
+ 
+ import org.bukkit.Material;
+ import org.bukkit.entity.HumanEntity;
+@@ -378,4 +379,11 @@ public interface Inventory extends Iterable<ItemStack> {
+      * @return An iterator.
+      */
+     public ListIterator<ItemStack> iterator(int index);
++
++    /**
++     * Gets the uuid of the inventory
++     *
++     * @return the UUID of the inventory
++     */
++    public UUID getUUID();
+ }
+-- 
+2.27.0.windows.1
+

@@ -1,0 +1,35 @@
+From 67f2253d152aa84ac756ad1b21e71d5350227ba0 Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Mon, 13 Jul 2020 20:04:43 +0200
+Subject: [PATCH] fix-inventory-uuid
+
+
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 1b62463a..f499468d 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -782,6 +782,21 @@ public interface Server extends PluginMessageRecipient {
+      */
+     Inventory createInventory(InventoryHolder owner, int size, String title) throws IllegalArgumentException;
+ 
++    /**
++     * Creates an empty inventory of type {@link InventoryType#CHEST} with the
++     * specified size and title.
++     *
++     * @param owner the holder of the inventory, or null to indicate no holder
++     * @param size a multiple of 9 as the size of inventory to create
++     * @param title the title of the inventory, displayed when inventory is
++     *     viewed
++     * @param uuid the uuid of the inventory
++     * @return a new inventory
++     * @throws IllegalArgumentException if the size is not a multiple of 9
++     */
++
++    Inventory createInventory(InventoryHolder owner, int size, String title, UUID uuid) throws IllegalArgumentException;
++
+     /**
+      * Gets user-specified limit for number of monsters that can spawn in a
+      * chunk.
+-- 
+2.27.0.windows.1
+

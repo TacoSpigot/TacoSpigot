@@ -1,0 +1,50 @@
+From 0d959f00e676436ec70e65d944a2c0e95d9d675a Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Fri, 10 Jul 2020 23:17:46 +0200
+Subject: [PATCH] added-kohi-knockback
+
+
+diff --git a/src/main/java/org/spigotmc/SpigotConfig.java b/src/main/java/org/spigotmc/SpigotConfig.java
+index 8e72b3fc..d0e52ac8 100644
+--- a/src/main/java/org/spigotmc/SpigotConfig.java
++++ b/src/main/java/org/spigotmc/SpigotConfig.java
+@@ -34,14 +34,6 @@ import co.aikar.timings.TimingsManager;
+ public class SpigotConfig
+ {
+ 
+-    public static final double knockbackFriction = 2.0D;
+-    public static final double knockbackHorizontal = 0.35D;
+-    public static final double knockbackVertical = 0.35D;
+-    public static final double knockbackVerticalLimit = 0.4D;
+-    public static final double knockbackExtraHorizontal = 0.425D;
+-    public static final double knockbackExtraVertical = 0.085D;
+-
+-
+     private static File CONFIG_FILE;
+     private static final String HEADER = "This is the main configuration file for Spigot.\n"
+             + "As you can see, there's tons to configure. Some options may impact gameplay, so use\n"
+@@ -220,6 +212,21 @@ public class SpigotConfig
+         outdatedServerMessage = transform( getString( "messages.outdated-server", outdatedServerMessage ) );
+     }
+ 
++    public static double knockbackFriction = 2.0D;
++    public static double knockbackHorizontal = 0.35D;
++    public static double knockbackVertical = 0.35D;
++    public static double knockbackVerticalLimit = 0.4D;
++    public static double knockbackExtraHorizontal = 0.425D;
++    public static double knockbackExtraVertical = 0.085D;
++    private static void knockback() {
++        knockbackFriction = getDouble("knockback.friction", knockbackFriction);
++        knockbackHorizontal = getDouble("knockback.horizontal", knockbackHorizontal);
++        knockbackVertical = getDouble("knockback.vertical", knockbackVertical);
++        knockbackVerticalLimit = getDouble("knockback.vertical-limit", knockbackVerticalLimit);
++        knockbackExtraHorizontal = getDouble("knockback.extra-horizontal", knockbackExtraHorizontal);
++        knockbackExtraVertical = getDouble("knockback.extra-vertical", knockbackExtraVertical);
++    }
++
+     public static int timeoutTime = 60;
+     public static boolean restartOnCrash = true;
+     public static String restartScript = "./start.sh";
+-- 
+2.27.0.windows.1
+

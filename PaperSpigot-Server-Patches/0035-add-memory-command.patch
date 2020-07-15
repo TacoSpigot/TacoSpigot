@@ -1,0 +1,66 @@
+From e07a950c38a95725db10ba7819db3122d5557b2e Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Mon, 13 Jul 2020 19:33:25 +0200
+Subject: [PATCH] add-memory-command
+
+
+diff --git a/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java b/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
+index 177b1277..87d536d3 100644
+--- a/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
++++ b/src/main/java/cc/kasumi/kspigot/KSpigotConfig.java
+@@ -162,4 +162,8 @@ public class KSpigotConfig {
+         knockbackExtraHorizontal = getDouble("knockback.extra-horizontal", knockbackExtraHorizontal);
+         knockbackExtraVertical = getDouble("knockback.extra-vertical", knockbackExtraVertical);
+     }
++
++    private static void memoryCommand() {
++        commands.put("memory", new MemoryCommand("memory"));
++    }
+ }
+diff --git a/src/main/java/cc/kasumi/kspigot/MemoryCommand.java b/src/main/java/cc/kasumi/kspigot/MemoryCommand.java
+new file mode 100644
+index 00000000..2e1c75b6
+--- /dev/null
++++ b/src/main/java/cc/kasumi/kspigot/MemoryCommand.java
+@@ -0,0 +1,38 @@
++package cc.kasumi.kspigot;
++
++import org.bukkit.ChatColor;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++
++public class MemoryCommand extends Command {
++
++    public MemoryCommand(String name) {
++        super(name);
++        this.description = "Gets memory usage from the server";
++        this.usageMessage = "/memory";
++        this.setPermission( "bukkit.command.memory" );
++    }
++
++    @Override
++    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
++        if (!testPermission(sender)) {
++            return true;
++        }
++
++        Runtime runtime = Runtime.getRuntime();
++        long bytesToMBDivider = 1048576;
++        long usedMemory = runtime.totalMemory() / bytesToMBDivider;
++        long maxMemory = runtime.maxMemory() / bytesToMBDivider;
++        long freeMemory = runtime.freeMemory() / bytesToMBDivider;
++
++        ChatColor color = getColor(freeMemory);
++
++        sender.sendMessage(ChatColor.GOLD + "Memory Usage: " + color + usedMemory + "MB" + ChatColor.GRAY + " / " + ChatColor.GOLD + maxMemory + "MB");
++        sender.sendMessage(ChatColor.GOLD + "Free Memory" + color + freeMemory + "MB");
++        return true;
++    }
++
++    private static ChatColor getColor(long mb) {
++        return mb > 1536 ? ChatColor.GREEN : mb > 512 ? ChatColor.YELLOW : ChatColor.RED;
++    }
++}
+-- 
+2.27.0.windows.1
+

@@ -1,0 +1,84 @@
+From f9baddbab3c96af47bedb45afb92d28be5b2caeb Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Mon, 13 Jul 2020 20:04:22 +0200
+Subject: [PATCH] fix-inventory-uuid
+
+
+diff --git a/src/main/java/cc/kasumi/kspigot/MemoryCommand.java b/src/main/java/cc/kasumi/kspigot/MemoryCommand.java
+index 45eedb8d..9d4e731e 100644
+--- a/src/main/java/cc/kasumi/kspigot/MemoryCommand.java
++++ b/src/main/java/cc/kasumi/kspigot/MemoryCommand.java
+@@ -26,10 +26,10 @@ public class MemoryCommand extends Command {
+         long freeMemory = (runtime.maxMemory() - runtime.totalMemory()) / bytesToMBDivider;
+ 
+         ChatColor color = getColor(freeMemory);
+-        String unit = ChatColor.WHITE + "MB";
++        String unit = ChatColor.GOLD + "MB";
+ 
+-        sender.sendMessage(ChatColor.GOLD + "Memory Usage: " + color + usedMemory + unit + ChatColor.GRAY + " / " + ChatColor.GOLD + maxMemory + unit);
+-        sender.sendMessage(ChatColor.GOLD + "Free Memory " + color + freeMemory + unit);
++        sender.sendMessage(ChatColor.GOLD + "Memory Usage: " + color + usedMemory + unit + ChatColor.GRAY + " / " + ChatColor.GREEN + maxMemory + unit);
++        sender.sendMessage(ChatColor.GOLD + "Free Memory: " + color + freeMemory + unit);
+         return true;
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index a2fb0398..d3d88a11 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1571,6 +1571,12 @@ public final class CraftServer implements Server {
+         return new CraftInventoryCustom(owner, size, title);
+     }
+ 
++    @Override
++    public Inventory createInventory(InventoryHolder owner, int size, String title, UUID uuid) throws IllegalArgumentException {
++        Validate.isTrue(size % 9 == 0, "Chests must have a size that is a multiple of 9!");
++        return new CraftInventoryCustom(owner, size, title, uuid);
++    }
++
+     @Override
+     public HelpMap getHelpMap() {
+         return helpMap;
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
+index a1789966..0129af20 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventory.java
+@@ -34,6 +34,11 @@ public class CraftInventory implements Inventory {
+         this.uuid = UUID.randomUUID();
+     }
+ 
++    public CraftInventory(IInventory inventory, UUID uuid) {
++        this.inventory = inventory;
++        this.uuid = uuid;
++    }
++
+     public IInventory getInventory() {
+         return inventory;
+     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
+index e99b8cca..4598829c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftInventoryCustom.java
+@@ -2,6 +2,8 @@ package org.bukkit.craftbukkit.inventory;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.UUID;
++
+ import net.minecraft.server.ChatComponentText;
+ 
+ import net.minecraft.server.IChatBaseComponent;
+@@ -32,6 +34,10 @@ public class CraftInventoryCustom extends CraftInventory {
+         super(new MinecraftInventory(owner, size, title));
+     }
+ 
++    public CraftInventoryCustom(InventoryHolder owner, int size, String title, UUID uuid) {
++        super(new MinecraftInventory(owner, size, title), uuid);
++    }
++
+     static class MinecraftInventory implements IInventory {
+         private final ItemStack[] items;
+         private int maxStack = MAX_STACK;
+-- 
+2.27.0.windows.1
+

@@ -1,0 +1,21 @@
+From 4bdb38c529d1652b65ec59669c21bfbd82f04e78 Mon Sep 17 00:00:00 2001
+From: IFleetwood <zuxirewind@gmail.com>
+Date: Sat, 11 Jul 2020 00:37:26 +0200
+Subject: [PATCH] fix-kspigot-config
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index 04b0143d..c3f04ced 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -224,6 +224,7 @@ public class Main {
+                 }
+                 // Spigot End
+                 net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // TacoSpigot - load config before we load libraries to allow access while loading
++                cc.kasumi.kspigot.KSpigotConfig.init((File) options.valueOf("kspigot-settings"));
+                 System.out.println("Loading libraries, please wait...");
+                 MinecraftServer.main(options);
+             } catch (Throwable t) {
+-- 
+2.27.0.windows.1
+
