@@ -1,81 +1,79 @@
-From e1112a0a7fa710e5689a7cd489ee6c01297a98fe Mon Sep 17 00:00:00 2001
+From eccb425149abe6997262ff353c20126d2ebaa6c8 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Sun, 3 Apr 2016 14:05:27 -0700
 Subject: [PATCH] MC-Dev Fixes
 
 Sometimes fernflower makes mistakes too
 
-diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
-index 47b528b0a..9e2c21627 100644
---- a/src/main/java/net/minecraft/server/BlockStateList.java
-+++ b/src/main/java/net/minecraft/server/BlockStateList.java
-@@ -31,17 +31,13 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
-         List<A> list = Lists.newArrayList();
-         Stream<List<Comparable<?>>> stream = Stream.of(Collections.emptyList());
- 
--        IBlockState iblockstate;
--
--        for (UnmodifiableIterator unmodifiableiterator = this.c.values().iterator(); unmodifiableiterator.hasNext();stream = stream.flatMap((list1) -> {
--            return iblockstate.d().stream().map((comparable) -> {
-+        for (IBlockState<?> iblockstate : this.c.values()) {
-+            stream = stream.flatMap((list1) -> iblockstate.d().stream().map((comparable) -> {
-                 List<Comparable<?>> list2 = Lists.newArrayList(list1);
- 
-                 list2.add(comparable);
-                 return list2;
--            });
--        })) {
--            iblockstate = (IBlockState) unmodifiableiterator.next();
-+            }));
-         }
- 
-         stream.forEach((list1) -> {
-@@ -51,15 +47,15 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
-             map1.put(map2, a0);
-             list.add(a0);
-         });
--        Iterator iterator = list.iterator();
-+        Iterator<A> iterator = list.iterator();
+diff --git a/src/main/java/net/minecraft/server/BlockStateEnum.java b/src/main/java/net/minecraft/server/BlockStateEnum.java
+index 66c459d8..9f43b2bb 100644
+--- a/src/main/java/net/minecraft/server/BlockStateEnum.java
++++ b/src/main/java/net/minecraft/server/BlockStateEnum.java
+@@ -27,7 +27,7 @@ public class BlockStateEnum<T extends Enum<T> & INamable> extends BlockState<T>
+         Iterator iterator = collection.iterator();
  
          while (iterator.hasNext()) {
--            A a0 = (BlockDataAbstract) iterator.next();
-+            A a0 = iterator.next();
+-            Enum oenum = (Enum) iterator.next();
++            T oenum = (T) iterator.next(); // TacoSpigot - fix decompile error
+             String s1 = ((INamable) oenum).getName();
  
-             a0.a((Map) map1);
+             if (this.b.containsKey(s1)) {
+diff --git a/src/main/java/net/minecraft/server/BlockStateList.java b/src/main/java/net/minecraft/server/BlockStateList.java
+index a7846b84..b666c099 100644
+--- a/src/main/java/net/minecraft/server/BlockStateList.java
++++ b/src/main/java/net/minecraft/server/BlockStateList.java
+@@ -87,7 +87,7 @@ public class BlockStateList {
+         if (!BlockStateList.a.matcher(s).matches()) {
+             throw new IllegalArgumentException("Block: " + block.getClass() + " has invalidly named property: " + s);
+         } else {
+-            Iterator iterator = iblockstate.c().iterator();
++            Iterator<T> iterator = iblockstate.c().iterator(); // TacoSpigot - generic iterator
+ 
+             String s1;
+ 
+@@ -96,7 +96,7 @@ public class BlockStateList {
+                     return s;
+                 }
+ 
+-                Comparable comparable = (Comparable) iterator.next();
++                T comparable = iterator.next(); // TacoSpigot - fix fernflower error
+ 
+                 s1 = iblockstate.a(comparable);
+             } while (BlockStateList.a.matcher(s1).matches());
+@@ -165,7 +165,7 @@ public class BlockStateList {
+             if (comparable == null) {
+                 throw new IllegalArgumentException("Cannot get property " + iblockstate + " as it does not exist in " + this.a.s());
+             } else {
+-                return (Comparable) iblockstate.b().cast(comparable);
++                return iblockstate.b().cast(comparable); // TacoSpigot - fix fernflower error
+             }
          }
  
--        this.d = ImmutableList.copyOf(list);
-+        this.d = ImmutableList.copyOf((Iterable<S>)list);
+diff --git a/src/main/java/net/minecraft/server/PacketEncoder.java b/src/main/java/net/minecraft/server/PacketEncoder.java
+index a6da6f5c..843fb2e4 100644
+--- a/src/main/java/net/minecraft/server/PacketEncoder.java
++++ b/src/main/java/net/minecraft/server/PacketEncoder.java
+@@ -19,7 +19,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+         this.c = enumprotocoldirection;
      }
  
-     public ImmutableList<S> a() {
-@@ -67,7 +63,7 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
+-    protected void a(ChannelHandlerContext channelhandlercontext, Packet<?> packet, ByteBuf bytebuf) throws Exception {
++    protected void encode(ChannelHandlerContext channelhandlercontext, Packet<?> packet, ByteBuf bytebuf) throws Exception { // TacoSpigot - fix decompiler issue
+         EnumProtocol enumprotocol = (EnumProtocol) channelhandlercontext.channel().attr(NetworkManager.c).get();
+ 
+         if (enumprotocol == null) {
+@@ -48,7 +48,11 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+         }
      }
  
-     public S getBlockData() {
--        return (IBlockDataHolder) this.d.get(0);
-+        return this.d.get(0);
++    // TacoSpigot start - remove decompiler error
++    /*
+     protected void encode(ChannelHandlerContext channelhandlercontext, Object object, ByteBuf bytebuf) throws Exception {
+         this.a(channelhandlercontext, (Packet) object, bytebuf);
      }
- 
-     public O getBlock() {
-@@ -121,7 +117,7 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
-                 if (collection.size() <= 1) {
-                     throw new IllegalArgumentException(this.a + " attempted use property " + s + " with <= 1 possible values");
-                 } else {
--                    Iterator iterator = collection.iterator();
-+                    Iterator<T> iterator = collection.iterator();
- 
-                     String s1;
- 
-@@ -134,7 +130,7 @@ public class BlockStateList<O, S extends IBlockDataHolder<S>> {
-                             return;
-                         }
- 
--                        T t0 = (Comparable) iterator.next();
-+                        T t0 = iterator.next();
- 
-                         s1 = iblockstate.a(t0);
-                     } while (BlockStateList.a.matcher(s1).matches());
++    */
++    // TacoSpigot end
+ }
 -- 
-2.15.1.windows.2
+2.13.1
 

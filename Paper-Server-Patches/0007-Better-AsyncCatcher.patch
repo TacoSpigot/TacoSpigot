@@ -1,4 +1,4 @@
-From 176ca1cac7281dc65c0893ca58b43b87978f36b2 Mon Sep 17 00:00:00 2001
+From 973ab605e764629288e49712172be0a4130aff01 Mon Sep 17 00:00:00 2001
 From: Techcable <Techcable@techcable.net>
 Date: Fri, 18 Mar 2016 13:56:01 -0700
 Subject: [PATCH] Better AsyncCatcher
@@ -6,10 +6,10 @@ Subject: [PATCH] Better AsyncCatcher
 Async catching for PlayerChunkMap
 
 diff --git a/src/main/java/net/minecraft/server/PlayerChunkMap.java b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-index b7dda8e28..c6f882dca 100644
+index 99652ae3..727cf319 100644
 --- a/src/main/java/net/minecraft/server/PlayerChunkMap.java
 +++ b/src/main/java/net/minecraft/server/PlayerChunkMap.java
-@@ -17,6 +17,9 @@ import javax.annotation.Nullable;
+@@ -19,6 +19,9 @@ import javax.annotation.Nullable;
  // CraftBukkit start
  import java.util.LinkedList;
  // CraftBukkit end
@@ -19,14 +19,14 @@ index b7dda8e28..c6f882dca 100644
  
  public class PlayerChunkMap {
  
-@@ -27,12 +30,14 @@ public class PlayerChunkMap {
-         return entityplayer != null && (!entityplayer.isSpectator() || entityplayer.getWorldServer().getGameRules().getBoolean("spectatorsGenerateChunks"));
-     }; static final Predicate<EntityPlayer> CAN_GEN_CHUNKS = b; // Paper - OBFHELPER
+@@ -41,12 +44,14 @@ public class PlayerChunkMap {
+         }
+     };
      private final WorldServer world;
 -    private final List<EntityPlayer> managedPlayers = Lists.newArrayList();
 +    // TacoSpigot start - catch async access
 +    private final List<EntityPlayer> managedPlayers = AsyncCatcher.catchAsyncUsage(Lists.newArrayList(), "list access PlayerChunkMap.managedPlayers");
-     private final Long2ObjectMap<PlayerChunk> e = new Long2ObjectOpenHashMap(4096); Long2ObjectMap<PlayerChunk> getChunks() { return e; } // Paper - OBFHELPER
+     private final Long2ObjectMap<PlayerChunk> e = new Long2ObjectOpenHashMap(4096);
 -    private final Set<PlayerChunk> f = Sets.newHashSet();
 -    private final List<PlayerChunk> g = Lists.newLinkedList();
 -    private final List<PlayerChunk> h = Lists.newLinkedList();
@@ -40,7 +40,7 @@ index b7dda8e28..c6f882dca 100644
      private long k;
      private boolean l = true;
 diff --git a/src/main/java/org/spigotmc/AsyncCatcher.java b/src/main/java/org/spigotmc/AsyncCatcher.java
-index e44c23016..26a72ada6 100644
+index e44c2301..26a72ada 100644
 --- a/src/main/java/org/spigotmc/AsyncCatcher.java
 +++ b/src/main/java/org/spigotmc/AsyncCatcher.java
 @@ -1,6 +1,13 @@
@@ -90,5 +90,5 @@ index e44c23016..26a72ada6 100644
 +    // TacoSpigot end
  }
 -- 
-2.15.1.windows.2
+2.16.2
 
