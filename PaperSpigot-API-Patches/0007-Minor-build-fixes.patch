@@ -1,0 +1,87 @@
+From 41a67e6f8bf5d8ab4d7cfdbf313c5484b1bebe48 Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Wed, 29 Dec 2021 12:51:12 -0700
+Subject: [PATCH] Minor build fixes
+
+TO BE CLEAR! THIS IS STILL 100% UNSUPPORTED!
+---
+ pom.xml                                       | 23 +++++--------------
+ .../org/spigotmc/CustomTimingsHandler.java    |  7 ++++--
+ 2 files changed, 11 insertions(+), 19 deletions(-)
+
+diff --git a/pom.xml b/pom.xml
+index b61d116d..32a9ac30 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -44,6 +44,10 @@
+             <id>spigotmc-public</id>
+             <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
+         </pluginRepository>
++        <pluginRepository>
++            <id>maven-public</id>
++            <url>https://repo1.maven.org/maven2/</url>
++        </pluginRepository>
+     </pluginRepositories>
+ 
+     <dependencies>
+@@ -120,27 +124,12 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
+-                <!-- versions after this appear to be broken -->
+-                <version>3.1</version>
+-                <configuration>
+-                    <!-- we use the Eclipse compiler as it doesn't need a JDK -->
+-                    <compilerId>eclipse</compilerId>
+-                    <!-- source and target are ignored if this isn't true -->
+-                    <optimize>true</optimize>
+-                </configuration>
+-                <dependencies>
+-                    <!-- we need our custom version as it fixes some bugs on case sensitive file systems -->
+-                    <dependency>
+-                        <groupId>org.codehaus.plexus</groupId>
+-                        <artifactId>plexus-compiler-eclipse</artifactId>
+-                        <version>2.5.0-spigotmc</version>
+-                    </dependency>
+-                </dependencies>
++                <version>3.8.1</version>
+             </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-shade-plugin</artifactId>
+-                <version>2.3</version>
++                <version>3.2.4</version>
+                 <executions>
+                     <execution>
+                         <phase>package</phase>
+diff --git a/src/main/java/org/spigotmc/CustomTimingsHandler.java b/src/main/java/org/spigotmc/CustomTimingsHandler.java
+index 7e89b97b..206fe8d5 100644
+--- a/src/main/java/org/spigotmc/CustomTimingsHandler.java
++++ b/src/main/java/org/spigotmc/CustomTimingsHandler.java
+@@ -30,10 +30,11 @@ import co.aikar.timings.NullTimingHandler;
+ import co.aikar.timings.Timing;
+ import co.aikar.timings.Timings;
+ import co.aikar.timings.TimingsManager;
+-import sun.reflect.Reflection;
+ 
+ import java.lang.reflect.Method;
+ import java.util.logging.Level;
++import java.util.List;
++import java.util.stream.Collectors;
+ 
+ /**
+  * This is here for legacy purposes incase any plugin used it.
+@@ -52,7 +53,9 @@ public final class CustomTimingsHandler {
+ 
+         Plugin plugin = null;
+         try {
+-             plugin = TimingsManager.getPluginByClassloader(Reflection.getCallerClass(2));
++
++            List<Class<?>> callingClasses = StackWalker.getInstance().walk(s -> s.limit(10).map(frame -> frame.getDeclaringClass()).collect(Collectors.toList()));
++             plugin = TimingsManager.getPluginByClassloader(callingClasses.get(1));
+         } catch (Exception ignored) {}
+ 
+         new AuthorNagException("Deprecated use of CustomTimingsHandler. Please Switch to Timings.of ASAP").printStackTrace();
+-- 
+2.32.0 (Apple Git-132)
+

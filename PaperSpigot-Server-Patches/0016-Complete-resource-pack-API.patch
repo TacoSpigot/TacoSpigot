@@ -1,11 +1,11 @@
-From 3622e1faf1e104a454c0f6cae4a0c9e839dbc86e Mon Sep 17 00:00:00 2001
+From a4b8ff1a31c569f847c9777912f4b4942a927475 Mon Sep 17 00:00:00 2001
 From: Jedediah Smith <jedediah@silencegreys.com>
 Date: Thu, 10 Mar 2016 15:27:26 -0700
 Subject: [PATCH] Complete resource pack API
 
 
 diff --git a/src/main/java/net/minecraft/server/PacketPlayInResourcePackStatus.java b/src/main/java/net/minecraft/server/PacketPlayInResourcePackStatus.java
-index 064374a..c5e5aa7 100644
+index 064374aa..c5e5aa7b 100644
 --- a/src/main/java/net/minecraft/server/PacketPlayInResourcePackStatus.java
 +++ b/src/main/java/net/minecraft/server/PacketPlayInResourcePackStatus.java
 @@ -4,7 +4,7 @@ import java.io.IOException;
@@ -18,10 +18,10 @@ index 064374a..c5e5aa7 100644
  
      public PacketPlayInResourcePackStatus() {}
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 4391ad7..2aa3efc 100644
+index 46b7b468..ffdbed20 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -849,7 +849,12 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+@@ -848,7 +848,12 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
  
      // CraftBukkit start
      public void a(PacketPlayInResourcePackStatus packetplayinresourcepackstatus) {
@@ -36,7 +36,7 @@ index 4391ad7..2aa3efc 100644
      // CraftBukkit end
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 3075076..ad07563 100644
+index 3075076e..ad07563d 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -1600,6 +1600,38 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
@@ -79,5 +79,5 @@ index 3075076..ad07563 100644
      {
          return spigot;
 -- 
-2.7.2
+2.32.0 (Apple Git-132)
 

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 PS1="$"
-basedir=`pwd`
-workdir=$basedir/work
+basedir=$(pwd)
+workdir="$basedir/work"
 minecraftversion=$(cat BuildData/info.json | grep minecraftVersion | cut -d '"' -f 4)
 decompiledir=$workdir/$minecraftversion
 classdir=$decompiledir/classes
@@ -19,10 +19,11 @@ if [ ! -d "$classdir" ]; then
     fi
 fi
 
-echo "Decompiling classes..."
-if [ ! -d "$decompiledir/net/minecraft/server" ]; then
+echo "$decompiledir/net/minecraft/server"
+if [[ ! -d "$decompiledir/net/minecraft/server" ]]; then
+    echo "Decompiling classes..."
     cd "$basedir"
-    java -jar BuildData/bin/fernflower.jar -dgs=1 -hdc=0 -rbr=0 -asc=1 -udv=0 "$classdir" "$decompiledir"
+    echo java -jar BuildData/bin/fernflower.jar -dgs=1 -hdc=0 -rbr=0 -asc=1 -udv=0 "$classdir" "$decompiledir"
     if [ "$?" != "0" ]; then
         echo "Failed to decompile classes."
         exit 1

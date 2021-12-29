@@ -1,0 +1,60 @@
+From 5a3e5182c1ceb42d5c65d374f863a0851bc17f5d Mon Sep 17 00:00:00 2001
+From: Techcable <Techcable@techcable.net>
+Date: Wed, 29 Dec 2021 12:50:49 -0700
+Subject: [PATCH] Semi Fix POM
+
+THIS IS STILL 100% UNSUPPORTED!
+
+This still doesn't compile, but I think it's getting better?
+---
+ pom.xml | 20 ++++----------------
+ 1 file changed, 4 insertions(+), 16 deletions(-)
+
+diff --git a/pom.xml b/pom.xml
+index d116fa45..d1be78f5 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -118,6 +118,7 @@
+     <build>
+         <defaultGoal>install</defaultGoal>
+         <plugins>
++            <!-- 
+             <plugin>
+             <groupId>com.lukegb.mojo</groupId>
+             <artifactId>gitdescribe-maven-plugin</artifactId>
+@@ -134,7 +135,8 @@
+                     </goals>
+                 </execution>
+             </executions>
+-        </plugin>
++                </plugin>
++            -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-jar-plugin</artifactId>
+@@ -240,21 +242,7 @@
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
+                 <!-- versions after this appear to be broken -->
+-                <version>3.1</version>
+-                <configuration>
+-                    <!-- we use the Eclipse compiler as it doesn't need a JDK -->
+-                    <compilerId>eclipse</compilerId>
+-                    <!-- source and target are ignored if this isn't true -->
+-                    <optimize>true</optimize>
+-                </configuration>
+-                <dependencies>
+-                    <!-- we need our custom version as it fixes some bugs on case sensitive file systems -->
+-                    <dependency>
+-                        <groupId>org.codehaus.plexus</groupId>
+-                        <artifactId>plexus-compiler-eclipse</artifactId>
+-                        <version>2.5.0-spigotmc</version>
+-                    </dependency>
+-                </dependencies>
++                <version>3.8.1</version>
+             </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+-- 
+2.32.0 (Apple Git-132)
+
