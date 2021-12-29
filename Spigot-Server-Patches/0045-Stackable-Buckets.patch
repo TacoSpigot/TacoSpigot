@@ -1,11 +1,11 @@
-From afb88d4d332f4496e7dafe36d397e4156df10b4d Mon Sep 17 00:00:00 2001
+From c641f8b9f6cdf78df37f38a96a716d6a2da1d801 Mon Sep 17 00:00:00 2001
 From: Byteflux <byte@byteflux.net>
 Date: Mon, 1 Jun 2015 20:45:24 -0700
 Subject: [PATCH] Stackable Buckets
 
 
 diff --git a/src/main/java/net/minecraft/server/ItemBucket.java b/src/main/java/net/minecraft/server/ItemBucket.java
-index 4d362ae..b62ea42 100644
+index 4d362aef..b62ea42f 100644
 --- a/src/main/java/net/minecraft/server/ItemBucket.java
 +++ b/src/main/java/net/minecraft/server/ItemBucket.java
 @@ -7,6 +7,8 @@ import org.bukkit.event.player.PlayerBucketEmptyEvent;
@@ -37,7 +37,7 @@ index 4d362ae..b62ea42 100644
                      }
                  }
 diff --git a/src/main/java/net/minecraft/server/ItemMilkBucket.java b/src/main/java/net/minecraft/server/ItemMilkBucket.java
-index 91ea70d..8e3d77e 100644
+index 91ea70d0..8e3d77e0 100644
 --- a/src/main/java/net/minecraft/server/ItemMilkBucket.java
 +++ b/src/main/java/net/minecraft/server/ItemMilkBucket.java
 @@ -1,5 +1,7 @@
@@ -65,7 +65,7 @@ index 91ea70d..8e3d77e 100644
      }
  
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 7ea74c0..18d8d2d 100644
+index 6218102b..3bdbb8f9 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
 @@ -62,6 +62,8 @@ import org.bukkit.inventory.InventoryView;
@@ -77,7 +77,7 @@ index 7ea74c0..18d8d2d 100644
  public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerListBox {
  
      private static final Logger c = LogManager.getLogger();
-@@ -1634,6 +1636,19 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+@@ -1633,6 +1635,19 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
                          case ALLOW:
                          case DEFAULT:
                              itemstack = this.player.activeContainer.clickItem(packetplayinwindowclick.b(), packetplayinwindowclick.c(), packetplayinwindowclick.f(), this.player);
@@ -98,7 +98,7 @@ index 7ea74c0..18d8d2d 100644
                          case DENY:
                              /* Needs enum constructor in InventoryAction
 diff --git a/src/main/java/org/github/paperspigot/PaperSpigotConfig.java b/src/main/java/org/github/paperspigot/PaperSpigotConfig.java
-index 744773d..31c4cf8 100644
+index 778db7e3..ea5a4272 100644
 --- a/src/main/java/org/github/paperspigot/PaperSpigotConfig.java
 +++ b/src/main/java/org/github/paperspigot/PaperSpigotConfig.java
 @@ -3,14 +3,19 @@ package org.github.paperspigot;
@@ -170,5 +170,5 @@ index 744773d..31c4cf8 100644
 +    }
  }
 -- 
-2.6.0
+2.32.0 (Apple Git-132)
 

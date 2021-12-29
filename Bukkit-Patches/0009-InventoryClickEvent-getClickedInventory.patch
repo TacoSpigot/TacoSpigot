@@ -1,4 +1,4 @@
-From 8a80ebccc9555a300c001caf8a8984f12a86f326 Mon Sep 17 00:00:00 2001
+From 028930806eef23a3e604f9d3c66523a927dfb875 Mon Sep 17 00:00:00 2001
 From: Aikar <aikar@aikar.co>
 Date: Sun, 7 Jul 2013 10:32:05 -0400
 Subject: [PATCH] InventoryClickEvent getClickedInventory
@@ -9,7 +9,7 @@ in order to determine the inventory clicked. This provides the logic for plugins
 readily identify which inventory was clicked.
 
 diff --git a/src/main/java/org/bukkit/event/inventory/InventoryClickEvent.java b/src/main/java/org/bukkit/event/inventory/InventoryClickEvent.java
-index 28198b8..3313d91 100644
+index 28198b8b..3313d915 100644
 --- a/src/main/java/org/bukkit/event/inventory/InventoryClickEvent.java
 +++ b/src/main/java/org/bukkit/event/inventory/InventoryClickEvent.java
 @@ -47,6 +47,7 @@ public class InventoryClickEvent extends InventoryInteractEvent {
@@ -34,10 +34,11 @@ index 28198b8..3313d91 100644
          this.whichSlot = view.convertSlot(slot);
          this.click = click;
          this.action = action;
-@@ -73,6 +81,14 @@ public class InventoryClickEvent extends InventoryInteractEvent {
+@@ -72,6 +80,14 @@ public class InventoryClickEvent extends InventoryInteractEvent {
+         this.hotbarKey = key;
      }
  
-     /**
++    /**
 +     * Gets the inventory that was clicked, or null if outside of window
 +     * @return The clicked inventory
 +     */
@@ -45,10 +46,9 @@ index 28198b8..3313d91 100644
 +        return clickedInventory;
 +    }
 +
-+    /**
+     /**
       * Gets the type of slot that was clicked.
       *
-      * @return the slot type
 -- 
-2.1.4
+2.32.0 (Apple Git-132)
 

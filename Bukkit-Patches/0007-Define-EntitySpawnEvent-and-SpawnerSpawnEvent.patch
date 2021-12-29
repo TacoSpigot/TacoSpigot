@@ -1,4 +1,4 @@
-From e982d761707c7b217a88c4f9238feeaeaba4858d Mon Sep 17 00:00:00 2001
+From b9b4f73de7ad125d08fba76fbfe6fc41c9b6b3f8 Mon Sep 17 00:00:00 2001
 From: Andy Shulman <andy.shulman@hotmail.com>
 Date: Mon, 15 Apr 2013 20:06:01 -0500
 Subject: [PATCH] Define EntitySpawnEvent and SpawnerSpawnEvent
@@ -6,7 +6,7 @@ Subject: [PATCH] Define EntitySpawnEvent and SpawnerSpawnEvent
 Defines EntitySpawnEvent and SpawnerSpawnEvent. Adds BUKKIT-267 and BUKKIT-1559
 
 diff --git a/src/main/java/org/bukkit/event/entity/CreatureSpawnEvent.java b/src/main/java/org/bukkit/event/entity/CreatureSpawnEvent.java
-index 288e98b..8883157 100644
+index 288e98bd..88831574 100644
 --- a/src/main/java/org/bukkit/event/entity/CreatureSpawnEvent.java
 +++ b/src/main/java/org/bukkit/event/entity/CreatureSpawnEvent.java
 @@ -4,17 +4,13 @@ import org.bukkit.Location;
@@ -28,7 +28,7 @@ index 288e98b..8883157 100644
      private final SpawnReason spawnReason;
  
      public CreatureSpawnEvent(final LivingEntity spawnee, final SpawnReason spawnReason) {
-@@ -28,29 +24,12 @@ public class CreatureSpawnEvent extends EntityEvent implements Cancellable {
+@@ -28,28 +24,11 @@ public class CreatureSpawnEvent extends EntityEvent implements Cancellable {
          spawnReason = reason;
      }
  
@@ -45,7 +45,7 @@ index 288e98b..8883157 100644
          return (LivingEntity) entity;
      }
  
-     /**
+-    /**
 -     * Gets the location at which the creature is spawning.
 -     *
 -     * @return The location at which the creature is spawning
@@ -54,10 +54,9 @@ index 288e98b..8883157 100644
 -        return getEntity().getLocation();
 -    }
 -
--    /**
+     /**
       * Gets the type of creature being spawned.
       *
-      * @return A CreatureType value detailing the type of creature being
 @@ -72,15 +51,6 @@ public class CreatureSpawnEvent extends EntityEvent implements Cancellable {
          return spawnReason;
      }
@@ -76,7 +75,7 @@ index 288e98b..8883157 100644
       */
 diff --git a/src/main/java/org/bukkit/event/entity/EntitySpawnEvent.java b/src/main/java/org/bukkit/event/entity/EntitySpawnEvent.java
 new file mode 100644
-index 0000000..5dcf98f
+index 00000000..5dcf98f3
 --- /dev/null
 +++ b/src/main/java/org/bukkit/event/entity/EntitySpawnEvent.java
 @@ -0,0 +1,45 @@
@@ -126,7 +125,7 @@ index 0000000..5dcf98f
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/event/entity/ItemSpawnEvent.java b/src/main/java/org/bukkit/event/entity/ItemSpawnEvent.java
-index bafd934..776f8e7 100644
+index bafd934a..776f8e72 100644
 --- a/src/main/java/org/bukkit/event/entity/ItemSpawnEvent.java
 +++ b/src/main/java/org/bukkit/event/entity/ItemSpawnEvent.java
 @@ -1,51 +1,23 @@
@@ -189,7 +188,7 @@ index bafd934..776f8e7 100644
  }
 diff --git a/src/main/java/org/bukkit/event/entity/SpawnerSpawnEvent.java b/src/main/java/org/bukkit/event/entity/SpawnerSpawnEvent.java
 new file mode 100644
-index 0000000..1acb3c4
+index 00000000..1acb3c40
 --- /dev/null
 +++ b/src/main/java/org/bukkit/event/entity/SpawnerSpawnEvent.java
 @@ -0,0 +1,22 @@
@@ -216,5 +215,5 @@ index 0000000..1acb3c4
 +    }
 +}
 -- 
-2.1.4
+2.32.0 (Apple Git-132)
 

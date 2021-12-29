@@ -6,9 +6,6 @@ Subject: [PATCH] Semi Fix POM
 THIS IS STILL 100% UNSUPPORTED!
 
 This still doesn't compile, but I think it's getting better?
----
- pom.xml | 20 ++++----------------
- 1 file changed, 4 insertions(+), 16 deletions(-)
 
 diff --git a/pom.xml b/pom.xml
 index d116fa45..d1be78f5 100644

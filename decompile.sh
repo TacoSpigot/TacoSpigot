@@ -23,7 +23,7 @@ echo "$decompiledir/net/minecraft/server"
 if [[ ! -d "$decompiledir/net/minecraft/server" ]]; then
     echo "Decompiling classes..."
     cd "$basedir"
-    echo java -jar BuildData/bin/fernflower.jar -dgs=1 -hdc=0 -rbr=0 -asc=1 -udv=0 "$classdir" "$decompiledir"
+    java -jar BuildData/bin/fernflower.jar -dgs=1 -hdc=0 -rbr=0 -asc=1 -udv=0 "$classdir" "$decompiledir"
     if [ "$?" != "0" ]; then
         echo "Failed to decompile classes."
         exit 1

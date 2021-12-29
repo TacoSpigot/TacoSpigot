@@ -9,20 +9,23 @@ function applyPatch {
     what=$1
     target=$2
     branch=$3
-    cd "$basedir/$what"
+    mkdir -p "$basedir/$what"
+    cd "$basedir/$what" || exit 1
     git fetch
     git branch -f upstream "$branch" >/dev/null
 
-    cd "$basedir"
+    cd "$basedir" || exit 1
     if [ ! -d  "$basedir/$target" ]; then
         git clone "$what" "$target"
     fi
-    cd "$basedir/$target"
+    mkdir -p "$basedir/$target" 
+    cd "$basedir/$target" || exit 1
     echo "Resetting $target to $what..."
-    git remote add -f upstream ../$what >/dev/null 2>&1
-    git checkout master >/dev/null 2>&1
-    git fetch upstream >/dev/null 2>&1
-    git reset --hard upstream/upstream
+    # Correctly handles already existing branches...
+    git remote add -f upstream ../$what # || exit 1
+    git checkout -B master || exit 1
+    git fetch upstream || exit 1
+    git reset --hard upstream/upstream || exit 1
     echo "  Applying patches to $target..."
     git am --abort >/dev/null 2>&1
     git am --3way --ignore-whitespace "$basedir/${what}-Patches/"*.patch
@@ -53,8 +56,8 @@ if [[ "$gpgsign" == "true" ]]; then
     git config --global commit.gpgsign false
 fi
 
-# applyPatch Bukkit Spigot-API HEAD && applyPatch CraftBukkit Spigot-Server patched
-# applyPatch Spigot-API PaperSpigot-API HEAD && applyPatch Spigot-Server PaperSpigot-Server HEAD
+applyPatch Bukkit Spigot-API HEAD && applyPatch CraftBukkit Spigot-Server patched
+applyPatch Spigot-API PaperSpigot-API HEAD && applyPatch Spigot-Server PaperSpigot-Server HEAD
 applyPatch PaperSpigot-API TacoSpigot-API HEAD && applyPatch PaperSpigot-Server TacoSpigot-Server HEAD
 
 enableCommitSigningIfNeeded

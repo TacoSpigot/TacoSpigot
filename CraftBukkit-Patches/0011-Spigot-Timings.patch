@@ -1,4 +1,4 @@
-From aeb61b3275fa914e67e52712e4ef290120fb2226 Mon Sep 17 00:00:00 2001
+From 5d1bbcc690e501f643e32314d77f5fd8dfbe86ce Mon Sep 17 00:00:00 2001
 From: Aikar <aikar@aikar.co>
 Date: Thu, 10 Jan 2013 00:18:11 -0500
 Subject: [PATCH] Spigot Timings
@@ -6,7 +6,7 @@ Subject: [PATCH] Spigot Timings
 Overhauls the Timings System adding performance tracking all around the Minecraft Server
 
 diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
-index 1b68736..7e7aa11 100644
+index 1b687361..7e7aa119 100644
 --- a/src/main/java/net/minecraft/server/Chunk.java
 +++ b/src/main/java/net/minecraft/server/Chunk.java
 @@ -901,6 +901,7 @@ public class Chunk {
@@ -26,7 +26,7 @@ index 1b68736..7e7aa11 100644
  
      public BlockPosition h(BlockPosition blockposition) {
 diff --git a/src/main/java/net/minecraft/server/ChunkProviderServer.java b/src/main/java/net/minecraft/server/ChunkProviderServer.java
-index 0ae736d..af77eef 100644
+index 0ae736d0..af77eef1 100644
 --- a/src/main/java/net/minecraft/server/ChunkProviderServer.java
 +++ b/src/main/java/net/minecraft/server/ChunkProviderServer.java
 @@ -132,6 +132,7 @@ public class ChunkProviderServer implements IChunkProvider {
@@ -56,7 +56,7 @@ index 0ae736d..af77eef 100644
                  }
  
 diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
-index 706d976..206e3aa 100644
+index 706d9763..206e3aa3 100644
 --- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 +++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
 @@ -42,7 +42,9 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
@@ -106,7 +106,7 @@ index 706d976..206e3aa 100644
          // return chunk; // CraftBukkit
      }
 diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
-index 7240af0..da295f3 100644
+index 7240af02..da295f3e 100644
 --- a/src/main/java/net/minecraft/server/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/DedicatedServer.java
 @@ -20,6 +20,7 @@ import java.io.PrintStream;
@@ -134,7 +134,7 @@ index 7240af0..da295f3 100644
  
      public boolean ae() {
 diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
-index 914e3f3..dd1005a 100644
+index 914e3f3b..dd1005ac 100644
 --- a/src/main/java/net/minecraft/server/Entity.java
 +++ b/src/main/java/net/minecraft/server/Entity.java
 @@ -16,6 +16,7 @@ import org.bukkit.entity.Hanging;
@@ -171,7 +171,7 @@ index 914e3f3..dd1005a 100644
  
      private void recalcPosition() {
 diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
-index 360d2ee..b8920fd 100644
+index d78c3c71..97ff40ac 100644
 --- a/src/main/java/net/minecraft/server/EntityLiving.java
 +++ b/src/main/java/net/minecraft/server/EntityLiving.java
 @@ -23,6 +23,8 @@ import org.bukkit.event.entity.EntityRegainHealthEvent;
@@ -196,7 +196,7 @@ index 360d2ee..b8920fd 100644
          }
  
 +        SpigotTimings.timerEntityBaseTick.stopTiming(); // Spigot
-         this.m();
+         this.recalcPosition();
 +        SpigotTimings.timerEntityTickRest.startTiming(); // Spigot
          double d0 = this.locX - this.lastX;
          double d1 = this.locZ - this.lastZ;
@@ -242,7 +242,7 @@ index 360d2ee..b8920fd 100644
  
          this.world.methodProfiler.b();
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index b79a2e7..5d1aa0b 100644
+index b79a2e78..5d1aa0bc 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -45,6 +45,7 @@ import jline.console.ConsoleReader;
@@ -367,10 +367,10 @@ index b79a2e7..5d1aa0b 100644
          this.methodProfiler.b();
      }
 diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
-index 1ee1abf..10e5032 100644
+index dfcf905e..a70a9845 100644
 --- a/src/main/java/net/minecraft/server/PlayerConnection.java
 +++ b/src/main/java/net/minecraft/server/PlayerConnection.java
-@@ -1090,6 +1090,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+@@ -1089,6 +1089,7 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
      // CraftBukkit end
  
     private void handleCommand(String s) {
@@ -378,7 +378,7 @@ index 1ee1abf..10e5032 100644
         // CraftBukkit start - whole method
          this.c.info(this.player.getName() + " issued server command: " + s);
  
-@@ -1099,18 +1100,22 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+@@ -1098,18 +1099,22 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
          this.server.getPluginManager().callEvent(event);
  
          if (event.isCancelled()) {
@@ -402,7 +402,7 @@ index 1ee1abf..10e5032 100644
          // CraftBukkit end
      }
 diff --git a/src/main/java/net/minecraft/server/TileEntity.java b/src/main/java/net/minecraft/server/TileEntity.java
-index 513712d..b8d0961 100644
+index 513712dc..b8d0961d 100644
 --- a/src/main/java/net/minecraft/server/TileEntity.java
 +++ b/src/main/java/net/minecraft/server/TileEntity.java
 @@ -6,10 +6,12 @@ import java.util.concurrent.Callable;
@@ -419,7 +419,7 @@ index 513712d..b8d0961 100644
      private static Map<String, Class<? extends TileEntity>> f = Maps.newHashMap();
      private static Map<Class<? extends TileEntity>, String> g = Maps.newHashMap();
 diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
-index 61db17c..e34964f 100644
+index 61db17c1..e34964f1 100644
 --- a/src/main/java/net/minecraft/server/World.java
 +++ b/src/main/java/net/minecraft/server/World.java
 @@ -21,6 +21,7 @@ import org.bukkit.Bukkit;
@@ -529,7 +529,7 @@ index 61db17c..e34964f 100644
      }
  
 diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
-index bb0e146..f300850 100644
+index bb0e1464..f300850b 100644
 --- a/src/main/java/net/minecraft/server/WorldServer.java
 +++ b/src/main/java/net/minecraft/server/WorldServer.java
 @@ -223,10 +223,13 @@ public class WorldServer extends World implements IAsyncTaskHandler {
@@ -583,7 +583,7 @@ index bb0e146..f300850 100644
  
      public BiomeBase.BiomeMeta a(EnumCreatureType enumcreaturetype, BlockPosition blockposition) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index d296924..a8a8e64 100644
+index a5022f0d..d1f92fee 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -1652,6 +1652,11 @@ public final class CraftServer implements Server {
@@ -599,7 +599,7 @@ index d296924..a8a8e64 100644
  
      public Spigot spigot()
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index dc06dcb..59eb83e 100644
+index 9b27f065..12071780 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -257,9 +257,11 @@ public class CraftWorld implements World {
@@ -616,7 +616,7 @@ index dc06dcb..59eb83e 100644
      }
 diff --git a/src/main/java/org/bukkit/craftbukkit/SpigotTimings.java b/src/main/java/org/bukkit/craftbukkit/SpigotTimings.java
 new file mode 100644
-index 0000000..558574f
+index 00000000..558574f5
 --- /dev/null
 +++ b/src/main/java/org/bukkit/craftbukkit/SpigotTimings.java
 @@ -0,0 +1,170 @@
@@ -791,7 +791,7 @@ index 0000000..558574f
 +    }
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java b/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java
-index c31f17f..1178ad7 100644
+index c31f17f7..1178ad7f 100644
 --- a/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java
 +++ b/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOProvider.java
 @@ -49,7 +49,9 @@ class ChunkIOProvider implements AsynchronousExecutor.CallBackProvider<QueuedChu
@@ -805,7 +805,7 @@ index c31f17f..1178ad7 100644
  
          Server server = queuedChunk.provider.world.getServer();
 diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
-index 9fea4fb..8442ecb 100644
+index 9fea4fb3..8442ecbc 100644
 --- a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
 +++ b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftScheduler.java
 @@ -346,7 +346,9 @@ public class CraftScheduler implements BukkitScheduler {
@@ -819,7 +819,7 @@ index 9fea4fb..8442ecb 100644
                      task.getOwner().getLogger().log(
                              Level.WARNING,
 diff --git a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftTask.java b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftTask.java
-index 55db3ff..220e39a 100644
+index 55db3ff8..220e39ab 100644
 --- a/src/main/java/org/bukkit/craftbukkit/scheduler/CraftTask.java
 +++ b/src/main/java/org/bukkit/craftbukkit/scheduler/CraftTask.java
 @@ -1,11 +1,13 @@
@@ -888,5 +888,5 @@ index 55db3ff..220e39a 100644
 +    // Spigot end
  }
 -- 
-2.1.4
+2.32.0 (Apple Git-132)
 

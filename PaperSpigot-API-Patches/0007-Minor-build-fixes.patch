@@ -4,10 +4,6 @@ Date: Wed, 29 Dec 2021 12:51:12 -0700
 Subject: [PATCH] Minor build fixes
 
 TO BE CLEAR! THIS IS STILL 100% UNSUPPORTED!
----
- pom.xml                                       | 23 +++++--------------
- .../org/spigotmc/CustomTimingsHandler.java    |  7 ++++--
- 2 files changed, 11 insertions(+), 19 deletions(-)
 
 diff --git a/pom.xml b/pom.xml
 index b61d116d..32a9ac30 100644

@@ -1,11 +1,11 @@
-From 0204f55807902b26e73cbeacf9cc7b35e663feac Mon Sep 17 00:00:00 2001
+From 2f54539dcbce0bd5dcd593e00b4cc894bff6c28c Mon Sep 17 00:00:00 2001
 From: Thinkofdeath <thethinkofdeath@gmail.com>
 Date: Sun, 20 Apr 2014 13:18:55 +0100
 Subject: [PATCH] Convert player skulls async
 
 
 diff --git a/src/main/java/net/minecraft/server/ItemSkull.java b/src/main/java/net/minecraft/server/ItemSkull.java
-index a46cfef..e710073 100644
+index a46cfef9..e7100731 100644
 --- a/src/main/java/net/minecraft/server/ItemSkull.java
 +++ b/src/main/java/net/minecraft/server/ItemSkull.java
 @@ -109,13 +109,21 @@ public class ItemSkull extends Item {
@@ -34,7 +34,7 @@ index a46cfef..e710073 100644
          } else {
              return false;
 diff --git a/src/main/java/net/minecraft/server/TileEntitySkull.java b/src/main/java/net/minecraft/server/TileEntitySkull.java
-index 0048b65..58014c5 100644
+index 0048b651..58014c5f 100644
 --- a/src/main/java/net/minecraft/server/TileEntitySkull.java
 +++ b/src/main/java/net/minecraft/server/TileEntitySkull.java
 @@ -5,11 +5,78 @@ import com.mojang.authlib.GameProfile;
@@ -195,7 +195,7 @@ index 0048b65..58014c5 100644
      public int getSkullType() {
          return this.a;
 diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
-index ead8a98..ce5425f 100644
+index 8355d6ca..ee78d007 100644
 --- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
 +++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaSkull.java
 @@ -68,13 +68,27 @@ class CraftMetaSkull extends CraftMetaItem implements SkullMeta {
@@ -206,7 +206,7 @@ index ead8a98..ce5425f 100644
 +    void applyToItem(final NBTTagCompound tag) { // Spigot - make final
          super.applyToItem(tag);
  
-         if (hasOwner()) {
+         if (profile != null) {
              NBTTagCompound owner = new NBTTagCompound();
              GameProfileSerializer.serialize(owner, profile);
 -            tag.set(SKULL_OWNER.NBT, owner);
@@ -229,5 +229,5 @@ index ead8a98..ce5425f 100644
      }
  
 -- 
-2.1.4
+2.32.0 (Apple Git-132)
 

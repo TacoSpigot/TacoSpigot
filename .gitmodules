@@ -6,7 +6,7 @@
 	url = https://hub.spigotmc.org/stash/scm/spigot/craftbukkit.git
 [submodule "BuildData"]
 	path = BuildData
-	url = https://hub.spigotmc.org/stash/scm/spigot/builddata.git
+	url = https://github.com/TacoSpigot/BuildData.git
 [submodule "Paperclip"]
 	path = Paperclip
-	url = https://github.com/PaperSpigot/Paperclip.git
+	url = https://github.com/TacoSpigot/Paperclip.git

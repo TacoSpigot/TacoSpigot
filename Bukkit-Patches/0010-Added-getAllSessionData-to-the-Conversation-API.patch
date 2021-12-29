@@ -1,17 +1,18 @@
-From 0244c6a138d2d14eebedef0b3fa06570d1772e87 Mon Sep 17 00:00:00 2001
+From e443c071ad847466c4766829a23a864ebe23c73b Mon Sep 17 00:00:00 2001
 From: Alex Bennett <alex.eugene.bennett@gmail.com>
 Date: Thu, 11 Jul 2013 15:31:32 -0500
 Subject: [PATCH] Added getAllSessionData() to the Conversation API.
 
 
 diff --git a/src/main/java/org/bukkit/conversations/ConversationContext.java b/src/main/java/org/bukkit/conversations/ConversationContext.java
-index 4f33ff4..7390a77 100644
+index 4f33ff46..7390a771 100644
 --- a/src/main/java/org/bukkit/conversations/ConversationContext.java
 +++ b/src/main/java/org/bukkit/conversations/ConversationContext.java
-@@ -46,6 +46,14 @@ public class ConversationContext {
+@@ -45,6 +45,14 @@ public class ConversationContext {
+         return forWhom;
      }
  
-     /**
++    /**
 +     * Gets the entire sessionData map.
 +     * @return The full sessionData map.
 +     */
@@ -19,10 +20,9 @@ index 4f33ff4..7390a77 100644
 +        return sessionData;
 +    }
 +
-+    /**
+     /**
       * Gets session data shared between all {@link Prompt} invocations. Use
       * this as a way to pass data through each Prompt as the conversation
-      * develops.
 -- 
-2.1.4
+2.32.0 (Apple Git-132)
 

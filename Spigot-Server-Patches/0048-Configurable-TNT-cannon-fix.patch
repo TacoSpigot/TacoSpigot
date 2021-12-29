@@ -1,14 +1,14 @@
-From 5585f2e02d7ba71ddff799e36040d6e154263525 Mon Sep 17 00:00:00 2001
+From c69e1d73ead531eae90d94cfd019be5a119ec9e6 Mon Sep 17 00:00:00 2001
 From: Iceee <andrew@opticgaming.tv>
 Date: Thu, 4 Jun 2015 13:55:02 -0700
 Subject: [PATCH] Configurable TNT cannon fix
 
 
 diff --git a/src/main/java/net/minecraft/server/BlockDiodeAbstract.java b/src/main/java/net/minecraft/server/BlockDiodeAbstract.java
-index ee49839..eaf9154 100644
+index 6c5bf3d7..ab5e7372 100644
 --- a/src/main/java/net/minecraft/server/BlockDiodeAbstract.java
 +++ b/src/main/java/net/minecraft/server/BlockDiodeAbstract.java
-@@ -72,6 +72,17 @@ public abstract class BlockDiodeAbstract extends BlockDirectional {
+@@ -62,6 +62,17 @@ public abstract class BlockDiodeAbstract extends BlockDirectional {
          } else {
              this.b(world, blockposition, iblockdata, 0);
              world.setAir(blockposition);
@@ -26,10 +26,10 @@ index ee49839..eaf9154 100644
              EnumDirection[] aenumdirection = EnumDirection.values();
              int i = aenumdirection.length;
  
-@@ -169,6 +180,17 @@ public abstract class BlockDiodeAbstract extends BlockDirectional {
+@@ -159,6 +170,17 @@ public abstract class BlockDiodeAbstract extends BlockDirectional {
  
      public void postBreak(World world, BlockPosition blockposition, IBlockData iblockdata) {
-         if (this.N) {
+         if (this.blockData) {
 +            // PaperSpigot start - Fix cannons
 +            if (world.paperSpigotConfig.fixCannons) {
 +                world.applyPhysics(blockposition.shift(EnumDirection.EAST), this);
@@ -45,7 +45,7 @@ index ee49839..eaf9154 100644
              int i = aenumdirection.length;
  
 diff --git a/src/main/java/net/minecraft/server/BlockRedstoneTorch.java b/src/main/java/net/minecraft/server/BlockRedstoneTorch.java
-index 6a7e7b3..78c6d19 100644
+index 6a7e7b31..78c6d195 100644
 --- a/src/main/java/net/minecraft/server/BlockRedstoneTorch.java
 +++ b/src/main/java/net/minecraft/server/BlockRedstoneTorch.java
 @@ -52,6 +52,17 @@ public class BlockRedstoneTorch extends BlockTorch {
@@ -85,7 +85,7 @@ index 6a7e7b3..78c6d19 100644
              int i = aenumdirection.length;
  
 diff --git a/src/main/java/net/minecraft/server/BlockRedstoneWire.java b/src/main/java/net/minecraft/server/BlockRedstoneWire.java
-index e5c675e..532188e 100644
+index e5c675ea..532188e2 100644
 --- a/src/main/java/net/minecraft/server/BlockRedstoneWire.java
 +++ b/src/main/java/net/minecraft/server/BlockRedstoneWire.java
 @@ -142,6 +142,17 @@ public class BlockRedstoneWire extends Block {
@@ -125,7 +125,7 @@ index e5c675e..532188e 100644
              int i = aenumdirection.length;
  
 diff --git a/src/main/java/net/minecraft/server/BlockTNT.java b/src/main/java/net/minecraft/server/BlockTNT.java
-index 27ce179..3d1e583 100644
+index 27ce179f..3d1e583f 100644
 --- a/src/main/java/net/minecraft/server/BlockTNT.java
 +++ b/src/main/java/net/minecraft/server/BlockTNT.java
 @@ -30,7 +30,11 @@ public class BlockTNT extends Block {
@@ -155,7 +155,7 @@ index 27ce179..3d1e583 100644
                  world.addEntity(entitytntprimed);
                  world.makeSound(entitytntprimed, "game.tnt.primed", 1.0F, 1.0F);
 diff --git a/src/main/java/net/minecraft/server/DispenserRegistry.java b/src/main/java/net/minecraft/server/DispenserRegistry.java
-index bc07d3d..cc7a1e3 100644
+index bc07d3de..cc7a1e31 100644
 --- a/src/main/java/net/minecraft/server/DispenserRegistry.java
 +++ b/src/main/java/net/minecraft/server/DispenserRegistry.java
 @@ -520,7 +520,11 @@ public class DispenserRegistry {
@@ -172,7 +172,7 @@ index bc07d3d..cc7a1e3 100644
                     world.getServer().getPluginManager().callEvent(event);
                  }
 diff --git a/src/main/java/net/minecraft/server/EntityFallingBlock.java b/src/main/java/net/minecraft/server/EntityFallingBlock.java
-index f2d0eee..36c384e 100644
+index f2d0eee0..36c384eb 100644
 --- a/src/main/java/net/minecraft/server/EntityFallingBlock.java
 +++ b/src/main/java/net/minecraft/server/EntityFallingBlock.java
 @@ -282,4 +282,22 @@ public class EntityFallingBlock extends Entity {
@@ -199,7 +199,7 @@ index f2d0eee..36c384e 100644
 +    // PaperSpigot end
  }
 diff --git a/src/main/java/net/minecraft/server/EntityTNTPrimed.java b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
-index 7a5fb2a..872d965 100644
+index 7a5fb2ac..872d9659 100644
 --- a/src/main/java/net/minecraft/server/EntityTNTPrimed.java
 +++ b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
 @@ -37,6 +37,7 @@ public class EntityTNTPrimed extends Entity {
@@ -277,7 +277,7 @@ index 7a5fb2a..872d965 100644
 +    // PaperSpigot end
  }
 diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
-index 78e3a7d..0e8af2e 100644
+index 78e3a7d0..0e8af2e1 100644
 --- a/src/main/java/net/minecraft/server/Explosion.java
 +++ b/src/main/java/net/minecraft/server/Explosion.java
 @@ -143,9 +143,16 @@ public class Explosion {
@@ -298,7 +298,7 @@ index 78e3a7d..0e8af2e 100644
                              this.k.put((EntityHuman) entity, new Vec3D(d8 * d13, d9 * d13, d10 * d13));
                          }
 diff --git a/src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java b/src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java
-index cffb5f0..180158b 100644
+index cffb5f01..180158bf 100644
 --- a/src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java
 +++ b/src/main/java/org/github/paperspigot/PaperSpigotWorldConfig.java
 @@ -261,4 +261,43 @@ public class PaperSpigotWorldConfig
@@ -346,5 +346,5 @@ index cffb5f0..180158b 100644
 +    }
  }
 -- 
-2.7.0
+2.32.0 (Apple Git-132)
 
