@@ -1,9 +1,6 @@
 #!/bin/bash -e
 cd "$(dirname "$0")"
 
-. util.sh
-. version.sh
-
 mkdir -p $(dirname ${NMS_JAR}) # Make the cache dir
 downloadfile "${NMS_JAR}" "${NMS_URL}" "${NMS_MD5}"
 
